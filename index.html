@@ -287,6 +287,9 @@ body.live-open #tours{opacity:0;pointer-events:none;transform:translateX(-12px)}
   #wxTemp{font-size:20px}
   #lview{max-height:46vh}
   #lcard{top:calc(env(safe-area-inset-top,0px) + 130px)}
+  #alertBar{margin:0 8px 8px;padding:6px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+  #alertBar b{display:inline;margin-right:6px}
+  #live:not(.open) #wxDesc br,#live:not(.open) #wxDesc br ~ *{display:none}
 }
 #radarStamp{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 18px);transform:translateX(-50%);padding:6px 12px;z-index:6;font:600 12px var(--font-data);transition:opacity .3s}
 #radarStamp[hidden]{display:block!important;opacity:0;pointer-events:none}
@@ -584,6 +587,7 @@ function init() {
       if (!window.__noIntro) setTimeout(() => cinematic(INTRO, 5200), 250);
     };
     map.once('idle', reveal); setTimeout(reveal, 9000);
+    map.once('idle', updateReadout);
   });
   map.on('move', throttle(updateReadout, 120));
   map.on('click', onClick);
@@ -1224,7 +1228,7 @@ const Live = (() => {
     let h = '';
     const blockedNote = `<div class="lempty">This preview runs in a sandbox that blocks outside data. Open the full site for live weather, radar, news, events, traffic, cameras and rivers:<br><a href="${SITE}" target="_blank" rel="noopener">${SITE.replace('https://', '')}</a></div>`;
     if (st.tab === 'now') {
-      if (st.alerts.length) h += '<div class="lsec">Weather alerts</div>' + st.alerts.map((a, i) => item({ k: 'alert', i, title: a.event, sum: a.headline, meta: `<span>${esc(a.severity)}</span><span>until ${esc(fmtWhen(a.ends || a.expires))}</span>` }, i)).join('');
+      if (st.alerts.length) h += '<div class="lsec">Weather alerts</div>' + st.alerts.map((a, i) => item({ k: 'alert', i, title: a.event, sum: (a.description || a.headline || '').replace(/^\*\s*/, '').replace(/\s*\*\s*/g, ' · '), meta: `<span>${esc(a.severity)}</span><span>until ${esc(fmtWhen(a.ends || a.expires))}</span>` }, i)).join('');
       if (st.wx) {
         const c = st.wx.current, d = st.wx.daily;
         const summit = st.grid && st.grid.summit;
@@ -1267,6 +1271,7 @@ const Live = (() => {
       if (st.fires.length) h = `<div class="lsec">Satellite fire detections, last 24 hours</div>` + st.fires.map((f, i) => item({ k: 'fire', i, title: `Heat detected by ${f.sat}`, sum: `${f.frp ? f.frp.toFixed(1) + ' MW fire radiative power. ' : ''}Confidence ${f.conf}.`, meta: `<span>${f.date} ${String(f.time).padStart(4, '0').replace(/(\d\d)(\d\d)/, '$1:$2')} UTC</span>` }, i)).join('') + '<div class="lsec">Rivers</div>' + h;
     }
     v.innerHTML = h;
+    if (render.last !== st.tab + st.filter) { render.last = st.tab + st.filter; v.scrollTop = 0; v.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.22,1.2,.36,1)' }); }
     v.querySelectorAll('.li').forEach(el => el.onclick = () => focus(el.dataset.k, +el.dataset.i));
     const ic = $('#intoClouds'); if (ic) ic.onclick = intoClouds;
     const cf = $('#clearF'); if (cf) cf.onclick = () => { st.filter = null; render(); };
@@ -1463,7 +1468,7 @@ const Live = (() => {
           gl_Position = u_m * vec4(pos, 1.0);
           float ang = a_p.w * 6.2831; mat2 R = mat2(cos(ang), -sin(ang), sin(ang), cos(ang));
           v_uv = R * a_q * 0.5 + 0.5; v_sh = a_q.y * 0.5 + 0.5; v_l = a_p.z;
-          v_a = a_p.y * edge * smoothstep(u_near * 0.04, u_near * 0.35, gl_Position.w);
+          v_a = a_p.y * edge * smoothstep(u_near * 0.12, u_near * 0.55, gl_Position.w);
         }`;
       const fs = `precision mediump float;
         uniform sampler2D u_tex; uniform vec3 u_top, u_bot; uniform float u_op;
@@ -1536,7 +1541,7 @@ const Live = (() => {
   };
   function addCloudLayer() { if (!map.getLayer(Clouds.id) && Clouds.n) map.addLayer(Clouds, 'lbl-water'); }
   // cloud color follows the same sun as the rest of the scene
-  const CLOUD_STOPS = [[-18, '#3a4258', '#161b27'], [-9, '#454b69', '#1d2031'], [-3, '#b4889a', '#463f58'], [2, '#ffc590', '#6c5f72'], [10, '#fff0dc', '#8a8c98'], [28, '#ffffff', '#9aa3ae']];
+  const CLOUD_STOPS = [[-18, '#3a4258', '#161b27'], [-9, '#454b69', '#1d2031'], [-3, '#b98c9e', '#5a5470'], [2, '#ffc994', '#8b808e'], [10, '#fff2e0', '#a2a3ad'], [28, '#ffffff', '#aeb6c0']];
   function cloudLight(alt, moonLift) {
     let i = 0; while (i < CLOUD_STOPS.length - 2 && alt > CLOUD_STOPS[i + 1][0]) i++;
     const A = CLOUD_STOPS[i], B = CLOUD_STOPS[i + 1]; const t = Math.max(0, Math.min(1, (alt - A[0]) / (B[0] - A[0])));
@@ -1585,7 +1590,8 @@ const Live = (() => {
       }
       feats.push({ type: 'Feature', geometry: geom, properties: { event: f.properties.event, severity: f.properties.severity } });
     }
-    st.alerts = [...seen.values()].map(f => f.properties).sort((a, b) => ({ Extreme: 0, Severe: 1, Moderate: 2, Minor: 3 }[a.severity] ?? 4) - ({ Extreme: 0, Severe: 1, Moderate: 2, Minor: 3 }[b.severity] ?? 4));
+    const uniq = new Map(); [...seen.values()].forEach(f => { const p = f.properties; const k = p.event + '|' + (p.ends || p.expires); if (!uniq.has(k)) uniq.set(k, p); });
+    st.alerts = [...uniq.values()].sort((a, b) => ({ Extreme: 0, Severe: 1, Moderate: 2, Minor: 3 }[a.severity] ?? 4) - ({ Extreme: 0, Severe: 1, Moderate: 2, Minor: 3 }[b.severity] ?? 4));
     const src = map.getSource('alerts'); const fc = { type: 'FeatureCollection', features: feats.filter(f => f.geometry) };
     if (src) src.setData(fc);
     else {
@@ -1594,7 +1600,7 @@ const Live = (() => {
       map.addLayer({ id: 'alerts-line', type: 'line', source: 'alerts', paint: { 'line-color': ['match', ['get', 'severity'], ['Extreme', 'Severe'], '#ff5a4f', '#ffb340'], 'line-width': 2.2, 'line-blur': 1.5, 'line-opacity': 0.9 } }, 'park-glow');
     }
     const bar = $('#alertBar');
-    if (st.alerts.length) { const a = st.alerts[0]; bar.innerHTML = `<b>${esc(a.event)}</b>${esc(a.headline || '')}${st.alerts.length > 1 ? ` · +${st.alerts.length - 1} more` : ''}`; bar.classList.add('on'); }
+    if (st.alerts.length) { const a = st.alerts[0]; bar.innerHTML = `<b>${esc(a.event)}</b>until ${esc(fmtWhen(a.ends || a.expires))}${a.senderName ? ' · ' + esc(a.senderName.replace(/^NWS /, 'NWS ')) : ''}${st.alerts.length > 1 ? ` · +${st.alerts.length - 1} more` : ''}`; bar.classList.add('on'); }
     else bar.classList.remove('on');
   }
 
