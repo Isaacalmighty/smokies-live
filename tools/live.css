@@ -54,8 +54,10 @@ body.live-open #tours{opacity:0;pointer-events:none;transform:translateX(-12px)}
 .camwrap .tag.live::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#ff4d4d;margin-right:5px;vertical-align:1px;animation:pulse 2s infinite}
 
 /* map pins */
+.lpinbox.tucked .lpin{opacity:0;transform:rotate(-45deg) scale(.4)!important;pointer-events:none}
+.lpinbox.tucked{pointer-events:none}
 .lpinbox{width:34px;height:40px;display:flex;align-items:flex-end;justify-content:center;cursor:pointer}
-.lpin{position:relative;width:30px;height:30px;margin-bottom:6px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg) scale(0);display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.85);animation:pinpop .6s var(--ease-out) forwards}
+.lpin{position:relative;transition:opacity .25s,transform .35s var(--ease-out);width:30px;height:30px;margin-bottom:6px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg) scale(0);display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.85);animation:pinpop .6s var(--ease-out) forwards}
 .lpin svg{transform:rotate(45deg);width:15px;height:15px}
 .lpin:hover{filter:brightness(1.15)}
 @keyframes pinpop{0%{transform:rotate(-45deg) scale(0) translateY(10px)}60%{transform:rotate(-45deg) scale(1.18,0.9)}80%{transform:rotate(-45deg) scale(.95,1.05)}100%{transform:rotate(-45deg) scale(1)}}

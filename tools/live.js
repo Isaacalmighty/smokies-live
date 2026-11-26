@@ -57,7 +57,7 @@ const Live = (() => {
     const grp = document.createElement('div'); grp.className = 'group';
     grp.innerHTML = '<div class="eyebrow">Live</div>' + [['clouds', '3D clouds'], ['radar', 'Rain radar'], ['traffic', 'Traffic'], ['cams', 'Cameras'], ['news', 'News &amp; events'], ['rivers', 'Rivers &amp; fires']].map(([k, v]) => `<button class="toggle" data-live="${k}" aria-pressed="${st.on[k]}"><span class="k">${v}</span><span class="sw"></span></button>`).join('');
     $('#rail').insertBefore(grp, $('#rail').children[1]);
-    grp.querySelectorAll('.toggle').forEach(b => b.onclick = () => { const k = b.dataset.live; const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); st.on[k] = on; applyToggles(k); });
+    grp.querySelectorAll('.toggle').forEach(b => b.onclick = () => { const k = b.dataset.live; if (k === 'radar') st.radarTouched = true; const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); st.on[k] = on; applyToggles(k); });
     // phones get a Live button in the bottom bar
     const mb = document.createElement('button'); mb.id = 'm-live'; mb.setAttribute('aria-pressed', 'false'); mb.textContent = 'Live';
     $('#mobileBar').prepend(mb);
@@ -161,7 +161,9 @@ const Live = (() => {
     if (count) { const b = document.createElement('b'); b.className = 'lcount'; b.textContent = count > 99 ? '99+' : count; el.appendChild(b); }
     box.appendChild(el);
     box.addEventListener('click', e => { e.stopPropagation(); onTap ? onTap() : focus(kind, i); });
-    return new maplibregl.Marker({ element: box, anchor: 'bottom', pitchAlignment: 'viewport' }).setLngLat([lng, lat]).addTo(map);
+    const mk = new maplibregl.Marker({ element: box, anchor: 'bottom', pitchAlignment: 'viewport' }).setLngLat([lng, lat]).addTo(map);
+    mk._prio = ({ fire: 95, alert: 92, traffic: 70, news: 50, event: 40, cam: 30, gauge: 20 }[kind] || 10) + (hot ? 8 : 0) + Math.min(20, count || 0);
+    return mk;
   }
   function clearPins(group) { (st.markers[group] || []).forEach(m => m && m.remove()); st.markers[group] = []; }
   function spread(list) { // fan out pins that share a spot so each stays tappable
@@ -185,6 +187,7 @@ const Live = (() => {
     }
     if (st.on.traffic) st.traffic.incidents.forEach((n, i) => st.markers.traffic.push(pin('traffic', n.lng, n.lat, i, /clos/i.test(n.title + n.desc))));
     if (st.on.cams) st.traffic.cameras.forEach((c, i) => st.markers.cams.push(pin('cam', c.lng, c.lat, i, c.live || c.still)));
+    requestAnimationFrame(declutter);
     if (st.on.rivers) { st.gauges.forEach((g, i) => st.markers.rivers.push(pin('gauge', g.lng, g.lat, i, trend(g.cfs24).includes('rising')))); st.fires.forEach((f, i) => st.markers.rivers.push(pin('fire', f.lng, f.lat, i, true))); }
   }
   function showPlace(g) { // tapping a busy town lists everything there
@@ -192,6 +195,17 @@ const Live = (() => {
     document.querySelectorAll('.ltabs button').forEach(x => x.setAttribute('aria-selected', x.dataset.t === 'news'));
     setOpen(true); render();
     stopOrbit(); map.flyTo({ center: [g.place.lng, g.place.lat], zoom: Math.max(map.getZoom(), 14), pitch: 60, duration: 2400, easing: easeInOut, essential: true });
+  }
+  // keep pins from piling up: when two would overlap on screen, the more important one stays
+  function declutter() {
+    const all = Object.values(st.markers).flat().filter(Boolean).sort((a, b) => b._prio - a._prio);
+    const kept = []; const R = innerWidth < 760 ? 30 : 34;
+    for (const m of all) {
+      const p = map.project(m.getLngLat());
+      const show = !kept.some(q => Math.abs(q.x - p.x) < R && Math.abs(q.y - p.y) < R * 1.1);
+      if (show) kept.push(p);
+      const el = m.getElement(); if (el._shown !== show) { el._shown = show; el.classList.toggle('tucked', !show); }
+    }
   }
   function lookup(kind, i) {
     if (kind === 'news') return st.news[i]; if (kind === 'event') return st.events[i]; if (kind === 'traffic') return st.traffic.incidents[i];
@@ -228,7 +242,7 @@ const Live = (() => {
   async function loadWeather() {
     const pts = [...GRID, [-83.4357, 35.6545]];
     const base = 'https://api.open-meteo.com/v1/forecast?';
-    const gridURL = base + `latitude=${pts.map(p => p[1].toFixed(3)).join(',')}&longitude=${pts.map(p => p[0].toFixed(3)).join(',')}&current=temperature_2m,dew_point_2m,relative_humidity_2m,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph`;
+    const gridURL = base + `latitude=${pts.map(p => p[1].toFixed(3)).join(',')}&longitude=${pts.map(p => p[0].toFixed(3)).join(',')}&current=temperature_2m,dew_point_2m,relative_humidity_2m,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation,rain,showers,snowfall,weather_code,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph`;
     const ptURL = base + 'latitude=35.714&longitude=-83.512&current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,visibility,precipitation&hourly=temperature_2m,weather_code,precipitation_probability,is_day&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FNew_York&forecast_days=2';
     const [g, w] = await Promise.allSettled([jget(gridURL), jget(ptURL)]);
     if (w.status === 'fulfilled') { st.wx = w.value; st.updated.wx = new Date().toISOString(); chip(); applyLiveWind(); }
@@ -238,6 +252,8 @@ const Live = (() => {
       st.grid = { cells, summit: arr[GRID.length] && arr[GRID.length].current, low: mean('cloud_cover_low'), mid: mean('cloud_cover_mid'), high: mean('cloud_cover_high'), wind: mean('wind_speed_10m'), dir: cells[20].wind_direction_10m };
       sky.cloud = Math.max(st.grid.low, st.grid.mid, st.grid.high * 0.6) / 100; drawSkyCanvas();
       Clouds.build(st.grid);
+      Rain.update(st.grid, st.wx);
+      if (Rain.rate > 0.05 && !st.radarTouched && !st.on.radar) { st.on.radar = true; const b = document.querySelector('[data-live="radar"]'); if (b) b.setAttribute('aria-pressed', 'true'); loadRadar().catch(() => {}); }
       autoFog();
     }
     if (g.status === 'rejected' && w.status === 'rejected') throw g.reason;
@@ -286,8 +302,9 @@ const Live = (() => {
       };
       const small = innerWidth < 760 ? 0.55 : 1;
       const LAYERS = [
-        { key: 'cloud_cover_low', count: 2600, size: [1100, 2600], alpha: 0.5, thick: 700, base: (lng, lat) => cover(lng, lat, v => v('elev') + Math.max(150, (v('temperature_2m') - v('dew_point_2m')) * 0.5556 * 125)) },
-        { key: 'cloud_cover_mid', count: 1200, size: [2200, 4200], alpha: 0.38, thick: 1200, base: () => 3200 },
+        // kept above the highest peaks (Kuwohi is 2,025 m) so the map stays readable under an overcast sky
+        { key: 'cloud_cover_low', count: 2600, size: [1300, 2800], alpha: 0.4, thick: 600, base: (lng, lat) => Math.max(2350, cover(lng, lat, v => v('elev') + Math.max(150, (v('temperature_2m') - v('dew_point_2m')) * 0.5556 * 125))) },
+        { key: 'cloud_cover_mid', count: 1200, size: [2200, 4200], alpha: 0.32, thick: 1200, base: () => 3800 },
         { key: 'cloud_cover_high', count: 380, size: [5000, 9000], alpha: 0.2, thick: 400, base: () => 8200 },
       ];
       const P = [];
@@ -370,7 +387,7 @@ const Live = (() => {
       gl.uniform1f(this.loc.u_t, t); gl.uniform1f(this.loc.u_near, map.transform.cameraToCenterDistance || 800);
       gl.uniform2f(this.loc.u_dom, this.dom[0], this.dom[1]);
       gl.uniform2fv(this.loc.u_w0, this.wind[0]); gl.uniform2fv(this.loc.u_w1, this.wind[1]); gl.uniform2fv(this.loc.u_w2, this.wind[2]);
-      gl.uniform3fv(this.loc.u_top, this.light.top); gl.uniform3fv(this.loc.u_bot, this.light.bot); gl.uniform1f(this.loc.u_op, this.opacity);
+      gl.uniform3fv(this.loc.u_top, this.light.top); gl.uniform3fv(this.loc.u_bot, this.light.bot); gl.uniform1f(this.loc.u_op, this.opacity * zoomFade(map.getZoom()));
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.tex); gl.uniform1i(this.loc.u_tex, 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
       const F = 4 * 9;
@@ -396,6 +413,8 @@ const Live = (() => {
       gl.bindBuffer(gl.ARRAY_BUFFER, this.buf); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW);
     },
   };
+  // clouds read as a sky from far out and get out of the way as you zoom in
+  const zoomFade = z => z <= 9.5 ? 0.85 : z >= 14 ? 0.32 : 0.85 - (z - 9.5) / 4.5 * 0.53;
   function addCloudLayer() { if (!map.getLayer(Clouds.id) && Clouds.n) map.addLayer(Clouds, 'lbl-water'); }
   // cloud color follows the same sun as the rest of the scene
   const CLOUD_STOPS = [[-18, '#3a4258', '#161b27'], [-9, '#454b69', '#1d2031'], [-3, '#b98c9e', '#5a5470'], [2, '#ffc994', '#8b808e'], [10, '#fff2e0', '#a2a3ad'], [28, '#ffffff', '#aeb6c0']];
@@ -406,6 +425,83 @@ const Live = (() => {
     const lift = 1 + moonLift * 1.3;
     Clouds.light = { top: mix(A[1], B[1]).map(v => Math.min(1, v * lift)), bot: mix(A[2], B[2]).map(v => Math.min(1, v * lift)) };
   }
+
+  /* 3D rain or snow: streaks fall from the cloud base onto the terrain around wherever you are looking.
+     Driven by live precipitation; only drawn when zoomed in, where it can be seen. */
+  const Rain = {
+    id: 'rain3d', type: 'custom', renderingMode: '3d', rate: 0, snow: false, n: 0, t0: performance.now(),
+    update(g, wx) {
+      const c = map.getCenter();
+      // nearest grid cells, weighted by distance, give the rate where you are looking
+      let sw = 0, sr = 0, st2 = 0;
+      g.cells.forEach((cell, i) => { const p = GRID[i]; const d = Math.hypot((p[0] - c.lng) * 0.81, p[1] - c.lat) + 0.03; const w = 1 / (d * d); sw += w; sr += w * (cell.precipitation || 0) * 4; st2 += w * cell.temperature_2m; });
+      let rate = sr / sw; const temp = st2 / sw;
+      if (wx && wx.current && wx.current.precipitation > 0) rate = Math.max(rate, wx.current.precipitation * 4); // mm per hour
+      this.rate = rate; this.snow = temp <= 33.5;
+      this.windDir = g.dir ?? 225; this.wind = g.wind || 5;
+      if (this.rate > 0.03) { if (!map.getLayer(this.id)) map.addLayer(this, 'lbl-water'); } else if (map.getLayer(this.id)) map.removeLayer(this.id);
+    },
+    onAdd(m, gl) {
+      const vs = `precision highp float;
+        uniform mat4 u_m; uniform float u_half, u_bot, u_h, u_t, u_len, u_snow; uniform vec2 u_slant;
+        attribute vec4 a_s; attribute float a_e;
+        varying float v_a;
+        void main(){
+          float z = u_bot + u_h - mod(u_t * (u_snow > 0.5 ? 0.22 : 1.0) * (0.85 + a_s.w * 0.3) * u_h / 1.4 + a_s.z * u_h, u_h);
+          vec2 xy = (a_s.xy * 2.0 - 1.0) * u_half;
+          xy += u_slant * (u_bot + u_h - z) / u_h;
+          if (u_snow > 0.5) xy += vec2(sin(u_t * 1.3 + a_s.z * 40.0), cos(u_t * 1.1 + a_s.w * 30.0)) * u_half * 0.012;
+          float len = u_snow > 0.5 ? u_len * 0.06 : u_len;
+          vec3 p = vec3(xy, z + a_e * len);
+          p.xy -= a_e * u_slant * len / u_h;
+          gl_Position = u_m * vec4(p, 1.0);
+          gl_PointSize = 2.0;
+          float r = length(a_s.xy * 2.0 - 1.0);
+          float top = (z - u_bot) / u_h;
+          v_a = smoothstep(1.0, 0.55, r) * smoothstep(1.0, 0.8, top) * smoothstep(0.0, 0.06, top) * (a_e > 0.5 ? 0.15 : 1.0);
+        }`;
+      const fs = `precision mediump float; uniform vec3 u_col; uniform float u_alpha; varying float v_a;
+        void main(){ float a = v_a * u_alpha; gl_FragColor = vec4(u_col * a, a); }`;
+      const sh = (t, src) => { const s2 = gl.createShader(t); gl.shaderSource(s2, src); gl.compileShader(s2); if (!gl.getShaderParameter(s2, gl.COMPILE_STATUS)) console.warn(gl.getShaderInfoLog(s2)); return s2; };
+      const p = this.prog = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
+      this.loc = {}; ['u_m', 'u_half', 'u_bot', 'u_h', 'u_t', 'u_len', 'u_snow', 'u_slant', 'u_col', 'u_alpha'].forEach(k => this.loc[k] = gl.getUniformLocation(p, k));
+      this.loc.a_s = gl.getAttribLocation(p, 'a_s'); this.loc.a_e = gl.getAttribLocation(p, 'a_e');
+      const N = this.n = innerWidth < 760 ? 5000 : 11000; const arr = new Float32Array(N * 2 * 5);
+      let sd = 11; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647; let o = 0;
+      for (let i = 0; i < N; i++) { const x = r(), y = r(), ph = r(), sp = r(); for (let e = 0; e < 2; e++) { arr[o++] = x; arr[o++] = y; arr[o++] = ph; arr[o++] = sp; arr[o++] = e; } }
+      this.buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.buf); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
+    },
+    render(gl, args) {
+      const z = map.getZoom(); const zf = Math.max(0, Math.min(1, (z - 10.8) / 1.6)); if (zf <= 0 || this.rate <= 0.03) return;
+      const M = args.defaultProjectionData ? args.defaultProjectionData.mainMatrix : args.modelViewProjectionMatrix || args;
+      const c = map.getCenter(); const O = maplibregl.MercatorCoordinate.fromLngLat(c, 0); const mpu = O.meterInMercatorCoordinateUnits();
+      const Mm = new Float32Array(16); for (let i = 0; i < 16; i++) Mm[i] = M[i];
+      for (let i = 0; i < 4; i++) Mm[12 + i] = M[i] * O.x + M[4 + i] * O.y + M[12 + i];
+      const halfM = 2600 * Math.pow(2, 13 - z); // the column covers the view at any zoom
+      const ground = (map.queryTerrainElevation(c) ?? 600 * EXAG);
+      const H = Math.min(2350 * EXAG - ground + 400, halfM * 2.2);
+      const intensity = Math.min(1, 0.25 + Math.sqrt(this.rate) * 0.35);
+      const lit = sky.sun ? Math.max(0.25, Math.min(1, (sky.sun.alt + 6) / 16)) : 1;
+      const t = (performance.now() - this.t0) / 1000;
+      const to = (this.windDir + 180) * RAD, slantM = H * Math.min(0.5, this.wind / 40) * (this.snow ? 1.4 : 1);
+      gl.useProgram(this.prog);
+      gl.uniformMatrix4fv(this.loc.u_m, false, Mm);
+      gl.uniform1f(this.loc.u_half, halfM * mpu); gl.uniform1f(this.loc.u_bot, (ground - 250) * mpu); gl.uniform1f(this.loc.u_h, Math.max(300, H) * mpu);
+      gl.uniform1f(this.loc.u_t, t); gl.uniform1f(this.loc.u_len, (this.snow ? 1 : 0.045) * Math.max(300, H) * mpu); gl.uniform1f(this.loc.u_snow, this.snow ? 1 : 0);
+      gl.uniform2f(this.loc.u_slant, Math.sin(to) * slantM * mpu, -Math.cos(to) * slantM * mpu);
+      gl.uniform3fv(this.loc.u_col, this.snow ? [lit, lit, lit] : [0.72 * lit + 0.1, 0.8 * lit + 0.1, 0.9 * lit + 0.1]);
+      gl.uniform1f(this.loc.u_alpha, zf * intensity * (this.snow ? 0.95 : 0.5));
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+      gl.enableVertexAttribArray(this.loc.a_s); gl.vertexAttribPointer(this.loc.a_s, 4, gl.FLOAT, false, 20, 0);
+      gl.enableVertexAttribArray(this.loc.a_e); gl.vertexAttribPointer(this.loc.a_e, 1, gl.FLOAT, false, 20, 16);
+      gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(false);
+      const count = Math.round(this.n * Math.min(1, 0.3 + this.rate / 4));
+      if (this.snow) gl.drawArrays(gl.POINTS, 0, count * 2); else gl.drawArrays(gl.LINES, 0, count * 2);
+      gl.disableVertexAttribArray(this.loc.a_s); gl.disableVertexAttribArray(this.loc.a_e);
+      if (!this._rq && !document.hidden) this._rq = setTimeout(() => { this._rq = 0; map.triggerRepaint(); }, 33);
+    },
+  };
 
   /* ---------- rain radar (RainViewer), animated loop of the last two hours ---------- */
   let radarTimer = 0;
@@ -423,7 +519,7 @@ const Live = (() => {
       map.addLayer({ id, type: 'raster', source: id, paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 600 }, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } }, 'park-glow');
     });
     let k = 0; const n = R.frames.length;
-    const step = () => { for (let i = 0; i < n; i++) map.setPaintProperty('radar' + i, 'raster-opacity', i === k ? 0.72 : 0); const d = new Date(R.frames[k].time * 1000); showToastQuiet(`Radar ${d.toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' })}`); k = (k + 1) % n; radarTimer = setTimeout(step, k === 0 ? 1800 : 650); };
+    const step = () => { for (let i = 0; i < n; i++) map.setPaintProperty('radar' + i, 'raster-opacity', i === k ? ['interpolate', ['linear'], ['zoom'], 10.5, 0.7, 12.5, 0] : 0); const d = new Date(R.frames[k].time * 1000); showToastQuiet(`Radar ${d.toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' })}`); k = (k + 1) % n; radarTimer = setTimeout(step, k === 0 ? 1800 : 650); };
     step();
   }
   function hideRadar() { clearTimeout(radarTimer); for (let i = 0; i < 16; i++) { if (map.getLayer('radar' + i)) map.removeLayer('radar' + i); if (map.getSource('radar' + i)) map.removeSource('radar' + i); } }
@@ -549,6 +645,8 @@ const Live = (() => {
   async function refreshSlow() { await Promise.all([safe(loadWeather, 'weather'), safe(loadFeeds, 'feeds'), st.on.radar ? safe(loadRadar, 'radar') : null]); counts(); drawPins(); render(); }
   async function init() {
     buildUI();
+    map.on('moveend', () => { if (st.grid) Rain.update(st.grid, st.wx); declutter(); });
+    map.on('move', throttle(declutter, 140));
     const stamp = document.createElement('div'); stamp.id = 'radarStamp'; stamp.className = 'panel'; stamp.hidden = true; document.body.appendChild(stamp);
     if (st.on.traffic) addFlow();
     // the artifact preview blocks outside requests; find out once, quietly
@@ -565,5 +663,5 @@ const Live = (() => {
     setInterval(flowColor, 60e3);
     setInterval(() => { if (st.tab === 'cams' && $('#live').classList.contains('open')) document.querySelectorAll('#lview .li[data-k="cam"]').forEach(el => { const c = st.traffic.cameras[+el.dataset.i]; const im = el.querySelector('img'); if (c && c.still && im) im.src = camSrc(c); }); }, 300e3);
   }
-  return { init, st, cloudLight, flowColor, Clouds, focus, render };
+  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render };
 })();
