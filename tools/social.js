@@ -7,8 +7,8 @@
 const Social = (() => {
   const SITE = 'https://isaacalmighty.github.io/smokies-live/';
   // Supabase project (public URL and anon key; data is protected by row-level security). Empty = device-only mode.
-  const SUPA = { url: '', key: '' };
-  const SUPA_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js';
+  const SUPA = { url: 'https://uamuqhkpbszogmdusfqr.supabase.co', key: 'sb_publishable_Y0fiNms2M0TI1Ph_ITWk0Q_hk2TS848' };
+  const SUPA_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.79.0/dist/umd/supabase.js';
   const S = { view: 'map', posts: [], likes: {}, saved: {}, comments: {}, me: null, stories: [], storyAt: 0, pins: [], seen: 0 };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ago = iso => { if (!iso) return ''; const s = (Date.now() - new Date(iso)) / 1000; if (s < 0) return 'upcoming'; if (s < 60) return 'now'; if (s < 3600) return Math.round(s / 60) + 'm'; if (s < 86400) return Math.round(s / 3600) + 'h'; if (s < 7 * 86400) return Math.round(s / 86400) + 'd'; return new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }); };
@@ -49,6 +49,7 @@ const Social = (() => {
       try {
         await new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = SUPA_JS; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); });
         this.sb = window.supabase.createClient(SUPA.url, SUPA.key, { auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' } });
+        const probe = await this.sb.from('post_feed').select('id').limit(1); if (probe.error) throw new Error('tables not set up: ' + probe.error.message);
         const { data } = await this.sb.auth.getSession(); this.user = data.session ? data.session.user : null;
         this.on = true; Store.shared = true;
         this.sb.auth.onAuthStateChange(async (ev, ses) => { const was = this.user && this.user.id; this.user = ses ? ses.user : null; if ((this.user && this.user.id) !== was) { await this.loadMe(); await this.loadFeed(); refresh(); if (ev === 'SIGNED_IN') showToast('Signed in'); } });
