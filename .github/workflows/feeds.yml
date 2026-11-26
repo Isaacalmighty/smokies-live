@@ -1,0 +1,42 @@
+name: Refresh live feeds
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: 'Also probe browser-side APIs and record samples'
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: feeds
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+      - name: Check out feeds branch
+        run: |
+          git fetch --depth 1 origin feeds && git worktree add feeds origin/feeds -B feeds || {
+            git worktree add --orphan -b feeds feeds; }
+      - name: Fetch feeds
+        env:
+          TDOT_API_KEY: ${{ secrets.TDOT_API_KEY }}
+          NPS_API_KEY: ${{ secrets.NPS_API_KEY }}
+          PROBE: ${{ inputs.probe && '1' || '0' }}
+        run: python3 scripts/fetch_feeds.py feeds/live
+      - name: Publish
+        working-directory: feeds
+        run: |
+          git config user.name "smokies-live-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add live
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          git commit -qm "Feeds $(date -u +%FT%TZ)"
+          git push origin feeds
