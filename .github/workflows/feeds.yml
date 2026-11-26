@@ -22,9 +22,11 @@ jobs:
         with:
           sparse-checkout: scripts
       - name: Check out feeds branch
+        env:
+          TOKEN: ${{ github.token }}
         run: |
-          git fetch --depth 1 origin feeds && git worktree add feeds origin/feeds -B feeds || {
-            git worktree add --orphan -b feeds feeds; }
+          URL="https://x-access-token:${TOKEN}@github.com/${{ github.repository }}"
+          git clone -q --depth 1 --branch feeds "$URL" feeds || { mkdir feeds && cd feeds && git init -q -b feeds && git remote add origin "$URL"; }
       - name: Fetch feeds
         env:
           TDOT_API_KEY: ${{ secrets.TDOT_API_KEY }}

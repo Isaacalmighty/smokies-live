@@ -91,7 +91,13 @@ NS = {'media': 'http://search.yahoo.com/mrss/', 'atom': 'http://www.w3.org/2005/
 
 
 def parse_feed(data):
-    root = ET.fromstring(data)
+    try:
+        root = ET.fromstring(data)
+    except ET.ParseError:  # common feed sloppiness: bare ampersands and control characters
+        t = data.decode('utf8', 'replace')
+        t = re.sub(r'&(?!(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);)', '&amp;', t)
+        t = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', t)
+        root = ET.fromstring(t.encode('utf8'))
     items = []
     for it in root.iter('item'):
         g = lambda tag: (it.findtext(tag) or '').strip()
@@ -116,8 +122,8 @@ def parse_feed(data):
 
 # ---------------------------------------------------------------- news
 NEWS = [
-    ('The Mountain Press', 'https://www.themountainpress.com/search/?f=rss&t=article&l=50&s=start_time&sd=desc'),
-    ('The Mountain Press', 'https://www.themountainpress.com/search/?f=rss&t=article&c=news/local&l=50&s=start_time&sd=desc'),
+    # The Mountain Press rate-limits automated requests, so its stories come through Google News
+    ('Google News', 'https://news.google.com/rss/search?q=site:themountainpress.com+when:7d&hl=en-US&gl=US&ceid=US:en'),
     ('WBIR 10News', 'https://www.wbir.com/feeds/syndication/rss/news/local'),
     ('WATE 6', 'https://www.wate.com/news/local-news/sevier-county/feed/'),
     ('WVLT', 'https://www.wvlt.tv/arc/outboundfeeds/rss/?outputType=xml'),
@@ -164,7 +170,6 @@ EVENTS = [
     ('Gatlinburg', 'https://www.gatlinburg.com/event/rss/'),
     ('Pigeon Forge', 'https://www.mypigeonforge.com/event/rss/'),
     ('Sevierville', 'https://www.visitsevierville.com/event/rss/'),
-    ('The Mountain Press', 'https://www.themountainpress.com/search/?f=rss&t=event&l=50'),
     ('Google News', 'https://news.google.com/rss/search?q=(Gatlinburg+OR+%22Pigeon+Forge%22+OR+Sevierville)+(festival+OR+parade+OR+concert+OR+event)+when:14d&hl=en-US&gl=US&ceid=US:en'),
 ]
 
