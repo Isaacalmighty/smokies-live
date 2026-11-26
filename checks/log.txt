@@ -1,2 +1,2 @@
-desktop state {"blocked":false,"wx":true,"puffs":3937,"alerts":[],"news":0,"events":0,"incidents":0,"cams":0,"gauges":0,"fires":0,"sky":"9:21 AM · Daylight","chip":"Overcast in Gatlinburg · wind 3 mph S"}
-phone state {"blocked":false,"wx":true,"puffs":2165,"alerts":["Wind Advisory","Wind Advisory"],"news":78,"events":77,"incidents":3,"cams":5,"gauges":11,"fires":0,"sky":"9:25 AM · Daylight","chip":"Overcast in Gatlinburg · wind 3 mph S"}
+desktop state {"blocked":false,"wx":true,"puffs":3004,"alerts":[],"news":0,"events":0,"incidents":0,"cams":0,"gauges":0,"fires":0,"sky":"11:16 AM · Daylight","chip":"Drizzle in Gatlinburg · wind 2 mph N"}
+phone state {"blocked":false,"wx":true,"puffs":1652,"alerts":["Wind Advisory"],"news":80,"events":56,"incidents":3,"cams":5,"gauges":0,"fires":0,"sky":"11:21 AM · Daylight","chip":"Drizzle in Gatlinburg · wind 2 mph N"}
