@@ -480,7 +480,7 @@ const Live = (() => {
       const halfM = 2600 * Math.pow(2, 13 - z); // the column covers the view at any zoom
       const ground = (map.queryTerrainElevation(c) ?? 600 * EXAG);
       const H = Math.min(2350 * EXAG - ground + 400, halfM * 2.2);
-      const intensity = Math.min(1, 0.25 + Math.sqrt(this.rate) * 0.35);
+      const intensity = Math.min(1, 0.42 + Math.sqrt(this.rate) * 0.35); // even drizzle should read
       const lit = sky.sun ? Math.max(0.25, Math.min(1, (sky.sun.alt + 6) / 16)) : 1;
       const t = (performance.now() - this.t0) / 1000;
       const to = (this.windDir + 180) * RAD, slantM = H * Math.min(0.5, this.wind / 40) * (this.snow ? 1.4 : 1);
@@ -496,7 +496,7 @@ const Live = (() => {
       gl.enableVertexAttribArray(this.loc.a_e); gl.vertexAttribPointer(this.loc.a_e, 1, gl.FLOAT, false, 20, 16);
       gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(false);
-      const count = Math.round(this.n * Math.min(1, 0.3 + this.rate / 4));
+      const count = Math.round(this.n * Math.min(1, 0.42 + this.rate / 4));
       if (this.snow) gl.drawArrays(gl.POINTS, 0, count * 2); else gl.drawArrays(gl.LINES, 0, count * 2);
       gl.disableVertexAttribArray(this.loc.a_s); gl.disableVertexAttribArray(this.loc.a_e);
       if (!this._rq && !document.hidden) this._rq = setTimeout(() => { this._rq = 0; map.triggerRepaint(); }, 33);
