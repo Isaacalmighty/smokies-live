@@ -1,2 +1,4 @@
-desktop state {"blocked":false,"wx":true,"puffs":3004,"alerts":[],"news":0,"events":0,"incidents":0,"cams":0,"gauges":0,"fires":0,"sky":"11:16 AM · Daylight","chip":"Drizzle in Gatlinburg · wind 2 mph N"}
-phone state {"blocked":false,"wx":true,"puffs":1652,"alerts":["Wind Advisory"],"news":80,"events":56,"incidents":3,"cams":5,"gauges":0,"fires":0,"sky":"11:21 AM · Daylight","chip":"Drizzle in Gatlinburg · wind 2 mph N"}
+desktop state {"blocked":false,"wx":true,"puffs":2953,"alerts":[],"news":80,"events":56,"incidents":3,"cams":5,"gauges":0,"fires":0,"sky":"1:01 PM · Daylight","chip":"Drizzle in Gatlinburg · wind 2 mph W"}
+desktop console error Failed to load resource: the server responded with a status of 404 ()
+phone console error Failed to load resource: the server responded with a status of 404 ()
+phone state {"blocked":false,"wx":true,"puffs":1624,"alerts":["Wind Advisory"],"news":80,"events":56,"incidents":3,"cams":5,"gauges":11,"fires":0,"sky":"1:05 PM · Daylight","chip":"Drizzle in Gatlinburg · wind 2 mph W"}
