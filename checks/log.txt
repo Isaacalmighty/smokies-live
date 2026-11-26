@@ -1,4 +1,2 @@
-desktop state {"blocked":false,"wx":true,"puffs":2953,"alerts":[],"news":80,"events":56,"incidents":3,"cams":5,"gauges":0,"fires":0,"sky":"1:01 PM · Daylight","chip":"Drizzle in Gatlinburg · wind 2 mph W"}
-desktop console error Failed to load resource: the server responded with a status of 404 ()
-phone console error Failed to load resource: the server responded with a status of 404 ()
-phone state {"blocked":false,"wx":true,"puffs":1624,"alerts":["Wind Advisory"],"news":80,"events":56,"incidents":3,"cams":5,"gauges":11,"fires":0,"sky":"1:05 PM · Daylight","chip":"Drizzle in Gatlinburg · wind 2 mph W"}
+desktop state {"blocked":false,"wx":true,"puffs":3583,"alerts":["Wind Advisory","Special Weather Statement"],"news":80,"events":56,"incidents":3,"cams":5,"gauges":0,"fires":0,"sky":"4:27 PM · Golden hour","chip":"Light drizzle in Gatlinburg · wind 9 mph SW"}
+phone state {"blocked":false,"wx":true,"puffs":1971,"alerts":["Wind Advisory","Special Weather Statement"],"news":80,"events":56,"incidents":3,"cams":5,"gauges":11,"fires":0,"sky":"4:29 PM · Golden hour","chip":"Light drizzle in Gatlinburg · wind 9 mph SW"}
