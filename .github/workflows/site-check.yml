@@ -1,0 +1,33 @@
+name: Check live site
+on:
+  workflow_dispatch:
+  page_build:
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          cd tools && npm init -y >/dev/null && npm i playwright@1.49.1 >/dev/null && npx playwright install --with-deps chromium >/dev/null
+      - name: Screenshot the site
+        run: cd tools && sleep 30 && node site_check.mjs ../checks || true
+      - name: Save results to the feeds branch
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          URL="https://x-access-token:${TOKEN}@github.com/${{ github.repository }}"
+          git clone -q --depth 1 --branch feeds "$URL" feeds
+          rm -rf feeds/checks && cp -r checks feeds/checks
+          cd feeds
+          git config user.name "smokies-live-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add checks && git commit -qm "Site check $(date -u +%FT%TZ)" && git push -q origin feeds || echo "nothing to save"

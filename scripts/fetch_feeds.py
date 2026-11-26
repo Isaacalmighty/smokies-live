@@ -55,6 +55,7 @@ def in_bbox(lng, lat, pad=0.0):
 # ---------------------------------------------------------------- places
 GAZ = json.load(open(os.path.join(HERE, 'gazetteer.json')))  # [name, lng, lat, kind, priority], longest first
 GAZ_RE = [(re.compile(r'(?<![\w\'])' + re.escape(n) + r'(?![\w])'), n, lng, lat, kind, pri) for n, lng, lat, kind, pri in GAZ]
+TRUSTED = re.compile(r'Mountain Press|WBIR|WATE|WVLT|Knox ?News|News Sentinel|Smoky Mountain News|Smoky Mountain Times|Citizen[- ]Times|Daily Times|Cherokee One Feather|WLOS|WJHL|Tennessee Lookout|Tennessean|AP News|Associated Press|National Park Service|NPS\.gov|City of|County|Blue Ridge Public Radio|WUOT|Cardinal & Pine|Asheville|Knoxville|Tennessee|Gatlinburg|Pigeon Forge|Sevier', re.I)
 LOCAL_WORDS = re.compile(r'Sevier|Gatlinburg|Pigeon Forge|Sevierville|Smoky|Smokies|Kodak|Seymour|Wears Valley|Townsend|Cosby|Pittman|Cherokee|Bryson|Cades Cove|Dollywood|LeConte|Le Conte|Newfound', re.I)
 
 
@@ -145,6 +146,7 @@ def fetch_news():
                 src = it.pop('via') or name
                 if name == 'Google News' and ' - ' in it['title']:
                     it['title'], src = it['title'].rsplit(' - ', 1)
+                    if not TRUSTED.search(src): continue  # skip content farms that Google News mixes in
                 k = re.sub(r'\W+', '', it['title'].lower())[:80]
                 if not it['title'] or k in seen: continue
                 text = it['title'] + ' ' + it['summary']
@@ -184,6 +186,7 @@ def fetch_events():
             for it in items:
                 src = it.pop('via') or name
                 if name == 'Google News' and ' - ' in it['title']: it['title'], src = it['title'].rsplit(' - ', 1)
+                if name == 'Google News' and not TRUSTED.search(src): continue
                 k = re.sub(r'\W+', '', it['title'].lower())[:80]
                 if not it['title'] or k in seen: continue
                 seen.add(k); n += 1
@@ -278,11 +281,25 @@ def fetch_traffic():
         key = os.environ.get('NPS_API_KEY') or 'DEMO_KEY'
         j = json.loads(get(f'https://developer.nps.gov/api/v1/webcams?parkCode=grsm&api_key={key}'))
         n = 0
+        # NPS air-quality cameras publish a fresh still every few minutes at fixed URLs
+        LIVE_STILL = {'look rock': 'https://www.nps.gov/featurecontent/ard/webcams/images/grsmlarge.jpg',
+                      'purchase knob': 'https://www.nps.gov/featurecontent/ard/webcams/images/grpklarge.jpg'}
+        KNOWN = {'kuwohi': (-83.4985, 35.5628), 'twin creek': (-83.4993, 35.6862), 'newfound gap': (-83.4255, 35.6111)}
+        seen = set()
         for w in j.get('data', []):
+            title = (w.get('title') or '').strip()
+            if title in seen: continue
+            seen.add(title)
             lat, lng = w.get('latitude'), w.get('longitude')
+            key = next((k for k in KNOWN if k in title.lower()), None)
+            if (not lat or not lng) and key: lng, lat = KNOWN[key]
             imgs = w.get('images') or []
-            cameras.append({'id': 'nps' + str(w.get('id'))[:20], 'name': w.get('title'), 'lng': float(lng) if lng else None, 'lat': float(lat) if lat else None, 'img': imgs[0].get('url') if imgs else None,
-                            'page': w.get('url'), 'live': w.get('isStreaming'), 'status': w.get('status'), 'source': 'National Park Service'})
+            still = next((u for k, u in LIVE_STILL.items() if k in title.lower()), None)
+            img = still or (imgs[0].get('url') if imgs else None)
+            if img and img.startswith('/'): img = 'https://www.nps.gov' + img
+            img = re.sub(r'^https://www\.nps\.gov(?=https?://)', '', img or '') or None
+            cameras.append({'id': 'nps' + str(w.get('id'))[:20], 'name': title, 'lng': float(lng) if lng else None, 'lat': float(lat) if lat else None,
+                            'img': img, 'still': bool(still), 'page': w.get('url'), 'live': bool(w.get('isStreaming')), 'status': w.get('status'), 'source': 'National Park Service'})
             n += 1
         note('cameras:nps', True, n)
     except Exception as e:

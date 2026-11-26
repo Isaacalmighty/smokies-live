@@ -1,0 +1,1714 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d1411">
+<meta name="description" content="Live 3D map of the Great Smoky Mountains: real sky, weather, clouds, rivers, roads, cameras, news and events.">
+<meta property="og:title" content="Smokies Live">
+<meta property="og:description" content="Live 3D map of the Great Smoky Mountains.">
+<meta property="og:image" content="https://isaacalmighty.github.io/smokies-live/thumb.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 30 30%27%3E%3Cpath d=%27M2 24 L10 13 L14 18 L20 8 L28 24 Z%27 fill=%27%23f2a65a%27/%3E%3C/svg%3E">
+<style>[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Smokies Live</title>
+<link rel="artifact-thumbnail" href="thumb.jpg">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: full-bleed 3D map; dark spruce-glass instrument panels float at the edges; one ember accent for action. */
+:root{
+  --glass: rgba(14,22,20,.72);
+  --glass-strong: rgba(10,17,15,.88);
+  --line: rgba(222,232,224,.14);
+  --ink: #eef2ec;
+  --ink-dim: #a9b7ad;
+  --ink-faint: #75857a;
+  --ember: #f2a65a;
+  --ember-deep: #d9772b;
+  --haze: #9cc0e0;
+  --water: #4aa3ff;
+  --danger: #ff6a4d;
+  --ground: #16211c;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --font-data: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --ease-out: cubic-bezier(.22,1.2,.36,1);
+  --ease-io: cubic-bezier(.65,0,.35,1);
+  color-scheme: dark;
+}
+html,body{height:100%}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--font-body);font-size:14px;overflow:hidden;-webkit-font-smoothing:antialiased}
+#map{position:fixed;inset:0;background:radial-gradient(120% 90% at 50% 0%,#33475a 0%,#1a2620 55%,#111a16 100%)}
+#stars{position:fixed;inset:0;pointer-events:none}
+/* minimal maplibre css */
+.maplibregl-map{position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent}
+.maplibregl-canvas{position:absolute;left:0;top:0}
+.maplibregl-canvas-container.maplibregl-interactive{cursor:grab}
+.maplibregl-canvas-container.maplibregl-interactive:active{cursor:grabbing}
+.maplibregl-canvas-container.maplibregl-touch-zoom-rotate,.maplibregl-canvas-container.maplibregl-touch-drag-pan{touch-action:none}
+.maplibregl-ctrl-top-left,.maplibregl-ctrl-top-right,.maplibregl-ctrl-bottom-left,.maplibregl-ctrl-bottom-right{position:absolute;pointer-events:none;z-index:2}
+.maplibregl-marker{position:absolute;top:0;left:0;will-change:transform}
+
+/* ---------- chrome ---------- */
+.panel{background:var(--glass);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.eyebrow{font-family:var(--font-display);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
+
+#brand{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);left:max(16px,env(safe-area-inset-left,0px));padding:12px 16px 12px 14px;display:flex;gap:12px;align-items:center;z-index:5}
+#brand svg{flex:none}
+#brand h1{margin:0;font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:.02em;line-height:1}
+#brand h1 span{color:var(--ember)}
+#readout{font-family:var(--font-data);font-size:11px;color:var(--ink-dim);margin-top:4px;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+#search{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:max(16px,env(safe-area-inset-right,0px));width:300px;z-index:6}
+#search .box{display:flex;align-items:center;gap:8px;padding:0 12px;height:46px}
+#search input{flex:1;min-width:0;background:none;border:0;color:var(--ink);font:inherit;font-size:15px;outline:none}
+#search input::placeholder{color:var(--ink-faint)}
+#results{margin-top:6px;max-height:320px;overflow:auto;padding:6px}
+#results button{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;background:none;border:0;padding:9px 10px;border-radius:9px;cursor:pointer}
+#results button:hover,#results button.sel{background:rgba(255,255,255,.07)}
+#results small{color:var(--ink-faint);font-size:12px;white-space:nowrap}
+
+/* right rail */
+#rail{position:fixed;right:max(16px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 74px);width:228px;padding:14px;z-index:4;display:flex;flex-direction:column;gap:14px}
+.group{display:flex;flex-direction:column;gap:6px}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 2px;cursor:pointer;border-radius:8px;background:none;border:0;width:100%;text-align:left}
+.toggle .k{display:flex;align-items:center;gap:9px;font-weight:500}
+.sw{width:30px;height:18px;border-radius:9px;background:rgba(255,255,255,.14);position:relative;transition:background .25s var(--ease-io);flex:none}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#dfe6e0;transition:transform .35s var(--ease-out),width .18s ease}
+.toggle:active .sw::after{width:18px}
+.toggle[aria-pressed="true"] .sw{background:var(--ember-deep)}
+.toggle[aria-pressed="true"] .sw::after{transform:translateX(12px)}
+.toggle[aria-pressed="true"]:active .sw::after{transform:translateX(8px)}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tool{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:10px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.04);cursor:pointer;text-align:left;transition:transform .3s var(--ease-out),background .2s}
+.tool:hover{background:rgba(255,255,255,.08)}
+.tool:active{transform:scale(.94,.9)}
+.tool b{font-family:var(--font-display);font-weight:600;font-size:15px;letter-spacing:.02em}
+.tool span{font-size:11px;color:var(--ink-dim);line-height:1.3}
+.tool[aria-pressed="true"]{border-color:var(--ember);background:rgba(242,166,90,.12)}
+
+/* season dial */
+#season{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);width:min(620px,calc(100vw - 32px));padding:12px 18px 14px;z-index:4}
+#season .top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px}
+#seasonName{font-family:var(--font-display);font-weight:700;font-size:20px;letter-spacing:.02em;transition:color .4s}
+#seasonDate{font-family:var(--font-data);font-size:11px;color:var(--ink-dim);text-align:right}
+.track{position:relative;height:34px}
+.track input{position:absolute;inset:0;width:100%;margin:0;opacity:0;cursor:pointer;z-index:2}
+.rail-line{position:absolute;left:8px;right:8px;top:12px;height:6px;border-radius:3px;background:linear-gradient(90deg,#c9d3dc 0%,#8dbb63 25%,#3f7a35 50%,#d8a33a 75%,#c4542a 100%)}
+.ticks{position:absolute;left:8px;right:8px;top:22px;display:flex;justify-content:space-between;font-family:var(--font-display);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
+.ticks span{width:0;display:flex;justify-content:center;white-space:nowrap}
+.ticks span.on{color:var(--ink)}
+.knob{position:absolute;top:6px;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(242,166,90,.35),0 3px 10px rgba(0,0,0,.5);pointer-events:none;transition:transform .25s var(--ease-out)}
+.track input:active ~ .knob{transform:scale(1.25,.85)}
+.skyrow{display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)}
+.skyrow .when{display:flex;flex-direction:column;min-width:128px}
+#skyTime{font-family:var(--font-display);font-weight:700;font-size:14px;letter-spacing:.02em}
+#skyMoon{font-family:var(--font-data);font-size:10.5px;color:var(--ink-dim)}
+.daytrack{position:relative;flex:1;height:26px}
+#dayGrad{position:absolute;left:8px;right:8px;top:9px;height:8px;border-radius:4px;background:#333}
+.daytrack input{position:absolute;inset:0;width:100%;margin:0;opacity:0;cursor:pointer;z-index:2}
+#dayKnob{position:absolute;top:4px;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(156,192,224,.35),0 3px 10px rgba(0,0,0,.5);pointer-events:none;transition:transform .25s var(--ease-out)}
+.daytrack input:active ~ #dayKnob{transform:scale(1.25,.85)}
+#dayNowMark{position:absolute;top:5px;width:2px;height:16px;margin-left:-1px;border-radius:1px;background:rgba(255,255,255,.55);pointer-events:none}
+.livebtn{font:600 11px var(--font-display);letter-spacing:.08em;text-transform:uppercase;border:0;border-radius:999px;padding:6px 10px;cursor:pointer;background:rgba(255,255,255,.08);color:var(--ink);white-space:nowrap;transition:transform .2s var(--ease-out),background .3s}
+.livebtn:active{transform:scale(.92)}
+#skyLive{background:rgba(80,200,120,.16);color:#9ee6b4;cursor:default}
+#skyLive::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#5fe08a;margin-right:6px;vertical-align:1px;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(95,224,138,.6)}50%{box-shadow:0 0 0 5px rgba(95,224,138,0)}}
+@media (max-width:640px){.skyrow .when{min-width:104px}#skyTime{font-size:13px}}
+
+/* tours */
+#tours{position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 16px);width:250px;padding:14px;z-index:4}
+#tourList{display:flex;flex-direction:column;gap:2px;margin-top:8px}
+.stop{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:9px;background:none;border:0;cursor:pointer;text-align:left;width:100%;opacity:0;transform:translateY(8px);animation:rise .55s var(--ease-out) forwards}
+.stop:hover{background:rgba(255,255,255,.07)}
+.stop:active{transform:scale(.97)}
+.stop .dot{width:8px;height:8px;border-radius:50%;background:var(--ink-faint);flex:none;transition:background .3s,box-shadow .3s}
+.stop.on .dot{background:var(--ember);box-shadow:0 0 0 4px rgba(242,166,90,.25)}
+.stop small{margin-left:auto;font-family:var(--font-data);font-size:10.5px;color:var(--ink-faint)}
+#grand{margin-top:8px;width:100%;padding:10px;border-radius:10px;border:0;background:var(--ember);color:#1b130b;font-family:var(--font-display);font-weight:700;font-size:15px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:transform .35s var(--ease-out),filter .2s}
+#grand:hover{filter:brightness(1.07)}
+#grand:active{transform:scale(1.04,.9)}
+@keyframes rise{to{opacity:1;transform:none}}
+
+/* tool sheet */
+#sheet{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 16px);width:300px;padding:16px;z-index:7;transform-origin:100% 100%;transition:transform .5s var(--ease-out),opacity .3s}
+#sheet[hidden]{display:block!important;transform:translateY(20px) scale(.92);opacity:0;pointer-events:none}
+#sheet h2{margin:2px 0 6px;font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:.02em}
+#sheet p{margin:0 0 12px;color:var(--ink-dim);font-size:13px;line-height:1.45}
+#sheet .close{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(255,255,255,.08);cursor:pointer}
+.big{font-family:var(--font-data);font-size:30px;font-variant-numeric:tabular-nums;line-height:1}
+.big small{font-size:13px;color:var(--ink-dim);margin-left:4px}
+.range{width:100%;accent-color:var(--ember);margin:10px 0 4px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.stat{display:flex;flex-direction:column;gap:2px}
+.stat b{font-family:var(--font-data);font-size:16px;font-weight:500}
+.legend{height:8px;border-radius:4px;margin:8px 0 4px}
+.note{font-size:11px!important;color:var(--ink-faint)!important;margin-top:10px!important}
+.btn{padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.06);cursor:pointer;font-weight:600;transition:transform .3s var(--ease-out)}
+.btn:active{transform:scale(.95,.9)}
+.btn.primary{background:var(--ember);color:#1b130b;border-color:transparent}
+.dial{width:64px;height:64px;border-radius:50%;border:1px solid var(--line);position:relative;background:rgba(255,255,255,.04);cursor:grab;touch-action:none;flex:none}
+.dial i{position:absolute;left:50%;top:6px;width:2px;height:26px;margin-left:-1px;background:var(--ember);transform-origin:50% 26px;border-radius:1px}
+.dial i::before{content:"";position:absolute;top:-4px;left:-4px;border:5px solid transparent;border-bottom:7px solid var(--ember)}
+.dial span{position:absolute;inset:0;display:grid;place-items:center;font-size:9px;color:var(--ink-faint);font-family:var(--font-display);letter-spacing:.1em}
+
+/* info card */
+#card{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 86px);transform:translateX(-50%);padding:12px 16px;z-index:8;min-width:220px;max-width:min(360px,calc(100vw - 32px));transition:transform .45s var(--ease-out),opacity .25s}
+#card[hidden]{display:block!important;opacity:0;transform:translate(-50%,-10px) scale(.95);pointer-events:none}
+#card h3{margin:0 0 4px;font-family:var(--font-display);font-size:19px;font-weight:700}
+#card .meta{font-family:var(--font-data);font-size:11.5px;color:var(--ink-dim);line-height:1.6}
+
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 128px);transform:translateX(-50%);padding:10px 16px;z-index:9;font-weight:500;transition:transform .45s var(--ease-out),opacity .3s;white-space:nowrap}
+#toast[hidden]{display:block!important;opacity:0;transform:translate(-50%,12px);pointer-events:none}
+
+#loader{position:fixed;inset:0;display:grid;place-items:center;z-index:20;background:radial-gradient(100% 80% at 50% 30%,#22332b,#0d1411);transition:opacity 1.1s var(--ease-io)}
+#loader.done{opacity:0;pointer-events:none}
+#loader .inner{text-align:center}
+#loader h2{font-family:var(--font-display);font-size:40px;margin:16px 0 4px;letter-spacing:.02em}
+#loader p{color:var(--ink-dim);margin:0;font-size:14px}
+.ridge{display:block;margin:0 auto}
+.ridge path{stroke-dasharray:420;stroke-dashoffset:420;animation:draw 1.6s var(--ease-io) forwards}
+.ridge path:nth-child(2){animation-delay:.25s}
+.ridge path:nth-child(3){animation-delay:.5s}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+#credits{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 2px);font-size:10px;color:rgba(238,242,236,.55);z-index:3;text-shadow:0 1px 2px #000;pointer-events:auto}
+#credits button{background:none;border:0;color:inherit;text-decoration:underline;cursor:pointer;font-size:10px;padding:0}
+#about{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(5,9,8,.55);padding:16px}
+#about .panel{max-width:620px;max-height:80vh;overflow:auto;padding:22px 24px;background:var(--glass-strong)}
+#about h2{font-family:var(--font-display);font-size:26px;margin:0 0 8px}
+#about h4{font-family:var(--font-display);letter-spacing:.1em;text-transform:uppercase;font-size:12px;color:var(--ember);margin:16px 0 6px}
+#about p,#about li{color:var(--ink-dim);line-height:1.5;font-size:13.5px}
+#about ul{padding-left:18px;margin:0}
+
+#mobileBar{display:none}
+@media (max-width:760px){
+  #search{left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));width:auto;top:calc(env(safe-area-inset-top,0px) + 74px)}
+  #brand{right:max(16px,env(safe-area-inset-right,0px));padding:10px 12px}
+  #brand h1{font-size:19px}
+  #rail,#tours{display:none}
+  #rail.open,#tours.open{display:flex;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));width:auto;top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 150px);max-height:52vh;overflow:auto;z-index:8}
+  #tours.open{flex-direction:column}
+  #season{bottom:calc(env(safe-area-inset-bottom,0px) + 70px);padding:10px 14px 12px}
+  #seasonName{font-size:17px}
+  .ticks{font-size:10px}
+  #mobileBar{display:flex;position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:6;padding:6px;gap:6px}
+  #mobileBar button{flex:1;padding:10px 4px;border:0;border-radius:9px;background:none;font-family:var(--font-display);font-weight:600;font-size:14px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+  #mobileBar button[aria-pressed="true"]{background:rgba(242,166,90,.18);color:var(--ember)}
+  #sheet{left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));width:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 70px)}
+  #credits{bottom:calc(env(safe-area-inset-bottom,0px) + 150px);left:max(16px,env(safe-area-inset-left,0px));font-size:9px}
+  #toast{bottom:calc(env(safe-area-inset-bottom,0px) + 170px)}
+}
+/* ---------- live panel ---------- */
+#live{position:fixed;left:max(16px,env(safe-area-inset-left,0px));top:calc(env(safe-area-inset-top,0px) + 88px);width:350px;z-index:5;overflow:hidden;transition:transform .5s var(--ease-out),opacity .4s;transform-origin:0 0;animation:dropin .7s var(--ease-out) both .2s}
+@keyframes dropin{from{opacity:0;transform:translateY(-12px) scale(.96)}}
+#liveChip{display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;background:none;border:0;cursor:pointer;text-align:left}
+#liveChip:active{transform:scale(.985)}
+#wxIcon{width:30px;height:30px;flex:none}
+#wxTemp{font-family:var(--font-display);font-size:24px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+#wxDesc{flex:1;min-width:0;font-size:12.5px;color:var(--ink-dim);line-height:1.25}
+#wxDesc b{color:var(--ink);font-weight:600}
+.chev{width:10px;height:10px;border-right:2px solid var(--ink-faint);border-bottom:2px solid var(--ink-faint);transform:rotate(45deg) translateY(-3px);transition:transform .45s var(--ease-out);flex:none}
+#live.open .chev{transform:rotate(225deg) translate(-2px,-2px)}
+#alertBar{display:none;margin:0 10px 10px;padding:9px 12px;border-radius:10px;background:linear-gradient(90deg,rgba(255,106,77,.22),rgba(255,106,77,.08));border:1px solid rgba(255,106,77,.45);font-size:12.5px;cursor:pointer;animation:alertin .6s var(--ease-out)}
+#alertBar.on{display:block}
+#alertBar b{color:#ffb4a3;font-family:var(--font-display);letter-spacing:.06em;text-transform:uppercase;font-size:12px;display:block}
+@keyframes alertin{from{opacity:0;transform:translateY(-6px)}}
+#liveBody{display:grid;grid-template-rows:0fr;transition:grid-template-rows .55s var(--ease-io)}
+#live.open #liveBody{grid-template-rows:1fr}
+#liveBody>div{overflow:hidden;min-height:0}
+.ltabs{display:flex;gap:2px;padding:0 10px 8px;overflow-x:auto;scrollbar-width:none}
+.ltabs::-webkit-scrollbar{display:none}
+.ltabs button{flex:none;padding:6px 10px;border-radius:999px;border:0;background:none;font-family:var(--font-display);font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);cursor:pointer;position:relative;transition:color .25s,background .25s}
+.ltabs button[aria-selected="true"]{color:var(--ink);background:rgba(255,255,255,.08)}
+.ltabs button .n{display:inline-block;min-width:16px;margin-left:5px;padding:0 4px;border-radius:8px;background:rgba(242,166,90,.2);color:var(--ember);font-size:10.5px;letter-spacing:0}
+#lview{max-height:calc(100vh - 260px);overflow-y:auto;padding:0 10px 12px;overscroll-behavior:contain}
+.li{display:flex;gap:10px;padding:10px;border-radius:11px;cursor:pointer;opacity:0;transform:translateY(10px);animation:rise .5s var(--ease-out) forwards;transition:background .2s}
+.li:hover{background:rgba(255,255,255,.06)}
+.li:active{transform:scale(.98)}
+.li .th{width:64px;height:64px;border-radius:9px;object-fit:cover;flex:none;background:#223}
+.li .tx{flex:1;min-width:0}
+.li h4{margin:0 0 3px;font-size:13.5px;font-weight:600;line-height:1.3}
+.li p{margin:0;font-size:12px;color:var(--ink-dim);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.li .mt{display:flex;gap:8px;align-items:center;margin-top:5px;font-family:var(--font-data);font-size:10.5px;color:var(--ink-faint);flex-wrap:wrap}
+.pin-chip{display:inline-flex;align-items:center;gap:4px;color:var(--ember)}
+.pin-chip::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--ember)}
+.lsec{font-family:var(--font-display);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin:12px 10px 4px}
+.lempty{padding:16px 10px;color:var(--ink-dim);font-size:13px;line-height:1.5}
+.lempty a{color:var(--ember)}
+.nowgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:0 4px}
+.nowgrid div{padding:9px 10px;border-radius:10px;background:rgba(255,255,255,.04)}
+.nowgrid b{display:block;font-family:var(--font-data);font-size:15px;font-weight:500}
+.nowgrid span{font-size:10.5px;color:var(--ink-faint);font-family:var(--font-display);letter-spacing:.08em;text-transform:uppercase}
+.hours{display:flex;gap:4px;overflow-x:auto;padding:8px 4px 2px;scrollbar-width:thin}
+.hours div{flex:none;width:44px;text-align:center;padding:6px 0;border-radius:9px;background:rgba(255,255,255,.035);font-size:11px;color:var(--ink-dim)}
+.hours b{display:block;color:var(--ink);font-family:var(--font-data);font-size:13px;font-weight:500;margin:3px 0}
+.hours i{display:block;height:3px;margin:4px 8px 0;border-radius:2px;background:#4aa3ff}
+.spark{width:100%;height:28px;display:block;margin-top:4px}
+.lv-level{display:inline-block;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:600}
+.src{color:var(--ink-faint)}
+body.live-open #tours{opacity:0;pointer-events:none;transform:translateX(-12px)}
+#tours{transition:opacity .35s,transform .45s var(--ease-out)}
+.camwrap{position:relative;border-radius:10px;overflow:hidden;margin:4px 0 8px;background:#111}
+.camwrap img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
+.camwrap .tag{position:absolute;left:8px;top:8px;padding:3px 7px;border-radius:6px;background:rgba(0,0,0,.55);font:600 10.5px var(--font-display);letter-spacing:.08em;text-transform:uppercase}
+.camwrap .tag.live::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#ff4d4d;margin-right:5px;vertical-align:1px;animation:pulse 2s infinite}
+
+/* map pins */
+.lpinbox{width:34px;height:40px;display:flex;align-items:flex-end;justify-content:center;cursor:pointer}
+.lpin{position:relative;width:30px;height:30px;margin-bottom:6px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg) scale(0);display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.85);animation:pinpop .6s var(--ease-out) forwards}
+.lpin svg{transform:rotate(45deg);width:15px;height:15px}
+.lpin:hover{filter:brightness(1.15)}
+@keyframes pinpop{0%{transform:rotate(-45deg) scale(0) translateY(10px)}60%{transform:rotate(-45deg) scale(1.18,0.9)}80%{transform:rotate(-45deg) scale(.95,1.05)}100%{transform:rotate(-45deg) scale(1)}}
+.lpin.news{background:#3d6fd6}.lpin.event{background:#9b5bd6}.lpin.traffic{background:#e8892b}.lpin.cam{background:#20a387}.lpin.gauge{background:#2f8fe0}.lpin.fire{background:#e0452f}.lpin.alert{background:#d93a3a}.lpin.closure{background:#c23a3a}
+.lcount{position:absolute;top:-9px;right:-11px;transform:rotate(45deg);min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#fff;color:#1b2430;font:700 11px/18px var(--font-data);text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.lpin.hot::after{content:'';position:absolute;inset:-8px;border-radius:50%;border:2px solid currentColor;color:rgba(255,255,255,.7);animation:ring 1.8s var(--ease-io) infinite}
+@keyframes ring{from{transform:scale(.6);opacity:1}to{transform:scale(1.6);opacity:0}}
+.lpin.focus{animation:pinfocus .9s var(--ease-out)}
+@keyframes pinfocus{0%{transform:rotate(-45deg) scale(1)}30%{transform:rotate(-45deg) scale(1.5,1.2) translateY(-8px)}60%{transform:rotate(-45deg) scale(.9,1.1)}100%{transform:rotate(-45deg) scale(1)}}
+#lcard{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 86px);transform:translateX(-50%);width:min(380px,calc(100vw - 32px));padding:14px;z-index:9;transition:transform .5s var(--ease-out),opacity .25s}
+#lcard[hidden]{display:block!important;opacity:0;transform:translate(-50%,-14px) scale(.94);pointer-events:none}
+#lcard h3{margin:2px 28px 6px 0;font-family:var(--font-display);font-size:20px;line-height:1.15}
+#lcard p{margin:0 0 8px;font-size:13px;color:var(--ink-dim);line-height:1.45}
+#lcard .close{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(255,255,255,.08);cursor:pointer}
+#lcard .acts{display:flex;gap:8px;margin-top:8px}
+#lcard .acts a{text-decoration:none}
+.eyebrow.c-news{color:#86a9f0}.eyebrow.c-event{color:#c9a0f0}.eyebrow.c-traffic{color:#f2b26a}.eyebrow.c-cam{color:#6fd6bd}.eyebrow.c-gauge{color:#7fbcf0}.eyebrow.c-fire{color:#ff8a73}.eyebrow.c-alert{color:#ff8a73}
+#rail{max-height:calc(100vh - 110px);overflow-y:auto;scrollbar-width:thin}
+@media (max-width:760px){
+  #live{right:max(16px,env(safe-area-inset-right,0px));width:auto;top:calc(env(safe-area-inset-top,0px) + 130px)}
+  #liveChip{padding:8px 12px}
+  #wxTemp{font-size:20px}
+  #lview{max-height:46vh}
+  #lcard{top:calc(env(safe-area-inset-top,0px) + 130px)}
+}
+#radarStamp{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 18px);transform:translateX(-50%);padding:6px 12px;z-index:6;font:600 12px var(--font-data);transition:opacity .3s}
+#radarStamp[hidden]{display:block!important;opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+
+<div id="map" aria-label="3D map of the Great Smoky Mountains"></div>
+<canvas id="stars" aria-hidden="true"></canvas>
+
+<div id="loader" role="status">
+  <div class="inner">
+    <svg class="ridge" width="220" height="70" viewBox="0 0 220 70" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 60 L40 36 L58 46 L92 16 L118 38 L140 26 L176 50 L216 30" stroke="#f2a65a" stroke-width="3"/>
+      <path d="M4 66 L30 52 L62 58 L96 40 L130 54 L168 42 L216 56" stroke="#9cc0e0" stroke-width="2" opacity=".7"/>
+      <path d="M4 70 L48 62 L100 66 L150 60 L216 66" stroke="#9cc0e0" stroke-width="1.5" opacity=".4"/>
+    </svg>
+    <h2>Smokies Live</h2>
+    <p id="loadMsg">Loading terrain and satellite imagery…</p>
+  </div>
+</div>
+
+<header id="brand" class="panel">
+  <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M2 24 L10 13 L14 18 L20 8 L28 24 Z" fill="#f2a65a"/><path d="M2 24 L8 19 L13 22 L19 16 L28 24 Z" fill="#9cc0e0" opacity=".85"/></svg>
+  <div>
+    <h1>Smokies <span>Live</span></h1>
+    <div id="readout">— ft · —</div>
+  </div>
+</header>
+
+<div id="search">
+  <div class="panel box">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true" style="color:var(--ink-faint)"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input id="q" type="search" placeholder="Search peaks, towns, places" autocomplete="off" aria-label="Search">
+  </div>
+  <div id="results" class="panel" hidden></div>
+</div>
+
+<aside id="rail" class="panel" aria-label="Map layers and tools">
+  <div class="group">
+    <div class="eyebrow">Layers</div>
+    <button class="toggle" id="t-buildings" aria-pressed="true"><span class="k">3D buildings</span><span class="sw"></span></button>
+    <button class="toggle" id="t-labels" aria-pressed="true"><span class="k">Labels</span><span class="sw"></span></button>
+    <button class="toggle" id="t-trails" aria-pressed="true"><span class="k">Roads &amp; trails</span><span class="sw"></span></button>
+    <button class="toggle" id="t-water" aria-pressed="true"><span class="k">Rivers &amp; streams</span><span class="sw"></span></button>
+    <button class="toggle" id="t-lidar" aria-pressed="true"><span class="k">LiDAR relief</span><span class="sw"></span></button>
+    <button class="toggle" id="t-fog" aria-pressed="false"><span class="k">Valley fog</span><span class="sw"></span></button>
+  </div>
+  <div class="group">
+    <div class="eyebrow">Hazard tools</div>
+    <div class="tools">
+      <button class="tool" id="tool-flood" aria-pressed="false"><b>Flood</b><span>Raise the rivers and see what floods</span></button>
+      <button class="tool" id="tool-fire" aria-pressed="false"><b>Wildfire</b><span>Start a fire, set the wind, watch it spread</span></button>
+    </div>
+  </div>
+</aside>
+
+<section id="tours" class="panel" aria-label="Flyover tours">
+  <div class="eyebrow">Fly to</div>
+  <div id="tourList"></div>
+  <button id="grand">Grand tour</button>
+</section>
+
+<section id="season" class="panel" aria-label="Season">
+  <div class="top"><div id="seasonName">Peak fall color</div><div id="seasonDate">Sentinel-2 · Oct 22–30, 2026</div></div>
+  <div class="track">
+    <div class="rail-line"></div>
+    <div class="ticks" id="ticks"></div>
+    <input id="seasonRange" type="range" min="0" max="4" step="0.01" value="4" aria-label="Season">
+    <div class="knob" id="knob"></div>
+  </div>
+  <div class="skyrow">
+    <div class="when"><div id="skyTime">—</div><div id="skyMoon"></div></div>
+    <div class="daytrack"><div id="dayGrad"></div><div id="dayNowMark"></div><input id="skyRange" type="range" min="0" max="1439" step="1" value="720" aria-label="Time of day"><div id="dayKnob"></div></div>
+    <button class="livebtn" id="skyNow" hidden>Now</button><span class="livebtn" id="skyLive">Live</span>
+  </div>
+</section>
+
+<section id="sheet" class="panel" hidden aria-live="polite"></section>
+<div id="card" class="panel" hidden></div>
+<div id="toast" class="panel" hidden></div>
+
+<nav id="mobileBar" class="panel" aria-label="Panels">
+  <button id="m-tours" aria-pressed="false">Fly to</button>
+  <button id="m-layers" aria-pressed="false">Layers &amp; tools</button>
+</nav>
+
+<div id="credits">Sentinel-2 (ESA/Copernicus) · USGS 3DEP · Overture Maps (OSM, Microsoft) · <button id="aboutBtn">About the data</button></div>
+
+<div id="about" hidden>
+  <div class="panel">
+    <h2>About Smokies Live</h2>
+    <p>A 3D map of the Great Smoky Mountains and its gateway towns, built entirely from free public data and processed into small tiles so it runs in a browser and on a phone.</p>
+    <h4>What you are looking at</h4>
+    <ul>
+      <li><b>Satellite imagery:</b> five season mosaics from ESA Sentinel-2 (10 m): winter Feb 2026, spring Apr 2024–25, summer Jun–Aug 2024–26, early fall Oct 7 2026, peak fall Oct 22–30 2026. Terrain shadows baked into the images were reduced using the elevation model.</li>
+      <li><b>Terrain:</b> USGS 3D Elevation Program, about 10 m across the park.</li>
+      <li><b>Buildings:</b> 211,501 footprints from Overture Maps (OpenStreetMap and Microsoft). In Gatlinburg, 1,483 heights were measured from USGS LiDAR (2016). Elsewhere heights come from Overture or are estimated from footprint size.</li>
+      <li><b>LiDAR relief:</b> a 1 m surface model of Gatlinburg from 3DEP point clouds, so roofs, trees and roads show real shape.</li>
+      <li><b>Roads, trails, rivers, peaks, places:</b> Overture Maps release 2026-11-18.</li>
+    </ul>
+    <h4>Hazard tools are illustrations</h4>
+    <p>The flood tool raises water above the nearest river or named creek using a height-above-nearest-drainage model on the terrain. The wildfire tool spreads fire with a minimum-travel-time model driven by slope, wind and fuel read from the imagery. Neither is a forecast. For real emergencies follow the National Weather Service and Sevier County Emergency Management.</p>
+    <h4>Live layers</h4>
+    <ul>
+      <li><b>Sky and light:</b> sun and moon positions computed for your local time, so the map shows real daylight, golden hour, dusk and night.</li>
+      <li><b>Weather and 3D clouds:</b> Open-Meteo current conditions on a grid across the park. Low, mid and high cloud cover become a 3D cloud field at realistic heights, drifting with the measured wind (motion sped up so you can see it).</li>
+      <li><b>Rain radar:</b> RainViewer, last two hours. <b>Alerts:</b> National Weather Service.</li>
+      <li><b>Rivers:</b> USGS stream gauges. <b>Fires:</b> NASA FIRMS satellite heat detections, last 24 hours.</li>
+      <li><b>News and events:</b> WBIR, WVLT, the National Park Service, Gatlinburg events, and Google News (which carries The Mountain Press and other local outlets). Map locations are matched from place names in each story, so they can be approximate.</li>
+      <li><b>Roads and cameras:</b> park road alerts and webcams from the National Park Service, plus NCDOT incidents. Traffic lines are modeled from typical patterns for the hour and day, not live speeds.</li>
+    </ul>
+    <p>Feeds refresh every few minutes. The live layers need the full site; the sandboxed preview blocks outside data.</p>
+    <p style="margin-top:16px"><button class="btn primary" id="aboutClose">Back to the map</button></p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const BASE = new URL('data/', location.href).href;
+const EXAG = 1.3;
+const M2FT = 3.28084;
+const BOUNDS = [-84.07, 35.40, -82.98, 35.96];
+
+/* ---------- pack loader: tiles are bundled into small binary packs ---------- */
+const packs = new Map();
+let manifest = {};
+function packName(z, x, y) {
+  if (z <= 8) return 'base';
+  const L = Math.floor((z - 9) / 3) * 3 + 8, d = z - L;
+  return `${L}-${x >> d}-${y >> d}`;
+}
+function loadPack(layer, name) {
+  const key = layer + '/' + name;
+  if (!packs.has(key)) {
+    const list = manifest[layer];
+    if (list && !list.includes(name)) { packs.set(key, Promise.resolve(null)); return packs.get(key); }
+    packs.set(key, fetch(BASE + key + '.wasm').then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then(buf => {
+      const dv = new DataView(buf);
+      const n = dv.getUint32(4, true);
+      const idx = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, n)));
+      return { buf, idx, start: 8 + n };
+    }).catch(() => null));
+  }
+  return packs.get(key);
+}
+async function getTile(layer, z, x, y) {
+  const p = await loadPack(layer, packName(z, x, y));
+  const e = p && p.idx[`${z}/${x}/${y}`];
+  if (!e) return null;
+  return p.buf.slice(p.start + e[0], p.start + e[0] + e[1]);
+}
+maplibregl.addProtocol('pk', async (params) => {
+  const m = params.url.match(/^pk:\/\/([^/]+)\/(\d+)\/(\d+)\/(\d+)/);
+  const [, layer, z, x, y] = m;
+  let data = await getTile(layer, +z, +x, +y);
+  if (!data && layer === 'terrain') data = await synthTerrain(+z, +x, +y);
+  if (!data) {
+    if (layer === 'vector') return { data: new ArrayBuffer(0) };
+    throw new Error('no tile');
+  }
+  return { data };
+});
+// Outside the high-detail area, build a terrain tile by smoothly upsampling the nearest coarser tile.
+const scratch = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(256, 256) : null;
+async function synthTerrain(z, x, y) {
+  if (!scratch) return null;
+  for (let pz = z - 1; pz >= 5; pz--) {
+    const d = z - pz, px = x >> d, py = y >> d;
+    const buf = await getTile('terrain', pz, px, py);
+    if (!buf) continue;
+    const bmp = await createImageBitmap(new Blob([buf]));
+    const g = scratch.getContext('2d', { willReadFrequently: true });
+    g.clearRect(0, 0, 256, 256); g.drawImage(bmp, 0, 0);
+    const src = g.getImageData(0, 0, 256, 256).data;
+    const el = i => src[i * 4] * 256 + src[i * 4 + 1] + src[i * 4 + 2] / 256 - 32768;
+    const k = 2 ** d, ox = (x - (px << d)) * 256 / k, oy = (y - (py << d)) * 256 / k;
+    const out = g.createImageData(256, 256), o = out.data;
+    for (let j = 0; j < 256; j++) {
+      const fy = Math.min(255, Math.max(0, oy + (j + 0.5) / k - 0.5)); const y0 = Math.floor(fy), y1 = Math.min(255, y0 + 1), ty = fy - y0;
+      for (let i = 0; i < 256; i++) {
+        const fx = Math.min(255, Math.max(0, ox + (i + 0.5) / k - 0.5)); const x0 = Math.floor(fx), x1 = Math.min(255, x0 + 1), tx = fx - x0;
+        const e = (el(y0 * 256 + x0) * (1 - tx) + el(y0 * 256 + x1) * tx) * (1 - ty) + (el(y1 * 256 + x0) * (1 - tx) + el(y1 * 256 + x1) * tx) * ty;
+        const v = e + 32768, r = Math.floor(v / 256), gg = Math.floor(v - r * 256), b = Math.floor((v - Math.floor(v)) * 256);
+        const q = (j * 256 + i) * 4; o[q] = r; o[q + 1] = gg; o[q + 2] = b; o[q + 3] = 255;
+      }
+    }
+    g.putImageData(out, 0, 0);
+    const blob = await scratch.convertToBlob({ type: 'image/png' });
+    return await blob.arrayBuffer();
+  }
+  return null;
+}
+
+/* ---------- seasons ---------- */
+const SEASONS = [
+  { id: 'winter', name: 'Winter', tick: 'Feb', date: 'Sentinel-2 · Feb 7–9, 2026', color: '#dfe7ee' },
+  { id: 'spring', name: 'Spring green-up', tick: 'Apr', date: 'Sentinel-2 · Apr 13–25, 2024–25', color: '#b5d98a' },
+  { id: 'summer', name: 'Summer', tick: 'Sep', date: 'Sentinel-2 · Sep 10, 2024', color: '#7fc06c' },
+  { id: 'earlyfall', name: 'Early fall color', tick: 'Oct 7', date: 'Sentinel-2 · Oct 7, 2026', color: '#f0c25a' },
+  { id: 'fall', name: 'Peak fall color', tick: 'Oct 25', date: 'Sentinel-2 · Oct 22–30, 2026', color: '#f2a65a' },
+];
+
+/* ---------- style ---------- */
+const FOG = ['interpolate', ['linear'], ['elevation'], 0, 'rgba(238,243,248,0.9)', 3, 'rgba(234,240,246,0.78)', 6, 'rgba(230,237,245,0.5)', 9, 'rgba(226,234,243,0.18)', 11.5, 'rgba(225,234,243,0)'];
+const PAL = ['#d9d2c5','#c7beaf','#e4ddd0','#b4ab9c','#cdbfa6','#aab0b2','#c2ae93','#dcd4c4'];
+const style = {
+  version: 8,
+  glyphs: BASE + 'glyphs/{fontstack}/{range}.wasm',
+  sources: {
+    dem: { type: 'raster-dem', tiles: ['pk://terrain/{z}/{x}/{y}'], tileSize: 256, encoding: 'terrarium', maxzoom: 13 },
+    demShade: { type: 'raster-dem', tiles: ['pk://terrain/{z}/{x}/{y}'], tileSize: 256, encoding: 'terrarium', maxzoom: 13 },
+    world: { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]] } } },
+    fogSrc: { type: 'raster-dem', tiles: ['pk://fog/{z}/{x}/{y}'], tileSize: 256, encoding: 'terrarium', minzoom: 10, maxzoom: 13, bounds: BOUNDS },
+    hand: { type: 'raster-dem', tiles: ['pk://hand/{z}/{x}/{y}'], tileSize: 256, encoding: 'terrarium', minzoom: 10, maxzoom: 14, bounds: BOUNDS },
+    lidar: { type: 'raster', tiles: ['pk://lidar/{z}/{x}/{y}'], tileSize: 256, minzoom: 15, maxzoom: 16, bounds: [-83.536, 35.694, -83.489, 35.736] },
+    vec: { type: 'vector', tiles: ['pk://vector/{z}/{x}/{y}'], minzoom: 5, maxzoom: 13 },
+    ...Object.fromEntries(SEASONS.map(s => ['img-' + s.id, { type: 'raster', tiles: [`pk://img-${s.id}/{z}/{x}/{y}`], tileSize: 256, minzoom: 8, maxzoom: 14, bounds: [-84.0586, 35.4099, -82.9688, 35.9601] }]))
+  },
+  sky: {
+    'sky-color': '#6f9cc9', 'horizon-color': '#d6e3ec', 'fog-color': '#b9cddd',
+    'sky-horizon-blend': 0.55, 'horizon-fog-blend': 0.7, 'fog-ground-blend': 0.35,
+    'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 9, 1, 12, 0]
+  },
+  layers: [
+    { id: 'bg', type: 'background', paint: { 'background-color': '#4b5a43' } },
+    { id: 'land-tint', type: 'color-relief', source: 'demShade', paint: { 'color-relief-color': ['interpolate', ['linear'], ['elevation'], 150, '#56603f', 400, '#4c5a37', 800, '#46532f', 1300, '#4a4c31', 1900, '#55513a'] } },
+    { id: 'shade-wide', type: 'hillshade', source: 'demShade', paint: { 'hillshade-exaggeration': 0.55, 'hillshade-shadow-color': 'rgba(18,28,20,0.85)', 'hillshade-highlight-color': 'rgba(200,210,170,0.35)', 'hillshade-accent-color': '#2d3b2b', 'hillshade-illumination-direction': 315 } },
+    ...SEASONS.map((s, i) => ({ id: 'img-' + s.id, type: 'raster', source: 'img-' + s.id, layout: { visibility: s.id === 'fall' ? 'visible' : 'none' }, paint: { 'raster-opacity': s.id === 'fall' ? 1 : 0, 'raster-fade-duration': 0, 'raster-resampling': 'linear', 'raster-contrast': 0.05 } })),
+    { id: 'shade-detail', type: 'hillshade', source: 'demShade', paint: { 'hillshade-exaggeration': ['interpolate', ['linear'], ['zoom'], 8, 0.22, 14, 0.32], 'hillshade-shadow-color': 'rgba(8,14,10,0.55)', 'hillshade-highlight-color': 'rgba(255,248,230,0.10)', 'hillshade-accent-color': 'rgba(0,0,0,0.12)', 'hillshade-illumination-direction': 160, 'hillshade-illumination-anchor': 'map' } },
+    { id: 'lidar', type: 'raster', source: 'lidar', minzoom: 14.5, paint: { 'raster-opacity': ['interpolate', ['linear'], ['zoom'], 14.5, 0, 15.3, 0.9], 'raster-fade-duration': 0 } },
+    { id: 'tint', type: 'fill', source: 'world', paint: { 'fill-color': '#000', 'fill-opacity': 0, 'fill-antialias': false } },
+    { id: 'fog', type: 'color-relief', source: 'fogSrc', layout: { visibility: 'none' }, paint: { 'color-relief-opacity': 0.92, 'color-relief-color': 'rgba(0,0,0,0)' } },
+    { id: 'flood', type: 'color-relief', source: 'hand', layout: { visibility: 'none' }, paint: { 'color-relief-opacity': 0.88, 'color-relief-color': 'rgba(0,0,0,0)' } },
+    { id: 'landuse', type: 'fill', source: 'vec', 'source-layer': 'landuse', minzoom: 13, filter: ['==', ['get', 'c'], 'golf'], paint: { 'fill-color': '#7da35a', 'fill-opacity': 0.0 } },
+    { id: 'park-glow', type: 'line', source: 'vec', 'source-layer': 'park', paint: { 'line-color': '#f2c46a', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 2, 12, 6], 'line-opacity': 0.18, 'line-blur': 3 } },
+    { id: 'park', type: 'line', source: 'vec', 'source-layer': 'park', paint: { 'line-color': '#f6cf7c', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.8, 12, 1.6], 'line-dasharray': [3, 2], 'line-opacity': 0.85 } },
+    { id: 'water-fill', type: 'fill', source: 'vec', 'source-layer': 'water', filter: ['!=', ['get', 'c'], 'human_made'], paint: { 'fill-color': '#2c5f73', 'fill-opacity': 0.35 } },
+    { id: 'streams', type: 'line', source: 'vec', 'source-layer': 'waterway', filter: ['==', ['get', 'c'], 'stream'], minzoom: 11, paint: { 'line-color': '#7fc3ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.4, 15, 1.6], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.2, 14, 0.55] } },
+    { id: 'rivers', type: 'line', source: 'vec', 'source-layer': 'waterway', filter: ['==', ['get', 'c'], 'river'], paint: { 'line-color': '#86c9ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.6, 15, 3], 'line-opacity': 0.75 } },
+    { id: 'trails', type: 'line', source: 'vec', 'source-layer': 'roads', filter: ['in', ['get', 'c'], ['literal', ['path', 'track']]], minzoom: 11, paint: { 'line-color': '#f5d7a1', 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.6, 16, 1.8], 'line-dasharray': [2, 1.5], 'line-opacity': 0.8 } },
+    { id: 'roads-case', type: 'line', source: 'vec', 'source-layer': 'roads', filter: ['in', ['get', 'c'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor', 'service']]], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': 'rgba(10,14,12,0.35)', 'line-width': ['interpolate', ['exponential', 1.6], ['zoom'], 8, ['match', ['get', 'c'], ['motorway', 'trunk'], 2.2, 'primary', 1.6, 0.6], 16, ['match', ['get', 'c'], ['motorway', 'trunk'], 11, ['primary', 'secondary'], 8.5, 'tertiary', 6.5, 'service', 2.6, 5]] } },
+    { id: 'roads', type: 'line', source: 'vec', 'source-layer': 'roads', filter: ['in', ['get', 'c'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor', 'service']]], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['match', ['get', 'c'], ['motorway', 'trunk'], '#ffe2a8', ['primary', 'secondary'], '#fff1d6', '#f4f1ea'], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.55, 13, 0.75, 16, 0.55], 'line-width': ['interpolate', ['exponential', 1.6], ['zoom'], 8, ['match', ['get', 'c'], ['motorway', 'trunk'], 1.2, 'primary', 0.8, 0.3], 16, ['match', ['get', 'c'], ['motorway', 'trunk'], 8, ['primary', 'secondary'], 6, 'tertiary', 4.5, 'service', 1.6, 3.2]] } },
+    { id: 'buildings', type: 'fill-extrusion', source: 'vec', 'source-layer': 'building', minzoom: 13, paint: {
+      'fill-extrusion-color': ['match', ['get', 'k'], 0, PAL[0], 1, PAL[1], 2, PAL[2], 3, PAL[3], 4, PAL[4], 5, PAL[5], 6, PAL[6], PAL[7]],
+      'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 13.6, ['*', ['get', 'h'], EXAG]],
+      'fill-extrusion-opacity': 0.96, 'fill-extrusion-vertical-gradient': true } },
+    { id: 'fire', type: 'raster', source: 'fireSrc', paint: { 'raster-opacity': 1, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } },
+    { id: 'lbl-water', type: 'symbol', source: 'vec', 'source-layer': 'waterway', filter: ['all', ['has', 'n'], ['==', ['get', 'c'], 'river']], minzoom: 11, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 12, 'text-letter-spacing': 0.08, 'symbol-spacing': 400 }, paint: { 'text-color': '#cfe8ff', 'text-halo-color': 'rgba(10,30,50,0.85)', 'text-halo-width': 1.4 } },
+    { id: 'lbl-road', type: 'symbol', source: 'vec', 'source-layer': 'roads', filter: ['all', ['has', 'n'], ['in', ['get', 'c'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor']]]], minzoom: 13.5, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 11.5, 'symbol-spacing': 350 }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(0,0,0,0.75)', 'text-halo-width': 1.4 } },
+    { id: 'lbl-trail', type: 'symbol', source: 'vec', 'source-layer': 'roads', filter: ['all', ['has', 'n'], ['in', ['get', 'c'], ['literal', ['path', 'track']]]], minzoom: 13, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 11, 'symbol-spacing': 300 }, paint: { 'text-color': '#ffe7bd', 'text-halo-color': 'rgba(40,25,10,0.8)', 'text-halo-width': 1.3 } },
+    { id: 'lbl-poi', type: 'symbol', source: 'vec', 'source-layer': 'poi', minzoom: 15.5, layout: { 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 11, 'text-max-width': 9, 'text-offset': [0, 0.2], 'text-anchor': 'top', 'text-optional': true }, paint: { 'text-color': '#f3efe6', 'text-halo-color': 'rgba(0,0,0,0.8)', 'text-halo-width': 1.3 } },
+    { id: 'lbl-waterfall', type: 'symbol', source: 'vec', 'source-layer': 'poi', filter: ['==', ['get', 'c'], 'waterfall'], minzoom: 12, layout: { 'text-field': ['concat', '≋ ', ['get', 'n']], 'text-font': ['Noto'], 'text-size': 12 }, paint: { 'text-color': '#bfe3ff', 'text-halo-color': 'rgba(5,25,45,0.85)', 'text-halo-width': 1.4 } },
+    { id: 'lbl-peak', type: 'symbol', source: 'vec', 'source-layer': 'peak', filter: ['==', ['get', 'c'], 'peak'], layout: { 'text-field': ['format', '▲ ', { 'text-color': '#f2a65a' }, ['get', 'n'], {}, '\n', {}, ['concat', ['number-format', ['round', ['*', ['get', 'e'], M2FT]], { locale: 'en-US' }], ' ft'], { 'font-scale': 0.82, 'text-color': '#d9e2da' }], 'text-font': ['Noto'], 'text-size': ['interpolate', ['linear'], ['zoom'], 9, 11, 14, 14], 'text-anchor': 'bottom', 'text-max-width': 10, 'symbol-sort-key': ['-', 0, ['get', 'e']] }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(8,14,10,0.85)', 'text-halo-width': 1.5 } },
+    { id: 'lbl-place', type: 'symbol', source: 'vec', 'source-layer': 'place', layout: { 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-transform': ['match', ['get', 'c'], ['city', 'town'], 'uppercase', 'none'], 'text-letter-spacing': ['match', ['get', 'c'], ['city', 'town'], 0.18, 0.04], 'text-size': ['match', ['get', 'c'], 'city', 17, 'town', 15, 'village', 13, 11.5], 'symbol-sort-key': ['match', ['get', 'c'], 'city', 0, 'town', 1, 'village', 2, 3] }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(10,14,12,0.85)', 'text-halo-width': 1.8 } },
+  ]
+};
+// fire source is a canvas, attached after load
+style.sources.fireSrc = { type: 'canvas', canvas: document.createElement('canvas'), coordinates: [[-83.6, 35.7], [-83.5, 35.7], [-83.5, 35.6], [-83.6, 35.6]], animate: true };
+
+/* ---------- map ---------- */
+let map;
+const START = { center: [-83.36, 35.58], zoom: 9.35, pitch: 58, bearing: -18 };
+const INTRO = { center: [-83.43, 35.62], zoom: 10.2, pitch: 66, bearing: 12 };
+
+setTimeout(() => $('#loader').classList.add('done'), 14000);
+fetch(BASE + 'manifest.json').then(r => r.json()).catch(() => ({})).then(m => { manifest = m; init(); });
+
+function init() {
+  // fire canvas
+  fire.canvas = document.createElement('canvas'); fire.canvas.width = fire.canvas.height = fire.N; fire.ctx = fire.canvas.getContext('2d');
+  style.sources.fireSrc.canvas = fire.canvas;
+  map = new maplibregl.Map({
+    container: 'map', style, ...START, maxPitch: 82, attributionControl: false,
+    maxBounds: [[-86.5, 34.2], [-80.5, 37.4]], minZoom: 7, maxZoom: 18.5,
+    fadeDuration: 180, cancelPendingTileRequestsWhileZooming: true,
+  });
+  map.on('error', e => { if (e && e.error && /no tile|AbortError/.test(String(e.error.message || e.error))) return; });
+  map.on('load', () => {
+    map.setTerrain({ source: 'dem', exaggeration: EXAG });
+    map.setLayoutProperty('fire', 'visibility', 'none');
+    setSeason(4, false);
+    setSeason(seasonForDate(), false); $('#seasonRange').value = seasonVal;
+    goLive(false);
+    Live.init();
+    map.on('move', () => { if (!skyRaf) skyRaf = requestAnimationFrame(() => { skyRaf = 0; drawSkyCanvas(); }); });
+    map.on('moveend', throttle(() => applySky(), 2000));
+    let shown = false;
+    const reveal = () => {
+      if (shown) return; shown = true;
+      $('#loader').classList.add('done');
+      // anticipation, then a long slow-in/slow-out glide into the park
+      if (!window.__noIntro) setTimeout(() => cinematic(INTRO, 5200), 250);
+    };
+    map.once('idle', reveal); setTimeout(reveal, 9000);
+  });
+  map.on('move', throttle(updateReadout, 120));
+  map.on('click', onClick);
+  map.on('mousemove', 'buildings', () => map.getCanvas().style.cursor = 'pointer');
+  map.on('mouseleave', 'buildings', () => map.getCanvas().style.cursor = '');
+  buildUI();
+}
+function throttle(fn, ms) { let t = 0, h; return (...a) => { const n = performance.now(); if (n - t > ms) { t = n; fn(...a); } else { clearTimeout(h); h = setTimeout(() => { t = performance.now(); fn(...a); }, ms); } }; }
+
+function updateReadout() {
+  const c = map.getCenter();
+  const e = map.queryTerrainElevation(c);
+  const ft = e != null ? Math.round(e / EXAG * M2FT).toLocaleString('en-US') + ' ft' : '— ft';
+  $('#readout').textContent = `${ft} · ${c.lat.toFixed(4)}°N ${Math.abs(c.lng).toFixed(4)}°W`;
+}
+
+/* ---------- camera with animation principles ---------- */
+const easeInOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+let orbitRAF = 0, orbitToken = 0;
+function stopOrbit() { orbitToken++; cancelAnimationFrame(orbitRAF); }
+function orbit(speed = 0.6, settle = true) {
+  if (window.__noIntro) return;
+  // secondary action: a slow drift that eases in, then follows through to rest
+  stopOrbit(); const tok = orbitToken; const t0 = performance.now();
+  const dur = settle ? 14000 : Infinity;
+  const step = now => {
+    if (tok !== orbitToken) return;
+    const t = (now - t0) / 1000;
+    const k = Math.min(1, t / 2.5) * (settle ? Math.max(0, 1 - Math.max(0, (now - t0) - (dur - 4000)) / 4000) : 1);
+    map.setBearing(map.getBearing() + speed * k * 0.016 * 2);
+    if (now - t0 < dur) orbitRAF = requestAnimationFrame(step);
+  };
+  orbitRAF = requestAnimationFrame(step);
+}
+['mousedown', 'touchstart', 'wheel'].forEach(ev => document.getElementById('map').addEventListener(ev, () => { stopOrbit(); grandOn = false; }, { passive: true }));
+function cinematic(dest, duration = 4200, after) {
+  stopOrbit();
+  const cur = { zoom: map.getZoom(), pitch: map.getPitch() };
+  // anticipation: a small pull-back before the move
+  map.easeTo({ zoom: cur.zoom - 0.25, pitch: Math.max(0, cur.pitch - 6), duration: 420, easing: t => t * (2 - t) });
+  setTimeout(() => {
+    map.flyTo({ ...dest, duration, curve: 1.5, easing: easeInOut, essential: true });
+    map.once('moveend', () => { if (after) after(); else orbit(dest.orbit ?? 0.5); });
+  }, 430);
+}
+
+/* ---------- tours ---------- */
+const STOPS = [
+  { name: 'Gatlinburg', note: '1,289 ft', center: [-83.5135, 35.7125], zoom: 15.2, pitch: 62, bearing: 150 },
+  { name: 'Mount Le Conte', note: '6,594 ft', center: [-83.4386, 35.6545], zoom: 13.4, pitch: 72, bearing: 200 },
+  { name: 'Kuwohi', note: '6,643 ft', center: [-83.4985, 35.5629], zoom: 13.6, pitch: 70, bearing: 60 },
+  { name: 'Newfound Gap', note: '5,046 ft', center: [-83.4251, 35.6110], zoom: 13.7, pitch: 68, bearing: 330 },
+  { name: 'Cades Cove', note: '1,750 ft', center: [-83.8100, 35.5960], zoom: 13.0, pitch: 66, bearing: 70 },
+  { name: 'Pigeon Forge', note: '1,000 ft', center: [-83.5560, 35.8000], zoom: 14.6, pitch: 64, bearing: 20 },
+  { name: 'Sevierville', note: '900 ft', center: [-83.5640, 35.8680], zoom: 14.3, pitch: 62, bearing: 330 },
+  { name: 'Fontana Lake', note: '1,710 ft', center: [-83.6800, 35.4540], zoom: 12.3, pitch: 66, bearing: 40 },
+  { name: 'Cataloochee', note: '2,600 ft', center: [-83.0850, 35.6330], zoom: 13.2, pitch: 66, bearing: 300 },
+];
+let grandOn = false;
+function fly(i, after) {
+  document.querySelectorAll('.stop').forEach((b, j) => b.classList.toggle('on', j === i));
+  const s = STOPS[i];
+  cinematic(s, 4600 + Math.random() * 600, after);
+}
+function grandTour(i = 0) {
+  grandOn = true;
+  const go = k => {
+    if (!grandOn) return;
+    fly(k % STOPS.length, () => { if (!grandOn) return; orbit(0.9, false); setTimeout(() => { if (grandOn) go(k + 1); }, 6500); });
+  };
+  go(i);
+}
+
+/* ---------- seasons ---------- */
+let seasonVal = 4;
+function setSeason(v, animateLabel = true) {
+  seasonVal = v;
+  const a = Math.floor(v), f = v - a;
+  SEASONS.forEach((s, i) => {
+    const id = 'img-' + s.id;
+    let op = 0;
+    if (i === a) op = 1; else if (i === a + 1) op = f;
+    map.setLayoutProperty(id, 'visibility', op > 0.001 || i === a ? 'visible' : 'none');
+    map.setPaintProperty(id, 'raster-opacity', op);
+  });
+  const near = Math.round(v), s = SEASONS[near];
+  $('#seasonName').textContent = s.name; $('#seasonName').style.color = s.color;
+  $('#seasonDate').textContent = s.date;
+  document.querySelectorAll('#ticks span').forEach((el, i) => el.classList.toggle('on', i === near));
+  $('#knob').style.left = `calc(8px + (100% - 16px) * ${v / 4})`;
+}
+let seasonAnim = 0;
+function animateSeason(to) {
+  cancelAnimationFrame(seasonAnim);
+  const from = seasonVal, t0 = performance.now(), dur = 900;
+  const step = now => { const t = Math.min(1, (now - t0) / dur); const v = from + (to - from) * easeInOut(t); setSeason(v); $('#seasonRange').value = v; if (t < 1) seasonAnim = requestAnimationFrame(step); };
+  seasonAnim = requestAnimationFrame(step);
+}
+
+/* ---------- real sky: sun and moon from the local clock ---------- */
+const RAD = Math.PI / 180, DAYMS = 864e5, J1970 = 2440588, J2000 = 2451545, OBL = RAD * 23.4397;
+const toDays = d => d.valueOf() / DAYMS - 0.5 + J1970 - J2000;
+const raOf = (l, b) => Math.atan2(Math.sin(l) * Math.cos(OBL) - Math.tan(b) * Math.sin(OBL), Math.cos(l));
+const decOf = (l, b) => Math.asin(Math.sin(b) * Math.cos(OBL) + Math.cos(b) * Math.sin(OBL) * Math.sin(l));
+const sidereal = (d, lw) => RAD * (280.16 + 360.9856235 * d) - lw;
+function sunCoords(d) { const M = RAD * (357.5291 + 0.98560028 * d); const C = RAD * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M)); const L = M + C + RAD * 102.9372 + Math.PI; return { dec: decOf(L, 0), ra: raOf(L, 0), M, L }; }
+function altAz(H, phi, dec) { return { az: Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(phi) - Math.tan(dec) * Math.cos(phi)), alt: Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H)) }; }
+function sunPos(date, lat, lng) { const lw = RAD * -lng, phi = RAD * lat, d = toDays(date), c = sunCoords(d), H = sidereal(d, lw) - c.ra; const p = altAz(H, phi, c.dec); return { alt: p.alt / RAD, az: (p.az / RAD + 180 + 360) % 360 }; }
+function moonCoords(d) { const L = RAD * (218.316 + 13.176396 * d), M = RAD * (134.963 + 13.064993 * d), F = RAD * (93.272 + 13.22935 * d); const l = L + RAD * 6.289 * Math.sin(M), b = RAD * 5.128 * Math.sin(F), dt = 385001 - 20905 * Math.cos(M); return { ra: raOf(l, b), dec: decOf(l, b), dist: dt }; }
+function moonPos(date, lat, lng) { const lw = RAD * -lng, phi = RAD * lat, d = toDays(date), c = moonCoords(d), H = sidereal(d, lw) - c.ra; const p = altAz(H, phi, c.dec); return { alt: p.alt / RAD, az: (p.az / RAD + 180 + 360) % 360 }; }
+function moonIllum(date) { const d = toDays(date), s = sunCoords(d), m = moonCoords(d), sd = 149598000; const phi = Math.acos(Math.sin(s.dec) * Math.sin(m.dec) + Math.cos(s.dec) * Math.cos(m.dec) * Math.cos(s.ra - m.ra)); const inc = Math.atan2(sd * Math.sin(phi), m.dist - sd * Math.cos(phi)); const ang = Math.atan2(Math.cos(s.dec) * Math.sin(s.ra - m.ra), Math.sin(s.dec) * Math.cos(m.dec) - Math.cos(s.dec) * Math.sin(m.dec) * Math.cos(s.ra - m.ra)); return { frac: (1 + Math.cos(inc)) / 2, phase: 0.5 + 0.5 * inc * (ang < 0 ? -1 : 1) / Math.PI }; }
+
+const TZ = 'America/New_York';
+const SKY_STOPS = [ // sun altitude in degrees -> look
+  { a: -18, sky: '#03060f', hor: '#101c34', fog: '#0a1120', bg: '#070b12', tint: [8, 16, 42, 0.46], bright: 0.17, sat: -0.62, lights: 1 },
+  { a: -9, sky: '#0d1a36', hor: '#33395f', fog: '#232a46', bg: '#0e1420', tint: [26, 28, 78, 0.32], bright: 0.27, sat: -0.45, lights: 1 },
+  { a: -3, sky: '#2b4677', hor: '#d9845d', fog: '#7a6478', bg: '#2a2c33', tint: [125, 70, 110, 0.2], bright: 0.5, sat: -0.2, lights: 0.85 },
+  { a: 2, sky: '#557fb3', hor: '#f4ad66', fog: '#dcb08e', bg: '#4a4a3a', tint: [255, 136, 56, 0.17], bright: 0.78, sat: 0, lights: 0.35 },
+  { a: 10, sky: '#6994c4', hor: '#f1d8b8', fog: '#d6cfc0', bg: '#4b5a43', tint: [255, 186, 110, 0.07], bright: 0.95, sat: 0, lights: 0 },
+  { a: 28, sky: '#6f9cc9', hor: '#d6e3ec', fog: '#b9cddd', bg: '#4b5a43', tint: [0, 0, 0, 0], bright: 1, sat: 0, lights: 0 },
+];
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const mixc = (a, b, t) => { const x = hex(a), y = hex(b); return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
+const lerp = (a, b, t) => a + (b - a) * t;
+function skyAt(alt) {
+  const S = SKY_STOPS; if (alt <= S[0].a) return S[0]; if (alt >= S[S.length - 1].a) return S[S.length - 1];
+  let i = 0; while (S[i + 1].a < alt) i++; const A = S[i], B = S[i + 1], t = (alt - A.a) / (B.a - A.a);
+  return { sky: mixc(A.sky, B.sky, t), hor: mixc(A.hor, B.hor, t), fog: mixc(A.fog, B.fog, t), bg: mixc(A.bg, B.bg, t), tint: A.tint.map((v, k) => lerp(v, B.tint[k], t)), bright: lerp(A.bright, B.bright, t), sat: lerp(A.sat, B.sat, t), lights: lerp(A.lights, B.lights, t) };
+}
+const sky = { live: true, date: new Date(), sun: null, moon: null, illum: null, lightsOn: null };
+let nightOn = false;
+function seasonForDate(d = new Date()) { // pick the imagery that best matches today
+  const p = d.toLocaleDateString('en-US', { timeZone: TZ, month: 'numeric', day: 'numeric' }).split('/').map(Number); const md = p[0] * 100 + p[1];
+  return md >= 1110 || md < 320 ? 0 : md < 515 ? 1 : md < 915 ? 2 : md < 1016 ? 3 : 4;
+}
+function phaseName(alt) { return alt > 10 ? 'Daylight' : alt > 0 ? 'Golden hour' : alt > -6 ? 'Twilight' : alt > -12 ? 'Dusk' : 'Night'; }
+function moonName(p) { const n = ['New moon', 'Waxing crescent', 'First quarter', 'Waxing gibbous', 'Full moon', 'Waning gibbous', 'Last quarter', 'Waning crescent']; return n[Math.round(p * 8) % 8]; }
+function localMinutes(d) { const p = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(d); const h = +p.find(x => x.type === 'hour').value % 24, m = +p.find(x => x.type === 'minute').value; return h * 60 + m; }
+function fmtTime(d) { return d.toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }); }
+function applySky(date = sky.date) {
+  sky.date = date;
+  const c = map.getCenter();
+  const sun = sunPos(date, c.lat, c.lng), moon = moonPos(date, c.lat, c.lng), il = moonIllum(date);
+  sky.sun = sun; sky.moon = moon; sky.illum = il;
+  const k = skyAt(sun.alt);
+  // moonlight lifts the night a little
+  const moonLift = sun.alt < -6 && moon.alt > 0 ? il.frac * Math.min(1, moon.alt / 20) : 0;
+  const bright = Math.min(1, k.bright + moonLift * 0.12);
+  nightOn = k.lights > 0.5; document.body.classList.toggle('night', sun.alt < -4);
+  SEASONS.forEach(s => { map.setPaintProperty('img-' + s.id, 'raster-brightness-max', bright); map.setPaintProperty('img-' + s.id, 'raster-saturation', k.sat); });
+  map.setPaintProperty('tint', 'fill-color', `rgb(${k.tint[0] | 0},${k.tint[1] | 0},${k.tint[2] | 0})`);
+  map.setPaintProperty('tint', 'fill-opacity', k.tint[3]);
+  map.setPaintProperty('bg', 'background-color', k.bg);
+  map.setPaintProperty('land-tint', 'color-relief-opacity', lerp(0.25, 1, Math.min(1, bright)));
+  // shadows follow the sun (or the moon at night)
+  const lightAz = sun.alt > -4 ? sun.az : moon.alt > 0 ? moon.az : sun.az;
+  const low = sun.alt > -4 ? 1 - Math.min(1, Math.max(0, sun.alt) / 45) : 0.3;
+  map.setPaintProperty('shade-detail', 'hillshade-illumination-direction', Math.round(lightAz) % 360);
+  map.setPaintProperty('shade-detail', 'hillshade-exaggeration', ['interpolate', ['linear'], ['zoom'], 8, 0.16 + 0.4 * low, 14, 0.24 + 0.45 * low]);
+  map.setPaintProperty('shade-detail', 'hillshade-shadow-color', sun.alt > -4 ? `rgba(8,14,10,${(0.5 + 0.3 * low).toFixed(2)})` : 'rgba(0,4,14,0.6)');
+  map.setPaintProperty('shade-detail', 'hillshade-highlight-color', sun.alt > 0 && sun.alt < 12 ? 'rgba(255,190,120,0.22)' : sun.alt > -4 ? 'rgba(255,248,230,0.10)' : `rgba(170,190,230,${(0.06 + 0.12 * moonLift).toFixed(2)})`);
+  map.setSky({ 'sky-color': k.sky, 'horizon-color': k.hor, 'fog-color': k.fog, 'sky-horizon-blend': 0.55, 'horizon-fog-blend': 0.7, 'fog-ground-blend': sun.alt < -4 ? 0.45 : 0.35, 'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 9, 1, 12, 0] });
+  const lights = k.lights > 0.5;
+  if (lights !== sky.lightsOn) { sky.lightsOn = lights; setLights(lights); if (typeof Live !== 'undefined') Live.flowColor(); }
+  if (typeof Live !== 'undefined') Live.cloudLight(sun.alt, moonLift);
+  map.setPaintProperty('lidar', 'raster-opacity', ['interpolate', ['linear'], ['zoom'], 14.5, 0, 15.3, lerp(0.3, 0.9, bright)]);
+  updateSkyUI(); drawSkyCanvas();
+}
+function setLights(on) {
+  map.setPaintProperty('roads', 'line-color', on ? ['match', ['get', 'c'], ['motorway', 'trunk', 'primary'], '#ffbe5c', '#ffd88f'] : ['match', ['get', 'c'], ['motorway', 'trunk'], '#ffe2a8', ['primary', 'secondary'], '#fff1d6', '#f4f1ea']);
+  map.setPaintProperty('roads', 'line-blur', on ? 1.2 : 0);
+  map.setPaintProperty('roads', 'line-opacity', on ? 0.95 : ['interpolate', ['linear'], ['zoom'], 8, 0.55, 13, 0.75, 16, 0.55]);
+  map.setPaintProperty('roads-case', 'line-color', on ? 'rgba(255,170,60,0.22)' : 'rgba(10,14,12,0.35)');
+  map.setPaintProperty('roads-case', 'line-blur', on ? 6 : 0);
+  map.setPaintProperty('buildings', 'fill-extrusion-color', on ? ['match', ['%', ['get', 'k'], 3], 0, '#ffd99a', 1, '#f6c47e', '#ffe7bf'] : buildingColor());
+}
+function applyNight(on) { // kept for tours and tests: jump the clock to 11 PM or noon today
+  const d = new Date(); const m = localMinutes(d); sky.live = false; applySky(new Date(d.valueOf() + ((on ? 23 * 60 : 12 * 60) - m) * 60000));
+}
+function setSkyMinutes(target, base = new Date(), cur = localMinutes(base)) {
+  sky.live = false; cancelAnimationFrame(skyTween); applySky(new Date(base.valueOf() + (target - cur) * 60000));
+}
+let skyRaf = 0, skyTimer = 0, skyTween = 0;
+function goLive(animate) {
+  sky.live = true; clearInterval(skyTimer);
+  const to = new Date();
+  if (animate && sky.date) tweenSky(sky.date, to, 1400); else applySky(to);
+  skyTimer = setInterval(() => { if (sky.live) applySky(new Date()); }, 30000);
+  paintDayGradient();
+}
+function tweenSky(from, to, dur) { // slow in, slow out through the hours between
+  cancelAnimationFrame(skyTween); const a = from.valueOf(), b = to.valueOf(), t0 = performance.now(), live = sky.live;
+  const step = now => { const t = Math.min(1, (now - t0) / dur); applySky(new Date(a + (b - a) * easeInOut(t))); sky.live = live; updateSkyUI(); if (t < 1) skyTween = requestAnimationFrame(step); };
+  skyTween = requestAnimationFrame(step);
+}
+function paintDayGradient() { // the slider shows today's real light: night, dawn, day, dusk
+  const now = new Date(), m0 = localMinutes(now), c = map.getCenter(), stops = [];
+  for (let m = 0; m <= 1440; m += 30) { const a = sunPos(new Date(now.valueOf() + (m - m0) * 60000), c.lat, c.lng).alt; const k = skyAt(a); stops.push(`${a > -3 && a < 6 ? k.hor : k.sky} ${(m / 1440 * 100).toFixed(1)}%`); }
+  $('#dayGrad').style.background = `linear-gradient(90deg,${stops.join(',')})`;
+  $('#dayNowMark').style.left = `calc(8px + (100% - 16px) * ${m0 / 1439})`;
+}
+function updateSkyUI() {
+  const el = $('#skyTime'); if (!el) return;
+  el.textContent = `${fmtTime(sky.date)} · ${phaseName(sky.sun.alt)}`;
+  $('#skyNow').hidden = sky.live;
+  $('#skyLive').hidden = !sky.live;
+  const mins = localMinutes(sky.date), r = $('#skyRange'); if (document.activeElement !== r) r.value = mins;
+  $('#dayKnob').style.left = `calc(8px + (100% - 16px) * ${mins / 1439})`;
+  $('#skyMoon').textContent = `${moonName(sky.illum.phase)}, ${Math.round(sky.illum.frac * 100)}% lit`;
+}
+// stars, sun disk and moon painted behind the HUD, above the horizon line
+const starField = (() => { let s = 11; const r = () => (s = (s * 16807) % 2147483647) / 2147483647; return Array.from({ length: 900 }, () => ({ az: r() * 360, alt: Math.asin(r()) / RAD, m: r() })); })();
+function drawSkyCanvas() {
+  const c = $('#stars'); if (!c || !map) return;
+  const d = devicePixelRatio || 1, W = innerWidth, H = innerHeight;
+  if (c.width !== W * d) { c.width = W * d; c.height = H * d; c.style.width = W + 'px'; c.style.height = H + 'px'; }
+  const g = c.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, W, H);
+  if (!sky.sun) return;
+  const pitch = map.getPitch(), bearing = map.getBearing();
+  const f = (H / 2) / Math.tan((map.transform.fovInRadians || 36.87 * RAD) / 2);
+  const project = (az, alt) => { let rel = ((az - bearing + 540) % 360) - 180; if (Math.abs(rel) > 80) return null; const up = (90 - pitch) + alt; if (up >= 89) return null; const y = H / 2 - f * Math.tan(up * RAD); const x = W / 2 + f * Math.tan(rel * RAD) / Math.cos(up * RAD); return [x, y]; };
+  const hz = project(bearing, 0); const horizonY = hz ? hz[1] : -1;
+  if (horizonY < 0) return;
+  g.save(); g.beginPath(); g.rect(0, 0, W, Math.max(0, horizonY - 2)); g.clip();
+  const veil = 1 - 0.92 * (sky.cloud || 0); // real cloud cover hides the stars and dims the moon
+  const starA = Math.max(0, Math.min(1, (-sky.sun.alt - 4) / 10)) * (1 - 0.5 * (sky.moon.alt > 0 ? sky.illum.frac : 0)) * veil;
+  if (starA > 0.01) {
+    g.fillStyle = '#fff';
+    for (const st of starField) { const p = project(st.az, st.alt + 1.5); if (!p || p[1] > horizonY) continue; g.globalAlpha = starA * (0.25 + 0.75 * st.m) * Math.min(1, (horizonY - p[1]) / 80); const r = st.m > 0.96 ? 1.5 : st.m > 0.8 ? 1 : 0.6; g.fillRect(p[0] - r / 2, p[1] - r / 2, r, r); }
+  }
+  const sp = sky.sun.alt > -2 && project(sky.sun.az, sky.sun.alt);
+  if (sp) { g.globalAlpha = Math.max(0.25, veil); const glow = g.createRadialGradient(sp[0], sp[1], 0, sp[0], sp[1], 160); const warm = sky.sun.alt < 12; glow.addColorStop(0, warm ? 'rgba(255,214,150,0.95)' : 'rgba(255,252,240,0.95)'); glow.addColorStop(0.08, warm ? 'rgba(255,170,90,0.5)' : 'rgba(255,250,230,0.4)'); glow.addColorStop(1, 'rgba(255,160,80,0)'); g.fillStyle = glow; g.fillRect(sp[0] - 160, sp[1] - 160, 320, 320); }
+  const mp = sky.moon.alt > -1 && project(sky.moon.az, sky.moon.alt);
+  if (mp) {
+    const R = 9, fr = sky.illum.frac, waxing = sky.illum.phase < 0.5;
+    g.globalAlpha = (sky.sun.alt > 5 ? 0.45 : 1) * Math.max(0.12, veil);
+    const halo = g.createRadialGradient(mp[0], mp[1], R, mp[0], mp[1], R * 6); halo.addColorStop(0, `rgba(200,215,255,${0.25 * fr})`); halo.addColorStop(1, 'rgba(200,215,255,0)'); g.fillStyle = halo; g.fillRect(mp[0] - R * 6, mp[1] - R * 6, R * 12, R * 12);
+    g.fillStyle = 'rgba(60,70,90,0.55)'; g.beginPath(); g.arc(mp[0], mp[1], R, 0, 7); g.fill();
+    g.fillStyle = '#f1f0e6'; g.beginPath();
+    g.arc(mp[0], mp[1], R, -Math.PI / 2, Math.PI / 2, !waxing);
+    g.ellipse(mp[0], mp[1], Math.abs(1 - 2 * fr) * R, R, 0, Math.PI / 2, -Math.PI / 2, fr > 0.5 ? !waxing : waxing);
+    g.fill();
+  }
+  if (window.skyExtras) { g.globalAlpha = 1; window.skyExtras(g, project); }
+  g.restore();
+}
+/* ---------- flood ---------- */
+let floodFt = 0, floodHist = null;
+function buildingColor() {
+  const base = ['match', ['get', 'k'], 0, PAL[0], 1, PAL[1], 2, PAL[2], 3, PAL[3], 4, PAL[4], 5, PAL[5], 6, PAL[6], PAL[7]];
+  if (!toolState.flood || floodFt <= 0) return base;
+  const m = floodFt / M2FT;
+  return ['case', ['all', ['has', 'f'], ['<', ['get', 'f'], m]], '#ff5a3c', base];
+}
+function setFlood(ft) {
+  floodFt = ft; const m = ft / M2FT;
+  if (m < 0.15) map.setPaintProperty('flood', 'color-relief-color', 'rgba(0,0,0,0)');
+  else map.setPaintProperty('flood', 'color-relief-color', ['interpolate', ['linear'], ['elevation'], 0, 'rgba(14,58,120,0.92)', m * 0.5, 'rgba(26,95,180,0.85)', m - 0.05, 'rgba(70,160,235,0.72)', m, 'rgba(120,200,255,0)']);
+  if (!nightOn) map.setPaintProperty('buildings', 'fill-extrusion-color', buildingColor());
+  const el = $('#floodFt'); if (el) el.innerHTML = `${ft.toFixed(0)}<small>ft above normal</small>`;
+  const nb = $('#floodBldg');
+  if (nb && floodHist) { let n = 0; const bins = Math.floor(m * 10); for (let i = 0; i < Math.min(bins, floodHist.length); i++) n += floodHist[i]; nb.textContent = n.toLocaleString('en-US'); }
+}
+
+/* ---------- wildfire: minimum travel time spread ---------- */
+const fire = { canvas: null, ctx: null, N: 360, T: null, fuel: null, t: 0, playing: false, wind: 225, speed: 15, dry: 0.7, origin: null, raf: 0, bounds: null };
+function lngLatToTile(lng, lat, z) { const n = 2 ** z; const x = (lng + 180) / 360 * n; const r = lat * Math.PI / 180; const y = (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n; return [x, y]; }
+function tileToLngLat(x, y, z) { const n = 2 ** z; const lng = x / n * 360 - 180; const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) * 180 / Math.PI; return [lng, lat]; }
+async function decodeTile(layer, z, x, y) {
+  const buf = await getTile(layer, z, x, y); if (!buf) return null;
+  const bmp = await createImageBitmap(new Blob([buf]));
+  const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
+  return g.getImageData(0, 0, c.width, c.height).data;
+}
+async function igniteAt(ll) {
+  stopFire();
+  const Z = 13, N = fire.N; // z13 grid: ~15.6 m/px equatorial; cells = 2 px -> ~25 m
+  const [cx, cy] = lngLatToTile(ll.lng, ll.lat, Z);
+  const cellPx = 2; const half = N * cellPx / 2 / 256; // half-width in tiles
+  const x0 = cx - half, y0 = cy - half, x1 = cx + half, y1 = cy + half;
+  showToast('Reading terrain and fuel…');
+  const tiles = {};
+  const jobs = [];
+  for (let tx = Math.floor(x0); tx <= Math.floor(x1); tx++) for (let ty = Math.floor(y0); ty <= Math.floor(y1); ty++) {
+    jobs.push(decodeTile('terrain', Z, tx, ty).then(d => tiles['t' + tx + '_' + ty] = d));
+    jobs.push(decodeTile('img-' + SEASONS[Math.round(seasonVal)].id, Z, tx, ty).then(d => tiles['i' + tx + '_' + ty] = d));
+  }
+  await Promise.all(jobs);
+  const E = new Float32Array(N * N), F = new Float32Array(N * N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const px = (x0 + (i + 0.5) * cellPx / 256), py = (y0 + (j + 0.5) * cellPx / 256);
+    const tx = Math.floor(px), ty = Math.floor(py); const lx = Math.min(255, Math.floor((px - tx) * 256)), ly = Math.min(255, Math.floor((py - ty) * 256));
+    const t = tiles['t' + tx + '_' + ty], im = tiles['i' + tx + '_' + ty]; const o = (ly * 256 + lx) * 4;
+    E[j * N + i] = t ? t[o] * 256 + t[o + 1] + t[o + 2] / 256 - 32768 : 0;
+    let fu = 1;
+    if (im) {
+      const r = im[o], g = im[o + 1], b = im[o + 2]; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); const l = (r + g + b) / 3;
+      if (l > 120 && mx - mn < 40) fu = 0.03;            // pavement, rooftops, rock
+      else if (b > g && b > r && l < 70) fu = 0;          // open water
+      else if (l > 150) fu = 0.3;
+      else fu = 0.75 + 0.5 * Math.min(1, Math.max(0, (g - b) / 60));
+    }
+    // natural patchiness
+    fu *= 0.8 + 0.4 * hash(i, j);
+    F[j * N + i] = fu;
+  }
+  if (!tiles['t' + Math.floor(cx) + '_' + Math.floor(cy)]) { showToast('Fire tool works inside the mapped area'); return; }
+  fire.fuel = F; fire.E = E;
+  const nw = tileToLngLat(x0, y0, Z), se = tileToLngLat(x1, y1, Z);
+  fire.bounds = [nw, se];
+  const cellM = cellPx * 40075016.7 / (256 * 2 ** Z) * Math.cos(ll.lat * Math.PI / 180);
+  fire.cellM = cellM; fire.origin = [Math.floor(N / 2), Math.floor(N / 2)];
+  computeSpread();
+  fire.ctx.clearRect(0, 0, N, N);
+  fire.img = fire.ctx.createImageData(N, N);
+  const src = map.getSource('fireSrc');
+  src.setCoordinates([[nw[0], nw[1]], [se[0], nw[1]], [se[0], se[1]], [nw[0], se[1]]]);
+  map.setLayoutProperty('fire', 'visibility', 'visible');
+  fire.t = 0; fire.playing = true; renderFireSheetState(); showToast('Fire started. Watch it climb the slopes.');
+  fire.last = performance.now(); fire.raf = requestAnimationFrame(fireLoop);
+}
+function hash(i, j) { let h = (i * 374761393 + j * 668265263) >>> 0; h = (h ^ (h >>> 13)) * 1274126177 >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
+function computeSpread() {
+  const N = fire.N, E = fire.E, F = fire.fuel, cm = fire.cellM;
+  const U = fire.speed * 1.609; // km/h
+  const LB = 1 + 8.729 * Math.pow(1 - Math.exp(-0.03 * U), 2.155);
+  const ecc = Math.sqrt(1 - 1 / (LB * LB));
+  const Rhead = (0.9 + 0.12 * U) * (0.35 + fire.dry); // m/min, hardwood litter / understory
+  const windTo = (fire.wind + 180) * Math.PI / 180; // wind FROM -> spreads TO
+  const nb = [];
+  for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { if (!dx && !dy) continue; if (Math.abs(dx) === 2 && Math.abs(dy) === 2) continue; if ((Math.abs(dx) === 2 && dy === 0) || (Math.abs(dy) === 2 && dx === 0)) continue; nb.push([dx, dy, Math.hypot(dx, dy)]); }
+  const T = new Float32Array(N * N).fill(Infinity);
+  // binary heap
+  const hi = new Int32Array(N * N * 4), hv = new Float32Array(N * N * 4); let hn = 0;
+  const push = (i, v) => { let k = hn++; while (k > 0) { const p = (k - 1) >> 1; if (hv[p] <= v) break; hi[k] = hi[p]; hv[k] = hv[p]; k = p; } hi[k] = i; hv[k] = v; };
+  const pop = () => { const ri = hi[0]; const lv = hv[--hn], li = hi[hn]; let k = 0; while (true) { let c = 2 * k + 1; if (c >= hn) break; if (c + 1 < hn && hv[c + 1] < hv[c]) c++; if (hv[c] >= lv) break; hi[k] = hi[c]; hv[k] = hv[c]; k = c; } hi[k] = li; hv[k] = lv; return ri; };
+  const o = fire.origin[1] * N + fire.origin[0]; T[o] = 0; push(o, 0);
+  while (hn > 0) {
+    const t0 = hv[0]; const c = pop(); if (t0 > T[c]) continue; if (t0 > 60 * 30) break;
+    const cx = c % N, cy = (c / N) | 0;
+    for (const [dx, dy, d] of nb) {
+      const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+      const n = ny * N + nx; const fu = F[n]; if (fu < 0.05) continue;
+      const dist = d * cm; const rise = E[n] - E[c]; const tanS = rise / dist;
+      const sf = tanS > 0 ? Math.exp(3.533 * Math.pow(tanS, 1.2)) : Math.max(0.45, 1 + tanS * 0.9);
+      const ang = Math.atan2(dx, -dy); // bearing of this step, 0 = north
+      const th = ang - windTo; const rw = (1 - ecc) / (1 - ecc * Math.cos(th));
+      const R = Rhead * rw * sf * fu * Math.min(F[c] + 0.3, 1.2);
+      const nt = t0 + dist / Math.max(R, 0.02);
+      if (nt < T[n]) { T[n] = nt; push(n, nt); }
+    }
+  }
+  fire.T = T;
+}
+function fireLoop(now) {
+  const dt = Math.min(0.1, (now - fire.last) / 1000); fire.last = now;
+  if (fire.playing) fire.t += dt * 40; // 40 simulated minutes per second
+  drawFire(now);
+  updateFireStats();
+  fire.raf = requestAnimationFrame(fireLoop);
+}
+function drawFire(now) {
+  const N = fire.N, T = fire.T, d = fire.img.data, t = fire.t;
+  const flick = now / 140;
+  for (let k = 0; k < N * N; k++) {
+    const a = T[k]; const o = k * 4;
+    if (a > t) { d[o + 3] = 0; continue; }
+    const age = t - a;
+    if (age < 25) { // flaming front
+      const f = 0.75 + 0.25 * Math.sin(flick + k * 0.37);
+      const u = age / 25;
+      d[o] = 255; d[o + 1] = (210 - 150 * u) * f; d[o + 2] = 60 * (1 - u) * f; d[o + 3] = 250 * f;
+    } else if (age < 90) { const u = (age - 25) / 65; d[o] = 150 - 110 * u; d[o + 1] = 40 - 20 * u; d[o + 2] = 18; d[o + 3] = 225; }
+    else { d[o] = 30; d[o + 1] = 24; d[o + 2] = 20; d[o + 3] = 170; }
+  }
+  fire.ctx.putImageData(fire.img, 0, 0);
+}
+let fireStatT = 0;
+function updateFireStats() {
+  const now = performance.now(); if (now - fireStatT < 200) return; fireStatT = now;
+  const T = fire.T, t = fire.t; let n = 0, act = 0;
+  for (let k = 0; k < T.length; k++) if (T[k] <= t) { n++; if (t - T[k] < 25) act++; }
+  const acres = n * fire.cellM * fire.cellM / 4046.86;
+  const el = $('#fireAcres'); if (el) el.textContent = Math.round(acres).toLocaleString('en-US');
+  const h = $('#fireTime'); if (h) { const hh = Math.floor(t / 60), mm = Math.floor(t % 60); h.textContent = `${hh}h ${String(mm).padStart(2, '0')}m`; }
+  if (act === 0 && n > 1 && fire.playing) { fire.playing = false; renderFireSheetState(); }
+}
+function stopFire() { cancelAnimationFrame(fire.raf); fire.playing = false; if (map && map.getLayer('fire')) map.setLayoutProperty('fire', 'visibility', 'none'); fire.T = null; }
+
+/* ---------- tools ---------- */
+const toolState = { flood: false, fire: false };
+function openTool(name) {
+  const was = toolState[name];
+  Object.keys(toolState).forEach(k => toolState[k] = false);
+  document.querySelectorAll('.tool').forEach(b => b.setAttribute('aria-pressed', 'false'));
+  map.setLayoutProperty('flood', 'visibility', 'none');
+  if (!nightOn) map.setPaintProperty('buildings', 'fill-extrusion-color', buildingColor());
+  stopFire();
+  const sheet = $('#sheet');
+  if (was) { sheet.hidden = true; return; }
+  toolState[name] = true; $('#tool-' + name).setAttribute('aria-pressed', 'true');
+  if (name === 'flood') {
+    sheet.innerHTML = `<button class="close" aria-label="Close">✕</button>
+      <div class="eyebrow">Hazard tool</div><h2>River flood</h2>
+      <p>Drag to raise every river and named creek. Blue shows where water would stand; red buildings would be in it.</p>
+      <div class="row"><div class="big" id="floodFt">0<small>ft above normal</small></div></div>
+      <input class="range" id="floodRange" type="range" min="0" max="40" step="1" value="0" aria-label="River rise in feet">
+      <div class="legend" style="background:linear-gradient(90deg,#0e3a78,#1a5fb4,#46a0eb,rgba(120,200,255,.2))"></div>
+      <div class="row"><div class="stat"><span class="eyebrow">Buildings in water, whole map</span><b id="floodBldg">0</b></div>
+      <div class="row" style="gap:6px"><button class="btn" data-go="0">Gatlinburg</button><button class="btn" data-go="5">Pigeon Forge</button></div></div>
+      <p class="note">Illustration from terrain (height above the nearest river), not a forecast. Helene-scale floods on the Pigeon River reached roughly 15–25 ft above normal.</p>`;
+    map.setLayoutProperty('flood', 'visibility', 'visible');
+    $('#floodRange').addEventListener('input', e => setFlood(+e.target.value));
+    sheet.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { const s = STOPS[+b.dataset.go]; cinematic({ ...s, zoom: s.zoom - 0.8, pitch: 60 }); });
+    if (!floodHist) fetch(BASE + 'flood_hist.json').then(r => r.json()).then(h => { floodHist = h; setFlood(floodFt); }).catch(() => {});
+    setFlood(8); $('#floodRange').value = 8;
+  } else {
+    sheet.innerHTML = `<button class="close" aria-label="Close">✕</button>
+      <div class="eyebrow">Hazard tool</div><h2>Wildfire what-if</h2>
+      <p id="fireHint">Tap anywhere on the mountains to start a fire. Set the wind first.</p>
+      <div class="row" style="align-items:flex-start">
+        <div class="dial" id="windDial" role="slider" aria-label="Wind direction" tabindex="0"><i id="windNeedle"></i><span>N</span></div>
+        <div style="flex:1;min-width:0">
+          <div class="row"><span class="eyebrow">Wind from</span><b id="windDir" style="font-family:var(--font-data)">SW</b></div>
+          <div class="row"><span class="eyebrow">Speed</span><b id="windSpd" style="font-family:var(--font-data)">15 mph</b></div>
+          <input class="range" id="windRange" type="range" min="0" max="60" step="1" value="15" aria-label="Wind speed">
+          <div class="row"><span class="eyebrow">Fuel dryness</span><b id="dryV" style="font-family:var(--font-data)">Dry</b></div>
+          <input class="range" id="dryRange" type="range" min="0.2" max="1" step="0.05" value="0.7" aria-label="Fuel dryness">
+        </div>
+      </div>
+      <div class="row" style="margin-top:8px"><div class="stat"><span class="eyebrow">Burned</span><b><span id="fireAcres">0</span> acres</b></div><div class="stat"><span class="eyebrow">Elapsed</span><b id="fireTime">0h 00m</b></div>
+      <button class="btn primary" id="firePlay">Pause</button></div>
+      <p class="note">Minimum-travel-time spread using slope, wind and fuel read from the imagery. An illustration, not a fire behavior forecast.</p>`;
+    setupWindDial(); renderFireSheetState();
+  }
+  sheet.hidden = false;
+  sheet.querySelector('.close').onclick = () => openTool(name);
+}
+const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+function setupWindDial() {
+  const dial = $('#windDial'), needle = $('#windNeedle');
+  const set = deg => { fire.wind = (deg + 360) % 360; needle.style.transform = `rotate(${fire.wind + 180}deg)`; $('#windDir').textContent = DIRS[Math.round(fire.wind / 45) % 8]; if (fire.T) { computeSpread(); } };
+  set(fire.wind);
+  const onMove = e => { const r = dial.getBoundingClientRect(); const p = e.touches ? e.touches[0] : e; const a = Math.atan2(p.clientX - (r.left + r.width / 2), -(p.clientY - (r.top + r.height / 2))) * 180 / Math.PI; set(a); };
+  dial.addEventListener('pointerdown', e => { dial.setPointerCapture(e.pointerId); onMove(e); dial.onpointermove = onMove; });
+  dial.addEventListener('pointerup', () => dial.onpointermove = null);
+  dial.addEventListener('keydown', e => { if (e.key === 'ArrowRight') set(fire.wind + 15); if (e.key === 'ArrowLeft') set(fire.wind - 15); });
+  $('#windRange').addEventListener('input', e => { fire.speed = +e.target.value; $('#windSpd').textContent = fire.speed + ' mph'; if (fire.T) computeSpread(); });
+  $('#dryRange').addEventListener('input', e => { fire.dry = +e.target.value; $('#dryV').textContent = fire.dry > 0.85 ? 'Drought' : fire.dry > 0.6 ? 'Dry' : fire.dry > 0.4 ? 'Normal' : 'Damp'; if (fire.T) computeSpread(); });
+  $('#firePlay').onclick = () => { if (!fire.T) return; if (!fire.playing && fire.t > 0 && !anyActive()) fire.t = 0; fire.playing = !fire.playing; renderFireSheetState(); };
+}
+function anyActive() { const T = fire.T, t = fire.t; for (let k = 0; k < T.length; k++) if (T[k] > t && T[k] < Infinity) return true; return false; }
+function renderFireSheetState() { const b = $('#firePlay'); if (b) { b.textContent = !fire.T ? 'Tap map' : fire.playing ? 'Pause' : (anyActive() ? 'Resume' : 'Replay'); b.disabled = !fire.T; } const h = $('#fireHint'); if (h && fire.T) h.textContent = 'Tap somewhere else to start a new fire. Change the wind to replay with new conditions.'; }
+
+/* ---------- clicks ---------- */
+function onClick(e) {
+  if (toolState.fire) { igniteAt(e.lngLat); return; }
+  const f = map.queryRenderedFeatures(e.point, { layers: ['buildings', 'lbl-peak', 'lbl-poi', 'lbl-place'] })[0];
+  if (!f) { $('#card').hidden = true; return; }
+  const p = f.properties; const card = $('#card');
+  const elev = map.queryTerrainElevation(e.lngLat);
+  const ft = elev != null ? Math.round(elev / EXAG * M2FT).toLocaleString('en-US') + ' ft elevation' : '';
+  card.innerHTML = '';
+  const h = document.createElement('h3');
+  const meta = document.createElement('div'); meta.className = 'meta';
+  if (f.layer.id === 'buildings') {
+    h.textContent = p.n || (p.c ? cap(p.c.replace(/_/g, ' ')) : 'Building');
+    const src = { lidar: 'measured by USGS LiDAR (2016)', ov: 'from Overture Maps', fl: 'from floor count', est: 'estimated from footprint' }[p.s] || '';
+    meta.textContent = `${Math.round(p.h * M2FT)} ft tall, ${src}\n${ft}`;
+  } else if (f.layer.id === 'lbl-peak') {
+    h.textContent = p.n; meta.textContent = `${Math.round(p.e * M2FT).toLocaleString('en-US')} ft summit`;
+  } else { h.textContent = p.n; meta.textContent = (p.c ? cap(String(p.c).replace(/_/g, ' ')) + '\n' : '') + ft; }
+  meta.style.whiteSpace = 'pre-line';
+  card.append(h, meta); card.hidden = false;
+  clearTimeout(card._t); card._t = setTimeout(() => card.hidden = true, 6000);
+}
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+function showToast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 2600); }
+
+/* ---------- search ---------- */
+let index = null, sel = -1;
+async function loadIndex() { if (!index) index = await fetch(BASE + 'search.json').then(r => r.json()).catch(() => []); return index; }
+function norm(s) { return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+async function doSearch() {
+  const q = norm($('#q').value.trim()); const box = $('#results');
+  if (q.length < 2) { box.hidden = true; return; }
+  const idx = await loadIndex();
+  const out = [];
+  for (const r of idx) { const n = norm(r[0]); const i = n.indexOf(q); if (i < 0) continue; out.push([i === 0 ? 0 : (n.includes(' ' + q) ? 1 : 2), r[4] || 0, r]); if (out.length > 400) break; }
+  out.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  box.innerHTML = ''; sel = -1;
+  out.slice(0, 12).forEach(([, , r]) => {
+    const b = document.createElement('button'); const s = document.createElement('span'); s.textContent = r[0]; const sm = document.createElement('small'); sm.textContent = r[3]; b.append(s, sm);
+    b.onclick = () => { box.hidden = true; $('#q').blur(); const z = r[3].includes('ft') ? 13.4 : /town|city|village/.test(r[3]) ? 13.6 : 16.2; cinematic({ center: [r[1], r[2]], zoom: z, pitch: 64, bearing: map.getBearing() }); };
+    box.append(b);
+  });
+  if (!out.length) { const d = document.createElement('div'); d.style.cssText = 'padding:10px;color:var(--ink-faint)'; d.textContent = 'No matches inside the mapped area'; box.append(d); }
+  box.hidden = false;
+}
+
+/* ---------- UI wiring ---------- */
+function buildUI() {
+  const tl = $('#tourList');
+  STOPS.forEach((s, i) => {
+    const b = document.createElement('button'); b.className = 'stop'; b.style.animationDelay = (0.9 + i * 0.06) + 's';
+    b.innerHTML = '<span class="dot"></span>'; const n = document.createElement('span'); n.textContent = s.name; const sm = document.createElement('small'); sm.textContent = s.note; b.append(n, sm);
+    b.onclick = () => { grandOn = false; fly(i); closeMobile(); };
+    tl.append(b);
+  });
+  $('#grand').onclick = () => { closeMobile(); grandTour(0); showToast('Grand tour. Touch the map to take over.'); };
+  const ticks = $('#ticks'); SEASONS.forEach(s => { const sp = document.createElement('span'); sp.textContent = s.tick; ticks.append(sp); });
+  const rng = $('#seasonRange');
+  rng.addEventListener('input', () => { cancelAnimationFrame(seasonAnim); setSeason(+rng.value); });
+  rng.addEventListener('change', () => animateSeason(Math.round(+rng.value)));
+  ticks.querySelectorAll('span').forEach((sp, i) => sp.addEventListener('click', () => animateSeason(i)));
+  const tog = (id, fn) => { const b = $('#' + id); b.onclick = () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); fn(on); }; };
+  const vis = (ids, on) => ids.forEach(i => map.setLayoutProperty(i, 'visibility', on ? 'visible' : 'none'));
+  tog('t-buildings', on => vis(['buildings'], on));
+  tog('t-labels', on => vis(['lbl-water', 'lbl-road', 'lbl-trail', 'lbl-poi', 'lbl-waterfall', 'lbl-peak', 'lbl-place'], on));
+  tog('t-trails', on => vis(['trails', 'roads', 'roads-case'], on));
+  tog('t-water', on => vis(['rivers', 'streams', 'water-fill'], on));
+  tog('t-lidar', on => vis(['lidar'], on));
+  tog('t-fog', on => { vis(['fog'], on); if (on) { map.setPaintProperty('fog', 'color-relief-color', FOG); showToast('Morning fog settles into the valleys'); } });
+  $('#tool-flood').onclick = () => { openTool('flood'); closeMobile(); };
+  $('#tool-fire').onclick = () => { openTool('fire'); closeMobile(); };
+  $('#q').addEventListener('input', throttle(doSearch, 150));
+  $('#q').addEventListener('focus', loadIndex);
+  $('#q').addEventListener('keydown', e => {
+    const bs = [...document.querySelectorAll('#results button')]; if (!bs.length) return;
+    if (e.key === 'ArrowDown') { sel = Math.min(bs.length - 1, sel + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { sel = Math.max(0, sel - 1); e.preventDefault(); }
+    else if (e.key === 'Enter') { (bs[sel] || bs[0]).click(); return; } else if (e.key === 'Escape') { $('#results').hidden = true; return; }
+    bs.forEach((b, i) => b.classList.toggle('sel', i === sel));
+  });
+  $('#aboutBtn').onclick = () => $('#about').hidden = false;
+  $('#aboutClose').onclick = () => $('#about').hidden = true;
+  $('#about').addEventListener('click', e => { if (e.target.id === 'about') $('#about').hidden = true; });
+  $('#m-tours').onclick = () => toggleMobile('tours');
+  $('#m-layers').onclick = () => toggleMobile('rail');
+  addEventListener('resize', () => drawSkyCanvas());
+  const sr = $('#skyRange');
+  sr.addEventListener('input', () => { setSkyMinutes(+sr.value); });
+  $('#skyNow').onclick = () => goLive(true);
+}
+function toggleMobile(which) {
+  const other = which === 'tours' ? 'rail' : 'tours';
+  $('#' + other).classList.remove('open'); $('#m-' + (other === 'rail' ? 'layers' : 'tours')).setAttribute('aria-pressed', 'false');
+  const el = $('#' + which); const on = !el.classList.contains('open'); el.classList.toggle('open', on);
+  $('#m-' + (which === 'rail' ? 'layers' : 'tours')).setAttribute('aria-pressed', on);
+}
+function closeMobile() { ['tours', 'rail'].forEach(i => $('#' + i).classList.remove('open')); document.querySelectorAll('#mobileBar button').forEach(b => b.setAttribute('aria-pressed', 'false')); }
+/* LIVE-BEGIN */
+/* =====================================================================
+   LIVE: weather, 3D clouds, radar, alerts, rivers, roads, cameras,
+   news and events. Browser-friendly APIs are called directly; the rest
+   come from the repo's feeds branch, refreshed every 10 minutes by a
+   GitHub Action. Everything degrades quietly when a source is down.
+   ===================================================================== */
+const Live = (() => {
+  const FEEDS = 'https://raw.githubusercontent.com/Isaacalmighty/smokies-live/feeds/live/';
+  const SITE = 'https://isaacalmighty.github.io/smokies-live/';
+  const st = { blocked: false, wx: null, grid: null, alerts: [], news: [], events: [], traffic: { incidents: [], cameras: [] }, gauges: [], fires: [], radar: null, iss: null, tab: 'now', markers: {}, on: { clouds: true, radar: false, traffic: true, cams: true, news: true, rivers: true }, updated: {} };
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const ago = iso => { if (!iso) return ''; const s = (Date.now() - new Date(iso)) / 1000; if (s < 0) return new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }); if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' hr ago'; return Math.round(s / 86400) + ' d ago'; };
+  async function jget(url, ms = 15000) {
+    const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
+    try { const r = await fetch(url, { signal: c.signal, cache: 'no-cache' }); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); }
+    finally { clearTimeout(t); }
+  }
+  const feed = name => jget(FEEDS + name + '?t=' + Math.floor(Date.now() / 120000));
+
+  /* ---------- weather words and icons ---------- */
+  const WMO = { 0: 'Clear', 1: 'Mostly clear', 2: 'Partly cloudy', 3: 'Overcast', 45: 'Fog', 48: 'Freezing fog', 51: 'Light drizzle', 53: 'Drizzle', 55: 'Heavy drizzle', 56: 'Freezing drizzle', 57: 'Freezing drizzle', 61: 'Light rain', 63: 'Rain', 65: 'Heavy rain', 66: 'Freezing rain', 67: 'Freezing rain', 71: 'Light snow', 73: 'Snow', 75: 'Heavy snow', 77: 'Snow grains', 80: 'Showers', 81: 'Showers', 82: 'Heavy showers', 85: 'Snow showers', 86: 'Snow showers', 95: 'Thunderstorms', 96: 'Storms with hail', 99: 'Storms with hail' };
+  function icon(code, day) {
+    const sun = '<circle cx="15" cy="15" r="5.5" fill="#ffc861"/><g stroke="#ffc861" stroke-width="2" stroke-linecap="round"><path d="M15 3v3M15 24v3M3 15h3M24 15h3M6.5 6.5l2 2M21.5 21.5l2 2M6.5 23.5l2-2M21.5 8.5l2-2"/></g>';
+    const moon = '<path d="M19 5a10 10 0 1 0 6 15A8 8 0 0 1 19 5z" fill="#dfe6f5"/>';
+    const cloud = (y = 0, c = '#dfe6ee') => `<path d="M8 ${22 + y}h14a5 5 0 0 0 0-10 7 7 0 0 0-13-1A5 5 0 0 0 8 ${22 + y}z" fill="${c}"/>`;
+    const rain = '<g stroke="#6fb6ff" stroke-width="2" stroke-linecap="round"><path d="M10 25l-1 3M15 25l-1 3M20 25l-1 3"/></g>';
+    const snow = '<g fill="#fff"><circle cx="10" cy="27" r="1.4"/><circle cx="15" cy="28" r="1.4"/><circle cx="20" cy="27" r="1.4"/></g>';
+    const bolt = '<path d="M16 21l-3 5h3l-2 4 5-6h-3l2-3z" fill="#ffd34d"/>';
+    const fog = '<g stroke="#cfd8e0" stroke-width="2" stroke-linecap="round"><path d="M5 12h20M7 17h18M5 22h16"/></g>';
+    let b = '';
+    if (code <= 1) b = day ? sun : moon;
+    else if (code === 2) b = (day ? '<g transform="translate(4 -3) scale(.8)">' + sun + '</g>' : '<g transform="translate(5 -3) scale(.75)">' + moon + '</g>') + cloud(2);
+    else if (code === 3) b = cloud(0, '#aab4bf') + cloud(3);
+    else if (code === 45 || code === 48) b = fog;
+    else if (code >= 95) b = cloud(-3, '#8d97a3') + bolt;
+    else if ((code >= 71 && code <= 77) || code === 85 || code === 86) b = cloud(-3) + snow;
+    else b = cloud(-3, '#b7c1cc') + rain;
+    return `<svg viewBox="0 0 30 30" id="wxIcon" aria-hidden="true">${b}</svg>`;
+  }
+  const compass = d => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((d % 360) + 360) % 360 / 45) % 8];
+
+  /* ---------- markup ---------- */
+  function buildUI() {
+    const sec = document.createElement('section'); sec.id = 'live'; sec.className = 'panel'; sec.setAttribute('aria-label', 'Live conditions');
+    sec.innerHTML = `<button id="liveChip" aria-expanded="false">${icon(2, true)}<b id="wxTemp">--°</b><span id="wxDesc">Connecting to live data…</span><i class="chev"></i></button>
+      <div id="alertBar" role="alert"></div>
+      <div id="liveBody"><div>
+        <nav class="ltabs" role="tablist">${[['now', 'Now'], ['news', 'News'], ['events', 'Events'], ['roads', 'Roads'], ['cams', 'Cams'], ['rivers', 'Rivers']].map(([k, v]) => `<button role="tab" data-t="${k}" aria-selected="${k === 'now'}">${v}<span class="n" hidden></span></button>`).join('')}</nav>
+        <div id="lview"></div>
+      </div></div>`;
+    document.body.appendChild(sec);
+    const card = document.createElement('div'); card.id = 'lcard'; card.className = 'panel'; card.hidden = true; document.body.appendChild(card);
+    $('#liveChip').onclick = () => setOpen(!sec.classList.contains('open'));
+    sec.querySelectorAll('.ltabs button').forEach(b => b.onclick = () => { st.tab = b.dataset.t; st.filter = null; sec.querySelectorAll('.ltabs button').forEach(x => x.setAttribute('aria-selected', x === b)); render(); });
+    $('#alertBar').onclick = () => { setOpen(true); st.tab = 'now'; render(); };
+    // live layer toggles in the rail
+    const grp = document.createElement('div'); grp.className = 'group';
+    grp.innerHTML = '<div class="eyebrow">Live</div>' + [['clouds', '3D clouds'], ['radar', 'Rain radar'], ['traffic', 'Traffic'], ['cams', 'Cameras'], ['news', 'News &amp; events'], ['rivers', 'Rivers &amp; fires']].map(([k, v]) => `<button class="toggle" data-live="${k}" aria-pressed="${st.on[k]}"><span class="k">${v}</span><span class="sw"></span></button>`).join('');
+    $('#rail').insertBefore(grp, $('#rail').children[1]);
+    grp.querySelectorAll('.toggle').forEach(b => b.onclick = () => { const k = b.dataset.live; const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); st.on[k] = on; applyToggles(k); });
+    // phones get a Live button in the bottom bar
+    const mb = document.createElement('button'); mb.id = 'm-live'; mb.setAttribute('aria-pressed', 'false'); mb.textContent = 'Live';
+    $('#mobileBar').prepend(mb);
+    mb.onclick = () => { closeMobile(); setOpen(!sec.classList.contains('open')); };
+  }
+  function setOpen(on) {
+    $('#live').classList.toggle('open', on); $('#liveChip').setAttribute('aria-expanded', on);
+    document.body.classList.toggle('live-open', on);
+    const mb = $('#m-live'); if (mb) mb.setAttribute('aria-pressed', on);
+    if (on) render();
+  }
+
+  /* ---------- the panel ---------- */
+  function counts() {
+    const n = { news: st.news.length, events: st.events.length, roads: st.traffic.incidents.length, cams: st.traffic.cameras.length, rivers: st.gauges.length };
+    document.querySelectorAll('.ltabs button').forEach(b => { const c = n[b.dataset.t]; const s = b.querySelector('.n'); if (c) { s.hidden = false; s.textContent = c; } else s.hidden = true; });
+  }
+  function item(o, i) {
+    const img = o.img ? `<img class="th" loading="lazy" src="${esc(o.img)}" alt="" onerror="this.remove()">` : '';
+    return `<div class="li" style="animation-delay:${Math.min(i, 12) * 40}ms" data-k="${o.k}" data-i="${o.i}">${img}<div class="tx"><h4>${esc(o.title)}</h4>${o.sum ? `<p>${esc(o.sum)}</p>` : ''}<div class="mt">${o.meta || ''}${o.place ? `<span class="pin-chip">${esc(o.place)}</span>` : ''}</div></div></div>`;
+  }
+  function render() {
+    const v = $('#lview'); if (!v || !$('#live').classList.contains('open')) return;
+    counts();
+    let h = '';
+    const blockedNote = `<div class="lempty">This preview runs in a sandbox that blocks outside data. Open the full site for live weather, radar, news, events, traffic, cameras and rivers:<br><a href="${SITE}" target="_blank" rel="noopener">${SITE.replace('https://', '')}</a></div>`;
+    if (st.tab === 'now') {
+      if (st.alerts.length) h += '<div class="lsec">Weather alerts</div>' + st.alerts.map((a, i) => item({ k: 'alert', i, title: a.event, sum: a.headline, meta: `<span>${esc(a.severity)}</span><span>until ${esc(fmtWhen(a.ends || a.expires))}</span>` }, i)).join('');
+      if (st.wx) {
+        const c = st.wx.current, d = st.wx.daily;
+        const summit = st.grid && st.grid.summit;
+        h += `<div class="lsec">Gatlinburg now</div><div class="nowgrid">
+          <div><span>Feels like</span><b>${Math.round(c.apparent_temperature)}°</b></div>
+          <div><span>Wind</span><b>${Math.round(c.wind_speed_10m)}<small> mph ${compass(c.wind_direction_10m)}</small></b></div>
+          <div><span>Humidity</span><b>${Math.round(c.relative_humidity_2m)}%</b></div>
+          <div><span>Gusts</span><b>${Math.round(c.wind_gusts_10m)} mph</b></div>
+          <div><span>Clouds</span><b>${Math.round(c.cloud_cover)}%</b></div>
+          <div><span>${summit ? 'Le Conte' : 'Visibility'}</span><b>${summit ? Math.round(summit.temperature_2m) + '°' : Math.round((c.visibility || 0) / 1609) + ' mi'}</b></div></div>`;
+        const hrs = st.wx.hourly; const now = Date.now(); let k = hrs.time.findIndex(t => new Date(t + ':00-05:00').valueOf() > now - 3600e3);
+        if (k >= 0) {
+          h += '<div class="hours">' + hrs.time.slice(k, k + 18).map((t, j) => { const i = k + j; const hr = new Date(t + ':00-05:00').toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric' }); const p = hrs.precipitation_probability[i] || 0; return `<div>${j ? hr : 'Now'}<b>${Math.round(hrs.temperature_2m[i])}°</b>${icon(hrs.weather_code[i], hrs.is_day ? hrs.is_day[i] : 1).replace('id="wxIcon"', 'width="22" height="22"')}<i style="opacity:${p / 100}"></i></div>`; }).join('') + '</div>';
+        }
+        if (d) h += `<div class="mt" style="padding:6px 6px 0">Sunrise ${fmtT(d.sunrise[0])} · Sunset ${fmtT(d.sunset[0])} · High ${Math.round(d.temperature_2m_max[0])}° Low ${Math.round(d.temperature_2m_min[0])}°</div>`;
+      }
+      if (st.grid && st.grid.low + st.grid.mid > 25) h += `<div style="padding:10px 4px 0"><button class="btn primary" id="intoClouds">Fly into the clouds</button></div>`;
+      if (st.iss && st.iss.alt > 0) h += `<div class="lsec">Overhead</div><div class="lempty" style="padding-top:0">The International Space Station is ${Math.round(st.iss.alt)}° above the horizon to the ${compass(st.iss.az)} right now${sky.sun && sky.sun.alt < -6 ? '. Look for it in the sky view.' : '.'}</div>`;
+      if (st.blocked) h += blockedNote;
+      else h += `<div class="mt" style="padding:10px 6px 0">Weather: Open-Meteo, NWS · updated ${ago(st.updated.wx)}</div>`;
+    } else if (st.blocked) h = blockedNote;
+    else if (st.tab === 'news' && st.filter) {
+      const f = st.filter; const ns = st.news.map((n, i) => [n, i]).filter(([n]) => n.place && n.place.name === f), es = st.events.map((n, i) => [n, i]).filter(([n]) => n.place && n.place.name === f);
+      h = `<div class="lsec" style="display:flex;justify-content:space-between;align-items:center">${esc(f)} · ${ns.length + es.length} <button class="livebtn" id="clearF">Show all</button></div>`;
+      if (ns.length) h += ns.map(([n, i], j) => item({ k: 'news', i, title: n.title, sum: n.summary, img: n.img, meta: `<span>${esc(n.source)}</span><span>${ago(n.published)}</span>` }, j)).join('');
+      if (es.length) h += '<div class="lsec">Events</div>' + es.map(([n, i], j) => item({ k: 'event', i, title: n.title, sum: n.summary, img: n.img, meta: `<span>${esc(n.source)}</span>${n.start ? `<span>${esc(fmtWhen(n.start))}</span>` : ''}` }, j)).join('');
+    }
+    else if (st.tab === 'news') h = st.news.length ? st.news.map((n, i) => item({ k: 'news', i, title: n.title, sum: n.summary, img: n.img, place: n.place && n.place.name, meta: `<span>${esc(n.source)}</span><span>${ago(n.published)}</span>` }, i)).join('') : '<div class="lempty">No local stories yet.</div>';
+    else if (st.tab === 'events') h = st.events.length ? st.events.map((n, i) => item({ k: 'event', i, title: n.title, sum: n.summary, img: n.img, place: n.place && n.place.name, meta: `<span>${esc(n.source)}</span>${n.start ? `<span>${esc(fmtWhen(n.start))}</span>` : ''}` }, i)).join('') : '<div class="lempty">No events listed right now.</div>';
+    else if (st.tab === 'roads') {
+      const inc = st.traffic.incidents;
+      h = inc.length ? inc.map((n, i) => item({ k: 'traffic', i, title: n.title, sum: n.desc, place: n.road || (n.place && n.place.name), meta: `<span>${esc(n.source)}</span>${n.start ? `<span>${ago(n.start)}</span>` : ''}` }, i)).join('') : '<div class="lempty">No reported incidents or closures nearby.</div>';
+      h += `<div class="lempty" style="font-size:11.5px">Traffic lines on the map are modeled from typical patterns for this hour and day, not live speeds. Incidents and park road alerts are live.</div>`;
+    } else if (st.tab === 'cams') {
+      const cams = st.traffic.cameras;
+      h = cams.length ? cams.map((c, i) => `<div class="li" style="display:block;animation-delay:${i * 50}ms" data-k="cam" data-i="${i}">${c.img ? `<div class="camwrap"><img loading="lazy" src="${esc(camSrc(c))}" alt="${esc(c.name)}" onerror="this.parentNode.remove()">${camTag(c)}</div>` : ''}<h4>${esc(c.name)}</h4><div class="mt"><span>${esc(c.source)}</span>${c.live ? '<span>Live video on nps.gov</span>' : c.still ? '<span>New image every few minutes</span>' : ''}</div></div>`).join('') : '<div class="lempty">No cameras available right now.</div>';
+      h += `<div class="lempty" style="font-size:11.5px">TDOT traffic cameras can be added with a free TDOT data key.</div>`;
+    } else if (st.tab === 'rivers') {
+      h = st.gauges.length ? st.gauges.map((g, i) => { const tr = trend(g.cfs24); return item({ k: 'gauge', i, title: niceGauge(g.name), sum: '', meta: `<span>${g.cfs != null ? Math.round(g.cfs).toLocaleString() + ' cfs' : ''}</span><span>${g.ft != null ? g.ft.toFixed(2) + ' ft' : ''}</span><span>${tr}</span><span>${ago(g.t)}</span>` + (g.cfs24 ? spark(g.cfs24) : '') }, i); }).join('') : '<div class="lempty">River gauges are loading.</div>';
+      if (st.fires.length) h = `<div class="lsec">Satellite fire detections, last 24 hours</div>` + st.fires.map((f, i) => item({ k: 'fire', i, title: `Heat detected by ${f.sat}`, sum: `${f.frp ? f.frp.toFixed(1) + ' MW fire radiative power. ' : ''}Confidence ${f.conf}.`, meta: `<span>${f.date} ${String(f.time).padStart(4, '0').replace(/(\d\d)(\d\d)/, '$1:$2')} UTC</span>` }, i)).join('') + '<div class="lsec">Rivers</div>' + h;
+    }
+    v.innerHTML = h;
+    v.querySelectorAll('.li').forEach(el => el.onclick = () => focus(el.dataset.k, +el.dataset.i));
+    const ic = $('#intoClouds'); if (ic) ic.onclick = intoClouds;
+    const cf = $('#clearF'); if (cf) cf.onclick = () => { st.filter = null; render(); };
+  }
+  const fmtT = s => new Date(s + ':00-05:00').toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
+  const fmtWhen = s => { if (!s) return ''; const d = new Date(s); if (isNaN(d)) return s; return d.toLocaleString('en-US', { timeZone: TZ, weekday: 'short', hour: 'numeric', minute: '2-digit' }); };
+  const niceGauge = n => n.replace(/\b(NR|AB|BL|AT)\b/g, m => ({ NR: 'near', AB: 'above', BL: 'below', AT: 'at' }[m])).toLowerCase().replace(/\b\w/g, c => c.toUpperCase()).replace(/, (Tn|Nc)$/, (m, s) => ', ' + s.toUpperCase());
+  const trend = a => { if (!a || a.length < 4) return ''; const r = a[a.length - 1] / Math.max(1, a[a.length - 4]); return r > 1.15 ? '↑ rising' : r < 0.87 ? '↓ falling' : '→ steady'; };
+  function spark(a) { const mx = Math.max(...a), mn = Math.min(...a), n = a.length; const pts = a.map((v, i) => `${(i / (n - 1) * 100).toFixed(1)},${(26 - (v - mn) / Math.max(1e-6, mx - mn) * 22).toFixed(1)}`).join(' '); return `<svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#4aa3ff" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`; }
+  const camSrc = c => c.still ? c.img + (c.img.includes('?') ? '&' : '?') + 'r=' + Math.floor(Date.now() / 300000) : c.img;
+  const camTag = c => `<span class="tag ${c.still || c.live ? 'live' : ''}">${c.still ? 'Live still' : c.live ? 'Live stream' : 'Photo'}</span>`;
+
+  /* ---------- pins ---------- */
+  const PIN_ICON = {
+    news: '<path d="M3 4h12v12H3z M6 7h6M6 10h6M6 13h4" stroke="#fff" stroke-width="1.6" fill="none"/>',
+    event: '<rect x="3" y="4" width="12" height="11" rx="2" stroke="#fff" stroke-width="1.6" fill="none"/><path d="M3 8h12M6 2v3M12 2v3" stroke="#fff" stroke-width="1.6"/>',
+    traffic: '<path d="M9 2l7 13H2z" stroke="#fff" stroke-width="1.6" fill="none"/><path d="M9 7v4M9 13v.5" stroke="#fff" stroke-width="1.8"/>',
+    cam: '<rect x="2" y="5" width="10" height="8" rx="1.5" stroke="#fff" stroke-width="1.6" fill="none"/><path d="M12 8l4-2v6l-4-2" stroke="#fff" stroke-width="1.6" fill="none"/>',
+    gauge: '<path d="M2 11c2-2 3-2 5 0s3 2 5 0 3-2 4 0M2 15c2-2 3-2 5 0s3 2 5 0 3-2 4 0" stroke="#fff" stroke-width="1.6" fill="none"/>',
+    fire: '<path d="M9 2c1 3 4 4 4 8a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-4 0-7z" fill="#fff"/>',
+    alert: '<path d="M9 2l7 13H2z" fill="#fff"/>',
+  };
+  function pin(kind, lng, lat, i, hot, count, onTap) {
+    if (lng == null || lat == null) return null;
+    // the marker positions the outer box; the inner pin is free to squash and stretch
+    const box = document.createElement('div'); box.className = 'lpinbox';
+    const el = document.createElement('div'); el.className = `lpin ${kind}${hot ? ' hot' : ''}`; el.dataset.i = i;
+    el.innerHTML = `<svg viewBox="0 0 18 18">${PIN_ICON[kind] || PIN_ICON.news}</svg>`;
+    el.style.animationDelay = (Math.random() * 400 | 0) + 'ms';
+    if (count) { const b = document.createElement('b'); b.className = 'lcount'; b.textContent = count > 99 ? '99+' : count; el.appendChild(b); }
+    box.appendChild(el);
+    box.addEventListener('click', e => { e.stopPropagation(); onTap ? onTap() : focus(kind, i); });
+    return new maplibregl.Marker({ element: box, anchor: 'bottom', pitchAlignment: 'viewport' }).setLngLat([lng, lat]).addTo(map);
+  }
+  function clearPins(group) { (st.markers[group] || []).forEach(m => m && m.remove()); st.markers[group] = []; }
+  function spread(list) { // fan out pins that share a spot so each stays tappable
+    const seen = {};
+    return list.map(p => { const k = p[0].toFixed(3) + ',' + p[1].toFixed(3); const n = seen[k] = (seen[k] || 0) + 1; if (n === 1) return p; const a = n * 2.4, r = 0.0016 * Math.sqrt(n); return [p[0] + Math.cos(a) * r, p[1] + Math.sin(a) * r * 0.8]; });
+  }
+  function drawPins() {
+    clearPins('news'); clearPins('traffic'); clearPins('cams'); clearPins('rivers');
+    if (st.on.news) { // one pin per place, with a count, so a town full of stories stays readable
+      const groups = new Map();
+      const add = (kind, n, i) => { if (!n.place) return; const k = n.place.name; const g = groups.get(k) || { place: n.place, items: [], fresh: false }; g.items.push([kind, i]); if (kind === 'news' && Date.now() - new Date(n.published) < 6 * 3600e3) g.fresh = true; groups.set(k, g); };
+      st.news.forEach((n, i) => Date.now() - new Date(n.published || Date.now()) < 4 * 864e5 && add('news', n, i));
+      st.events.forEach((n, i) => add('event', n, i));
+      const gs = [...groups.values()]; const pos = spread(gs.map(g => [g.place.lng, g.place.lat]));
+      gs.forEach((g, j) => {
+        const kind = g.items.some(x => x[0] === 'news') ? 'news' : 'event';
+        const m = pin(kind, pos[j][0], pos[j][1], g.items.length === 1 ? g.items[0][1] : -1, g.fresh, g.items.length > 1 ? g.items.length : 0, g.items.length === 1 ? null : () => showPlace(g));
+        if (m && g.items.length === 1) m.getElement().onclick = e => { e.stopPropagation(); focus(g.items[0][0], g.items[0][1]); };
+        st.markers.news.push(m);
+      });
+    }
+    if (st.on.traffic) st.traffic.incidents.forEach((n, i) => st.markers.traffic.push(pin('traffic', n.lng, n.lat, i, /clos/i.test(n.title + n.desc))));
+    if (st.on.cams) st.traffic.cameras.forEach((c, i) => st.markers.cams.push(pin('cam', c.lng, c.lat, i, c.live || c.still)));
+    if (st.on.rivers) { st.gauges.forEach((g, i) => st.markers.rivers.push(pin('gauge', g.lng, g.lat, i, trend(g.cfs24).includes('rising')))); st.fires.forEach((f, i) => st.markers.rivers.push(pin('fire', f.lng, f.lat, i, true))); }
+  }
+  function showPlace(g) { // tapping a busy town lists everything there
+    st.filter = g.place.name; st.tab = 'news';
+    document.querySelectorAll('.ltabs button').forEach(x => x.setAttribute('aria-selected', x.dataset.t === 'news'));
+    setOpen(true); render();
+    stopOrbit(); map.flyTo({ center: [g.place.lng, g.place.lat], zoom: Math.max(map.getZoom(), 14), pitch: 60, duration: 2400, easing: easeInOut, essential: true });
+  }
+  function lookup(kind, i) {
+    if (kind === 'news') return st.news[i]; if (kind === 'event') return st.events[i]; if (kind === 'traffic') return st.traffic.incidents[i];
+    if (kind === 'cam') return st.traffic.cameras[i]; if (kind === 'gauge') return st.gauges[i]; if (kind === 'fire') return st.fires[i]; if (kind === 'alert') return st.alerts[i];
+  }
+  function focus(kind, i) {
+    const o = lookup(kind, i); if (!o) return;
+    const ll = o.place ? [o.place.lng, o.place.lat] : o.lng != null ? [o.lng, o.lat] : o.center || null;
+    const c = $('#lcard'); const label = { news: 'News', event: 'Event', traffic: 'Roads', cam: 'Camera', gauge: 'River gauge', fire: 'Fire detection', alert: 'Weather alert' }[kind];
+    let body = '';
+    if (kind === 'cam') body = o.img ? `<div class="camwrap"><img src="${esc(camSrc(o))}" alt="">${camTag(o)}</div>` : '';
+    else if (o.img) body = `<div class="camwrap"><img src="${esc(o.img)}" alt="" onerror="this.parentNode.remove()"></div>`;
+    const title = o.title || o.event || o.name && (kind === 'gauge' ? niceGauge(o.name) : o.name) || (kind === 'fire' ? 'Heat detected by ' + o.sat : '');
+    const text = o.summary || o.desc || o.description || (kind === 'gauge' ? `${o.cfs != null ? Math.round(o.cfs).toLocaleString() + ' cubic feet per second' : ''}${o.ft != null ? ', gauge height ' + o.ft.toFixed(2) + ' ft' : ''}. ${trend(o.cfs24)}.` : '') || (kind === 'fire' ? `Detected ${o.date} at ${o.time} UTC. Confidence ${o.conf}. Satellite heat detections can include controlled burns and industrial heat.` : '');
+    const where = o.place ? `<span class="pin-chip">${esc(o.place.name)}</span>` : '';
+    const link = o.link || o.page || (kind === 'gauge' ? `https://waterdata.usgs.gov/monitoring-location/${o.id}/` : null);
+    c.innerHTML = `<button class="close" aria-label="Close">✕</button><div class="eyebrow c-${kind}">${label}${o.source ? ' · ' + esc(o.source) : ''}</div><h3>${esc(title)}</h3>${body}${text ? `<p>${esc(String(text).slice(0, 600))}</p>` : ''}<div class="mt">${where}${o.published ? `<span>${ago(o.published)}</span>` : ''}</div>
+      <div class="acts">${ll ? '<button class="btn" id="lcFly">Fly here</button>' : ''}${link ? `<a class="btn primary" href="${esc(link)}" target="_blank" rel="noopener">${kind === 'news' ? 'Read story' : kind === 'cam' && o.live ? 'Watch live' : 'Open source'}</a>` : ''}</div>
+      ${o.place && o.place.kind !== 'nps' ? '<div class="mt" style="margin-top:8px">Location matched from place names in the story, so it can be approximate.</div>' : ''}`;
+    c.hidden = false;
+    c.querySelector('.close').onclick = () => c.hidden = true;
+    const fly = () => { if (!ll) return; stopOrbit(); map.flyTo({ center: ll, zoom: Math.max(map.getZoom(), kind === 'gauge' || kind === 'fire' ? 13.2 : 15), pitch: 62, duration: 2600, curve: 1.4, easing: easeInOut, essential: true }); bounce(kind, i); };
+    const fb = $('#lcFly'); if (fb) fb.onclick = fly;
+    if (innerWidth <= 760) setOpen(false);
+    fly();
+  }
+  function bounce(kind, i) {
+    const grp = { news: 'news', event: 'news', traffic: 'traffic', cam: 'cams', gauge: 'rivers', fire: 'rivers' }[kind]; const ms = st.markers[grp] || [];
+    ms.forEach(m => { if (!m) return; const el = m.getElement().firstChild; if (el.classList.contains(kind) && +el.dataset.i === i) { el.classList.remove('focus'); void el.offsetWidth; el.classList.add('focus'); } });
+  }
+
+  /* ---------- weather and the 3D cloud field ---------- */
+  const GRID = (() => { const pts = []; for (let j = 0; j < 6; j++) for (let i = 0; i < 7; i++) pts.push([-84.10 + i * (1.22 / 6), 35.33 + j * (0.70 / 5)]); return pts; })();
+  async function loadWeather() {
+    const pts = [...GRID, [-83.4357, 35.6545]];
+    const base = 'https://api.open-meteo.com/v1/forecast?';
+    const gridURL = base + `latitude=${pts.map(p => p[1].toFixed(3)).join(',')}&longitude=${pts.map(p => p[0].toFixed(3)).join(',')}&current=temperature_2m,dew_point_2m,relative_humidity_2m,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph`;
+    const ptURL = base + 'latitude=35.714&longitude=-83.512&current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,visibility,precipitation&hourly=temperature_2m,weather_code,precipitation_probability,is_day&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FNew_York&forecast_days=2';
+    const [g, w] = await Promise.allSettled([jget(gridURL), jget(ptURL)]);
+    if (w.status === 'fulfilled') { st.wx = w.value; st.updated.wx = new Date().toISOString(); chip(); applyLiveWind(); }
+    if (g.status === 'fulfilled') {
+      const arr = g.value; const cells = arr.slice(0, GRID.length).map(r => ({ ...r.current, elev: r.elevation }));
+      const mean = k => cells.reduce((s, c) => s + (c[k] || 0), 0) / cells.length;
+      st.grid = { cells, summit: arr[GRID.length] && arr[GRID.length].current, low: mean('cloud_cover_low'), mid: mean('cloud_cover_mid'), high: mean('cloud_cover_high'), wind: mean('wind_speed_10m'), dir: cells[20].wind_direction_10m };
+      sky.cloud = Math.max(st.grid.low, st.grid.mid, st.grid.high * 0.6) / 100; drawSkyCanvas();
+      Clouds.build(st.grid);
+      autoFog();
+    }
+    if (g.status === 'rejected' && w.status === 'rejected') throw g.reason;
+    render();
+  }
+  function chip() {
+    const c = st.wx.current;
+    $('#liveChip').querySelector('svg').outerHTML = icon(c.weather_code, c.is_day);
+    $('#wxTemp').textContent = Math.round(c.temperature_2m) + '°';
+    $('#wxDesc').innerHTML = `<b>${WMO[c.weather_code] || ''}</b> in Gatlinburg · wind ${Math.round(c.wind_speed_10m)} mph ${compass(c.wind_direction_10m)}${st.grid && st.grid.summit ? `<br>Le Conte summit ${Math.round(st.grid.summit.temperature_2m)}°` : ''}`;
+  }
+  function applyLiveWind() { // the wildfire tool starts from today's real wind
+    if (!st.wx || toolState.fire) return; const c = st.wx.current;
+    fire.wind = Math.round(c.wind_direction_10m); fire.speed = Math.max(2, Math.round(c.wind_speed_10m));
+  }
+  let fogAuto = false;
+  function autoFog() { // turn on valley fog when the valleys are saturated and calm
+    const g = st.grid; if (!g || fogAuto) return;
+    const valley = g.cells.filter(c => c.elev < 700);
+    const wet = valley.length && valley.filter(c => c.relative_humidity_2m >= 95 && c.wind_speed_10m < 6).length / valley.length > 0.4;
+    const b = $('#t-fog');
+    if (wet && b && b.getAttribute('aria-pressed') !== 'true') { fogAuto = true; b.click(); showToast('Fog is settling in the valleys right now'); }
+  }
+  function intoClouds() {
+    const g = st.grid; const lowBase = g.cells.reduce((s, c) => s + c.elev + Math.max(150, (c.temperature_2m - c.dew_point_2m) * 0.5556 * 125), 0) / g.cells.length;
+    stopOrbit(); setOpen(false);
+    map.flyTo({ center: [-83.47, 35.64], zoom: lowBase < 1600 ? 13.2 : 12.2, pitch: 80, bearing: map.getBearing() + 40, duration: 5200, curve: 1.6, easing: easeInOut, essential: true });
+    map.once('moveend', () => orbit(0.35));
+  }
+
+  /* custom WebGL layer: thousands of soft billboards, lit by the real sun, drifting with the real wind */
+  const Clouds = {
+    id: 'clouds3d', type: 'custom', renderingMode: '3d', puffs: [], n: 0, dirty: true, lastSort: 0, opacity: 1, t0: performance.now(),
+    light: { top: [1, 1, 1], bot: [0.6, 0.64, 0.7] }, wind: [[0, 0], [0, 0], [0, 0]],
+    build(g) {
+      const [w, s, e, n] = [-84.25, 35.25, -82.85, 36.10];
+      const O = maplibregl.MercatorCoordinate.fromLngLat([w, n], 0); const B = maplibregl.MercatorCoordinate.fromLngLat([e, s], 0);
+      this.origin = [O.x, O.y]; this.dom = [B.x - O.x, B.y - O.y];
+      const mpu = O.meterInMercatorCoordinateUnits();
+      let seed = 7; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      const cover = (lng, lat, key) => { // bilinear over the 7x6 grid
+        const fx = Math.max(0, Math.min(5.999, (lng + 84.10) / (1.22 / 6))), fy = Math.max(0, Math.min(4.999, (lat - 35.33) / (0.70 / 5)));
+        const i = fx | 0, j = fy | 0, tx = fx - i, ty = fy - j; const c = (a, b) => g.cells[b * 7 + a] || g.cells[0];
+        const v = (k) => (c(i, j)[k] * (1 - tx) + c(i + 1, j)[k] * tx) * (1 - ty) + (c(i, j + 1)[k] * (1 - tx) + c(i + 1, j + 1)[k] * tx) * ty;
+        return typeof key === 'function' ? key(v) : v(key);
+      };
+      const small = innerWidth < 760 ? 0.55 : 1;
+      const LAYERS = [
+        { key: 'cloud_cover_low', count: 2600, size: [1100, 2600], alpha: 0.5, thick: 700, base: (lng, lat) => cover(lng, lat, v => v('elev') + Math.max(150, (v('temperature_2m') - v('dew_point_2m')) * 0.5556 * 125)) },
+        { key: 'cloud_cover_mid', count: 1200, size: [2200, 4200], alpha: 0.38, thick: 1200, base: () => 3200 },
+        { key: 'cloud_cover_high', count: 380, size: [5000, 9000], alpha: 0.2, thick: 400, base: () => 8200 },
+      ];
+      const P = [];
+      LAYERS.forEach((L, li) => {
+        const mean = g.cells.reduce((s2, c) => s2 + c[L.key], 0) / g.cells.length;
+        const N = Math.round(L.count * small * Math.min(1, mean / 100 + 0.08));
+        if (mean < 3) return;
+        for (let k = 0, tries = 0; k < N && tries < N * 6; tries++) {
+          const lng = w + r() * (e - w), lat = s + r() * (n - s);
+          const cv = cover(lng, lat, L.key) / 100; if (r() > cv * 1.15) continue;
+          k++;
+          const m = maplibregl.MercatorCoordinate.fromLngLat([lng, lat], 0);
+          const alt = (L.base(lng, lat) + Math.pow(r(), 1.6) * L.thick * (0.4 + cv)) * EXAG;
+          const size = (L.size[0] + r() * (L.size[1] - L.size[0])) * mpu * (li === 2 ? 1 : 0.6 + 0.6 * cv);
+          P.push({ x: m.x - O.x, y: m.y - O.y, z: alt * mpu, s: size, a: L.alpha * (0.45 + 0.55 * cv), l: li, r: r() });
+        }
+      });
+      this.puffs = P; this.n = P.length; this.dirty = true;
+      const toVec = (mph, from) => { const ms = mph * 0.447 * 14 /* drift sped up 14x so motion reads */; const to = (from + 180) * RAD; return [Math.sin(to) * ms * mpu, -Math.cos(to) * ms * mpu]; };
+      const dir = g.dir ?? 225; this.wind = [toVec(g.wind, dir), toVec(g.wind * 2.2, dir + 15), toVec(g.wind * 4, dir + 25)];
+      this.t0 = performance.now();
+      if (map.getLayer(this.id)) map.triggerRepaint(); else if (st.on.clouds) addCloudLayer();
+    },
+    onAdd(m, gl) {
+      const vs = `precision highp float;
+        uniform mat4 u_m; uniform vec3 u_right, u_up; uniform float u_t, u_near; uniform vec2 u_dom; uniform vec2 u_w0, u_w1, u_w2;
+        attribute vec3 a_c; attribute vec2 a_q; attribute vec4 a_p;
+        varying vec2 v_uv; varying float v_a, v_sh, v_l;
+        void main(){
+          vec2 w = a_p.z < 0.5 ? u_w0 : (a_p.z < 1.5 ? u_w1 : u_w2);
+          vec2 xy = mod(a_c.xy + w * u_t, u_dom);
+          vec2 nn = xy / u_dom;
+          float edge = smoothstep(0.0, 0.1, nn.x) * smoothstep(1.0, 0.9, nn.x) * smoothstep(0.0, 0.1, nn.y) * smoothstep(1.0, 0.9, nn.y);
+          vec3 pos = vec3(xy, a_c.z) + (u_right * a_q.x + u_up * a_q.y * 0.62) * a_p.x;
+          gl_Position = u_m * vec4(pos, 1.0);
+          float ang = a_p.w * 6.2831; mat2 R = mat2(cos(ang), -sin(ang), sin(ang), cos(ang));
+          v_uv = R * a_q * 0.5 + 0.5; v_sh = a_q.y * 0.5 + 0.5; v_l = a_p.z;
+          v_a = a_p.y * edge * smoothstep(u_near * 0.04, u_near * 0.35, gl_Position.w);
+        }`;
+      const fs = `precision mediump float;
+        uniform sampler2D u_tex; uniform vec3 u_top, u_bot; uniform float u_op;
+        varying vec2 v_uv; varying float v_a, v_sh, v_l;
+        void main(){
+          float a = texture2D(u_tex, v_uv).a * v_a * u_op;
+          if (a < 0.004) discard;
+          vec3 c = mix(u_bot, u_top, smoothstep(0.05, 0.95, v_sh));
+          if (v_l > 1.5) c = mix(c, u_top, 0.65);
+          gl_FragColor = vec4(c * a, a);
+        }`;
+      const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.warn(gl.getShaderInfoLog(s)); return s; };
+      const p = this.prog = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
+      this.loc = {}; ['u_m', 'u_right', 'u_up', 'u_t', 'u_near', 'u_dom', 'u_w0', 'u_w1', 'u_w2', 'u_tex', 'u_top', 'u_bot', 'u_op'].forEach(k => this.loc[k] = gl.getUniformLocation(p, k));
+      ['a_c', 'a_q', 'a_p'].forEach(k => this.loc[k] = gl.getAttribLocation(p, k));
+      this.buf = gl.createBuffer();
+      // a lumpy, soft cloud puff texture
+      const N = 128, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d');
+      let sd = 3; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+      for (let i = 0; i < 26; i++) { const x = N / 2 + (r() - 0.5) * N * 0.42, y = N / 2 + (r() - 0.5) * N * 0.3, rad = N * (0.12 + r() * 0.2); const gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, 'rgba(255,255,255,0.32)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.12)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, N, N); }
+      const id = g.getImageData(0, 0, N, N); for (let i = 0; i < N * N; i++) { const x = i % N, y = i / N | 0; const d = Math.hypot(x - N / 2, y - N / 2) / (N / 2); const fall = Math.max(0, 1 - d * d); id.data[i * 4 + 3] = Math.min(255, id.data[i * 4 + 3] * fall * (0.8 + 0.4 * r())); id.data[i * 4] = id.data[i * 4 + 1] = id.data[i * 4 + 2] = 255; }
+      g.putImageData(id, 0, 0);
+      this.tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      this.dirty = true;
+    },
+    render(gl, args) {
+      if (!this.n || this.opacity <= 0.01) return;
+      const M = args.defaultProjectionData ? args.defaultProjectionData.mainMatrix : args.modelViewProjectionMatrix || args;
+      const ox = this.origin[0], oy = this.origin[1];
+      const Mm = new Float32Array(16); for (let i = 0; i < 16; i++) Mm[i] = M[i];
+      for (let i = 0; i < 4; i++) Mm[12 + i] = M[i] * ox + M[4 + i] * oy + M[12 + i];
+      const t = (performance.now() - this.t0) / 1000;
+      const now = performance.now();
+      if (this.dirty || now - this.lastSort > 280) { this.sort(Mm, t); this.lastSort = now; this.dirty = false; this.upload(gl); }
+      const norm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+      const right = norm([M[0], M[4], M[8]]), up = norm([M[1], M[5], M[9]]);
+      gl.useProgram(this.prog);
+      gl.uniformMatrix4fv(this.loc.u_m, false, Mm);
+      gl.uniform3fv(this.loc.u_right, right); gl.uniform3fv(this.loc.u_up, up);
+      gl.uniform1f(this.loc.u_t, t); gl.uniform1f(this.loc.u_near, map.transform.cameraToCenterDistance || 800);
+      gl.uniform2f(this.loc.u_dom, this.dom[0], this.dom[1]);
+      gl.uniform2fv(this.loc.u_w0, this.wind[0]); gl.uniform2fv(this.loc.u_w1, this.wind[1]); gl.uniform2fv(this.loc.u_w2, this.wind[2]);
+      gl.uniform3fv(this.loc.u_top, this.light.top); gl.uniform3fv(this.loc.u_bot, this.light.bot); gl.uniform1f(this.loc.u_op, this.opacity);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.tex); gl.uniform1i(this.loc.u_tex, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+      const F = 4 * 9;
+      gl.enableVertexAttribArray(this.loc.a_c); gl.vertexAttribPointer(this.loc.a_c, 3, gl.FLOAT, false, F, 0);
+      gl.enableVertexAttribArray(this.loc.a_q); gl.vertexAttribPointer(this.loc.a_q, 2, gl.FLOAT, false, F, 12);
+      gl.enableVertexAttribArray(this.loc.a_p); gl.vertexAttribPointer(this.loc.a_p, 4, gl.FLOAT, false, F, 20);
+      gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(false);
+      gl.disable(gl.CULL_FACE);
+      gl.drawArrays(gl.TRIANGLES, 0, this.n * 6);
+      gl.disableVertexAttribArray(this.loc.a_c); gl.disableVertexAttribArray(this.loc.a_q); gl.disableVertexAttribArray(this.loc.a_p);
+      if (!this._rq && !document.hidden) this._rq = setTimeout(() => { this._rq = 0; map.triggerRepaint(); }, innerWidth < 760 ? 120 : 66); // gentle drift without burning the battery
+    },
+    sort(Mm, t) {
+      const P = this.puffs, dx = this.dom[0], dy = this.dom[1];
+      for (const p of P) { const w = this.wind[p.l]; let x = (p.x + w[0] * t) % dx; if (x < 0) x += dx; let y = (p.y + w[1] * t) % dy; if (y < 0) y += dy; p.d = Mm[3] * x + Mm[7] * y + Mm[11] * p.z + Mm[15]; }
+      P.sort((a, b) => b.d - a.d);
+    },
+    upload(gl) {
+      const P = this.puffs; const arr = this.arr && this.arr.length === P.length * 54 ? this.arr : (this.arr = new Float32Array(P.length * 54));
+      const Q = [-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1]; let o = 0;
+      for (const p of P) for (let v = 0; v < 6; v++) { arr[o++] = p.x; arr[o++] = p.y; arr[o++] = p.z; arr[o++] = Q[v * 2]; arr[o++] = Q[v * 2 + 1]; arr[o++] = p.s; arr[o++] = p.a; arr[o++] = p.l; arr[o++] = p.r; }
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buf); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW);
+    },
+  };
+  function addCloudLayer() { if (!map.getLayer(Clouds.id) && Clouds.n) map.addLayer(Clouds, 'lbl-water'); }
+  // cloud color follows the same sun as the rest of the scene
+  const CLOUD_STOPS = [[-18, '#3a4258', '#161b27'], [-9, '#454b69', '#1d2031'], [-3, '#b4889a', '#463f58'], [2, '#ffc590', '#6c5f72'], [10, '#fff0dc', '#8a8c98'], [28, '#ffffff', '#9aa3ae']];
+  function cloudLight(alt, moonLift) {
+    let i = 0; while (i < CLOUD_STOPS.length - 2 && alt > CLOUD_STOPS[i + 1][0]) i++;
+    const A = CLOUD_STOPS[i], B = CLOUD_STOPS[i + 1]; const t = Math.max(0, Math.min(1, (alt - A[0]) / (B[0] - A[0])));
+    const rgb = h => hex(h).map(v => v / 255); const mix = (a, b) => rgb(a).map((v, k) => v + (rgb(b)[k] - v) * t);
+    const lift = 1 + moonLift * 1.3;
+    Clouds.light = { top: mix(A[1], B[1]).map(v => Math.min(1, v * lift)), bot: mix(A[2], B[2]).map(v => Math.min(1, v * lift)) };
+  }
+
+  /* ---------- rain radar (RainViewer), animated loop of the last two hours ---------- */
+  let radarTimer = 0;
+  async function loadRadar() {
+    const j = await jget('https://api.rainviewer.com/public/weather-maps.json');
+    const frames = (j.radar && j.radar.past || []).slice(-10);
+    st.radar = { host: j.host, frames };
+    if (st.on.radar) showRadar();
+  }
+  function showRadar() {
+    hideRadar(); const R = st.radar; if (!R || !R.frames.length) return;
+    R.frames.forEach((f, i) => {
+      const id = 'radar' + i;
+      map.addSource(id, { type: 'raster', tiles: [`${R.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`], tileSize: 256, maxzoom: 7, attribution: 'RainViewer' });
+      map.addLayer({ id, type: 'raster', source: id, paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 600 }, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } }, 'park-glow');
+    });
+    let k = 0; const n = R.frames.length;
+    const step = () => { for (let i = 0; i < n; i++) map.setPaintProperty('radar' + i, 'raster-opacity', i === k ? 0.72 : 0); const d = new Date(R.frames[k].time * 1000); showToastQuiet(`Radar ${d.toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' })}`); k = (k + 1) % n; radarTimer = setTimeout(step, k === 0 ? 1800 : 650); };
+    step();
+  }
+  function hideRadar() { clearTimeout(radarTimer); for (let i = 0; i < 16; i++) { if (map.getLayer('radar' + i)) map.removeLayer('radar' + i); if (map.getSource('radar' + i)) map.removeSource('radar' + i); } }
+  let quietT = 0; function showToastQuiet(msg) { const el = $('#radarStamp'); if (!el) return; el.textContent = msg; el.hidden = false; clearTimeout(quietT); quietT = setTimeout(() => el.hidden = true, 3000); }
+
+  /* ---------- NWS alerts, drawn as glowing outlines ---------- */
+  const ALERT_POINTS = [[35.714, -83.512], [35.868, -83.562], [35.563, -83.498], [35.675, -83.756], [35.475, -83.315]];
+  const zoneCache = {};
+  async function loadAlerts() {
+    const res = await Promise.allSettled(ALERT_POINTS.map(p => jget(`https://api.weather.gov/alerts/active?point=${p[0]},${p[1]}`)));
+    const seen = new Map();
+    res.forEach(r => r.status === 'fulfilled' && (r.value.features || []).forEach(f => seen.set(f.id, f)));
+    if (res.every(r => r.status === 'rejected')) throw res[0].reason;
+    const feats = [];
+    for (const f of seen.values()) {
+      let geom = f.geometry;
+      if (!geom && f.properties.affectedZones) {
+        const zs = await Promise.allSettled(f.properties.affectedZones.slice(0, 6).map(u => zoneCache[u] || (zoneCache[u] = jget(u))));
+        const polys = zs.filter(z => z.status === 'fulfilled' && z.value.geometry).map(z => z.value.geometry);
+        if (polys.length) geom = { type: 'GeometryCollection', geometries: polys };
+      }
+      feats.push({ type: 'Feature', geometry: geom, properties: { event: f.properties.event, severity: f.properties.severity } });
+    }
+    st.alerts = [...seen.values()].map(f => f.properties).sort((a, b) => ({ Extreme: 0, Severe: 1, Moderate: 2, Minor: 3 }[a.severity] ?? 4) - ({ Extreme: 0, Severe: 1, Moderate: 2, Minor: 3 }[b.severity] ?? 4));
+    const src = map.getSource('alerts'); const fc = { type: 'FeatureCollection', features: feats.filter(f => f.geometry) };
+    if (src) src.setData(fc);
+    else {
+      map.addSource('alerts', { type: 'geojson', data: fc });
+      map.addLayer({ id: 'alerts-fill', type: 'fill', source: 'alerts', paint: { 'fill-color': ['match', ['get', 'severity'], ['Extreme', 'Severe'], '#ff3b30', '#ff9f0a'], 'fill-opacity': 0.08 } }, 'park-glow');
+      map.addLayer({ id: 'alerts-line', type: 'line', source: 'alerts', paint: { 'line-color': ['match', ['get', 'severity'], ['Extreme', 'Severe'], '#ff5a4f', '#ffb340'], 'line-width': 2.2, 'line-blur': 1.5, 'line-opacity': 0.9 } }, 'park-glow');
+    }
+    const bar = $('#alertBar');
+    if (st.alerts.length) { const a = st.alerts[0]; bar.innerHTML = `<b>${esc(a.event)}</b>${esc(a.headline || '')}${st.alerts.length > 1 ? ` · +${st.alerts.length - 1} more` : ''}`; bar.classList.add('on'); }
+    else bar.classList.remove('on');
+  }
+
+  /* ---------- rivers ---------- */
+  const GAUGES = '03469000,03470000,03469175,03471500,03497300,03498500,03512000,03460000,03461500,03463300,03465500,03513000,03503000';
+  async function loadGauges() {
+    try {
+      const j = await jget(`https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${GAUGES}&parameterCd=00060,00065&period=PT24H&siteStatus=active`, 20000);
+      const sites = {};
+      for (const ts of j.value.timeSeries) {
+        const si = ts.sourceInfo, code = si.siteCode[0].value, g = si.geoLocation.geogLocation;
+        const s = sites[code] || (sites[code] = { id: code, name: si.siteName, lng: g.longitude, lat: g.latitude });
+        const p = ts.variable.variableCode[0].value; const vals = ts.values[0].value.filter(v => v.value !== '' && v.value !== '-999999').map(v => [v.dateTime, +v.value]);
+        if (!vals.length) continue; const k = p === '00060' ? 'cfs' : 'ft';
+        s[k] = vals[vals.length - 1][1]; s.t = vals[vals.length - 1][0]; s[k + '24'] = vals.filter((_, i) => i % 4 === 0).map(v => v[1]);
+      }
+      st.gauges = Object.values(sites);
+    } catch (e) { const j = await feed('gauges.json'); st.gauges = j.items; }
+  }
+
+  /* ---------- ISS in the night sky ---------- */
+  async function loadISS() {
+    const j = await jget('https://api.wheretheiss.at/v1/satellites/25544', 8000);
+    const c = map.getCenter();
+    const toECEF = (lat, lng, h) => { const R = 6371 + h, a = lat * RAD, b = lng * RAD; return [R * Math.cos(a) * Math.cos(b), R * Math.cos(a) * Math.sin(b), R * Math.sin(a)]; };
+    const o = toECEF(c.lat, c.lng, 0.4), s = toECEF(j.latitude, j.longitude, j.altitude);
+    const d = [s[0] - o[0], s[1] - o[1], s[2] - o[2]]; const la = c.lat * RAD, lo = c.lng * RAD;
+    const east = -Math.sin(lo) * d[0] + Math.cos(lo) * d[1];
+    const north = -Math.sin(la) * Math.cos(lo) * d[0] - Math.sin(la) * Math.sin(lo) * d[1] + Math.cos(la) * d[2];
+    const up = Math.cos(la) * Math.cos(lo) * d[0] + Math.cos(la) * Math.sin(lo) * d[1] + Math.sin(la) * d[2];
+    st.iss = { alt: Math.atan2(up, Math.hypot(east, north)) / RAD, az: (Math.atan2(east, north) / RAD + 360) % 360, vis: j.visibility };
+  }
+  window.skyExtras = (g, project) => { // drawn by the sky canvas
+    const s = st.iss; if (!s || s.alt < 0) return; const p = project(s.az, s.alt); if (!p) return;
+    const lit = s.vis === 'daylight';
+    g.globalAlpha = lit ? 1 : 0.5; g.fillStyle = '#fff'; g.beginPath(); g.arc(p[0], p[1], 2.6, 0, 7); g.fill();
+    g.globalAlpha = 0.8; g.font = '600 11px Barlow, sans-serif'; g.fillText('ISS', p[0] + 7, p[1] + 4);
+  };
+
+  /* ---------- feeds from the GitHub Action ---------- */
+  async function loadFeeds() {
+    const [n, e, t, f] = await Promise.allSettled([feed('news.json'), feed('events.json'), feed('traffic.json'), feed('fires.json')]);
+    if (n.status === 'fulfilled') st.news = n.value.items || [];
+    if (e.status === 'fulfilled') st.events = e.value.items || [];
+    if (t.status === 'fulfilled') st.traffic = { incidents: (t.value.incidents || []).filter(x => x.lng != null), cameras: (t.value.cameras || []).filter(x => x.lng != null) };
+    if (f.status === 'fulfilled') st.fires = f.value.items || [];
+    if ([n, e, t, f].every(r => r.status === 'rejected')) throw n.reason;
+  }
+
+  /* ---------- modeled traffic flow ---------- */
+  let flowT = 0, flowStep = 0;
+  const DASH = [[0, 4, 3], [0.5, 4, 2.5], [1, 4, 2], [1.5, 4, 1.5], [2, 4, 1], [2.5, 4, 0.5], [3, 4, 0], [0, 0.5, 3, 3.5], [0, 1, 3, 3], [0, 1.5, 3, 2.5], [0, 2, 3, 2], [0, 2.5, 3, 1.5], [0, 3, 3, 1], [0, 3.5, 3, 0.5]];
+  function busyness(d = sky.date || new Date()) { // typical weekday/weekend curves, heavier on holiday weekends and in October
+    const m = localMinutes(d) / 60; const dow = new Date(d.toLocaleString('en-US', { timeZone: TZ })).getDay();
+    const wk = dow === 0 || dow === 6; const mo = +d.toLocaleString('en-US', { timeZone: TZ, month: 'numeric' });
+    const peak = (h, c, w) => Math.exp(-((h - c) ** 2) / (2 * w * w));
+    let b = wk ? 0.15 + 0.8 * peak(m, 14, 3.4) + 0.3 * peak(m, 19, 2) : 0.12 + 0.55 * peak(m, 8, 1.3) + 0.5 * peak(m, 13, 2.5) + 0.65 * peak(m, 17.3, 1.6);
+    if (mo === 10 || mo === 7) b *= 1.3; if (mo === 11 && dow >= 4) b *= 1.25; if (mo === 12) b *= 1.15;
+    return Math.min(1, b);
+  }
+  function addFlow() {
+    if (map.getLayer('traffic-flow')) return;
+    map.addLayer({ id: 'traffic-flow', type: 'line', source: 'vec', 'source-layer': 'roads', minzoom: 10, filter: ['in', ['get', 'c'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]], layout: { 'line-cap': 'butt', 'line-join': 'round' },
+      paint: { 'line-width': ['interpolate', ['exponential', 1.6], ['zoom'], 10, 1, 14, 3, 17, 7], 'line-opacity': 0.9, 'line-dasharray': DASH[0], 'line-color': '#7be08a' } }, 'buildings');
+    flowColor();
+    const tick = () => { if (!map.getLayer('traffic-flow')) return; flowStep = (flowStep + 1) % DASH.length; map.setPaintProperty('traffic-flow', 'line-dasharray', DASH[flowStep]); flowT = setTimeout(tick, 110); };
+    tick();
+  }
+  function flowColor() {
+    if (!map.getLayer('traffic-flow')) return; const b = busyness();
+    const parkway = ['match', ['get', 'c'], ['trunk', 'primary'], 1, 0.7];
+    const col = b > 0.75 ? '#ff6a4d' : b > 0.5 ? '#ffb340' : '#7be08a';
+    map.setPaintProperty('traffic-flow', 'line-color', sky.lightsOn ? ['match', ['get', 'c'], ['trunk', 'primary', 'motorway'], b > 0.5 ? '#ff7b5c' : '#fff1c9', '#ffd89a'] : col);
+    map.setPaintProperty('traffic-flow', 'line-opacity', ['*', parkway, 0.35 + 0.6 * b]);
+  }
+  function removeFlow() { clearTimeout(flowT); if (map.getLayer('traffic-flow')) map.removeLayer('traffic-flow'); }
+
+  function applyToggles(k) {
+    if (k === 'clouds') { if (st.on.clouds) addCloudLayer(); else if (map.getLayer(Clouds.id)) map.removeLayer(Clouds.id); }
+    if (k === 'radar') { if (st.on.radar) { if (st.radar) showRadar(); else loadRadar().catch(() => showToast('Radar is unavailable right now')); } else hideRadar(); }
+    if (k === 'traffic') { if (st.on.traffic) addFlow(); else removeFlow(); }
+    if (st.blocked && k !== 'clouds' && k !== 'traffic' && st.on[k]) showToast('Live feeds load on the full site');
+    drawPins();
+  }
+
+  /* ---------- schedule ---------- */
+  async function safe(fn, name) { try { await fn(); return true; } catch (e) { console.info('[live]', name, e && e.message); return false; } }
+  async function refreshFast() { await Promise.all([safe(loadAlerts, 'alerts'), safe(loadGauges, 'gauges')]); drawPins(); render(); }
+  async function refreshSlow() { await Promise.all([safe(loadWeather, 'weather'), safe(loadFeeds, 'feeds'), st.on.radar ? safe(loadRadar, 'radar') : null]); counts(); drawPins(); render(); }
+  async function init() {
+    buildUI();
+    const stamp = document.createElement('div'); stamp.id = 'radarStamp'; stamp.className = 'panel'; stamp.hidden = true; document.body.appendChild(stamp);
+    if (st.on.traffic) addFlow();
+    // the artifact preview blocks outside requests; find out once, quietly
+    const ok = await safe(loadWeather, 'weather');
+    if (!ok) {
+      const feedOk = await safe(loadFeeds, 'feeds');
+      if (!feedOk) { st.blocked = true; $('#wxDesc').innerHTML = '<b>Live data is off in this preview.</b> Tap for the full site.'; render(); return; }
+    }
+    await Promise.all([safe(loadFeeds, 'feeds'), refreshFast()]);
+    counts(); drawPins(); render();
+    setInterval(refreshFast, 3 * 60e3);
+    setInterval(refreshSlow, 10 * 60e3);
+    setInterval(() => { if (sky.sun && sky.sun.alt < -6 && !document.hidden) safe(loadISS, 'iss').then(drawSkyCanvas); }, 5000);
+    setInterval(flowColor, 60e3);
+    setInterval(() => { if (st.tab === 'cams' && $('#live').classList.contains('open')) document.querySelectorAll('#lview .li[data-k="cam"]').forEach(el => { const c = st.traffic.cameras[+el.dataset.i]; const im = el.querySelector('img'); if (c && c.still && im) im.src = camSrc(c); }); }, 300e3);
+  }
+  return { init, st, cloudLight, flowColor, Clouds, focus, render };
+})();
+/* LIVE-END */
+window.Live = Live;
+window.__smokies = { get map() { return map; }, getTile, synthTerrain, packName, fly, setSeason, applyNight, applySky, sky, goLive, openTool, setFlood, igniteAt, fire, grandTour, stopOrbit };
+})();
+</script>
+
+</body>
+</html>
