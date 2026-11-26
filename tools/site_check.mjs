@@ -21,6 +21,15 @@ for (const [tag, vp] of [['desktop', { width: 1440, height: 900 }], ['phone', { 
   await page.evaluate(() => document.getElementById('liveChip').click());
   await page.waitForTimeout(2500);
   await page.screenshot({ path: `${out}/${tag}-2-panel.jpg`, quality: 70, timeout: 120000 });
+  await page.evaluate(() => document.querySelector('.ltabs button[data-t="news"]').click());
+  await page.waitForTimeout(2000);
+  await page.screenshot({ path: `${out}/${tag}-3-news.jpg`, quality: 70, timeout: 120000 });
+  await page.evaluate(() => { document.getElementById('liveChip').click(); const m = window.__smokies.map; m.jumpTo({ center: [-83.47, 35.62], zoom: 12.3, pitch: 78, bearing: 20 }); });
+  await page.waitForTimeout(15000);
+  await page.screenshot({ path: `${out}/${tag}-4-clouds-now.jpg`, quality: 70, timeout: 120000 });
+  await page.evaluate(() => { const r = document.getElementById('skyRange'); r.value = 15 * 60; r.dispatchEvent(new Event('input')); });
+  await page.waitForTimeout(12000);
+  await page.screenshot({ path: `${out}/${tag}-5-clouds-3pm.jpg`, quality: 70, timeout: 120000 });
   await page.close();
 }
 await browser.close();
