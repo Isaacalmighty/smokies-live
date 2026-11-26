@@ -7,6 +7,8 @@
 const Live = (() => {
   const FEEDS = 'https://raw.githubusercontent.com/Isaacalmighty/smokies-live/feeds/live/';
   const SITE = 'https://isaacalmighty.github.io/smokies-live/';
+  // TomTom key for real traffic speeds (free plan; a browser key, like a map key). Empty = modeled traffic.
+  const TOMTOM = '';
   const st = { blocked: false, wx: null, grid: null, alerts: [], news: [], events: [], traffic: { incidents: [], cameras: [] }, gauges: [], fires: [], radar: null, iss: null, tab: 'now', markers: {}, on: { clouds: true, radar: false, traffic: true, cams: true, news: true, rivers: true }, updated: {} };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ago = iso => { if (!iso) return ''; const s = (Date.now() - new Date(iso)) / 1000; if (s < 0) return new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }); if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' hr ago'; return Math.round(s / 86400) + ' d ago'; };
@@ -118,7 +120,7 @@ const Live = (() => {
     else if (st.tab === 'roads') {
       const inc = st.traffic.incidents;
       h = inc.length ? inc.map((n, i) => item({ k: 'traffic', i, title: n.title, sum: n.desc, place: n.road || (n.place && n.place.name), meta: `<span>${esc(n.source)}</span>${n.start ? `<span>${ago(n.start)}</span>` : ''}` }, i)).join('') : '<div class="lempty">No reported incidents or closures nearby.</div>';
-      h += `<div class="lempty" style="font-size:11.5px">Traffic lines on the map are modeled from typical patterns for this hour and day, not live speeds. Incidents and park road alerts are live.</div>`;
+      h += TOMTOM ? `<div class="lempty" style="font-size:11.5px">Road colors on the map are live speeds from TomTom, updated every 2 minutes. Green is moving, red is stopped.</div>` : `<div class="lempty" style="font-size:11.5px">Traffic lines on the map are modeled from typical patterns for this hour and day, not live speeds. Incidents and park road alerts are live.</div>`;
     } else if (st.tab === 'cams') {
       const cams = st.traffic.cameras;
       h = cams.length ? cams.map((c, i) => `<div class="li" style="display:block;animation-delay:${i * 50}ms" data-k="cam" data-i="${i}">${c.img ? `<div class="camwrap"><img loading="lazy" src="${esc(camSrc(c))}" alt="${esc(c.name)}" onerror="this.parentNode.remove()">${camTag(c)}</div>` : ''}<h4>${esc(c.name)}</h4><div class="mt"><span>${esc(c.source)}</span>${c.live ? '<span>Live video on nps.gov</span>' : c.still ? '<span>New image every few minutes</span>' : ''}</div></div>`).join('') : '<div class="lempty">No cameras available right now.</div>';
@@ -614,7 +616,21 @@ const Live = (() => {
     if (mo === 10 || mo === 7) b *= 1.3; if (mo === 11 && dow >= 4) b *= 1.25; if (mo === 12) b *= 1.15;
     return Math.min(1, b);
   }
+  // real traffic: TomTom flow (green/yellow/red by speed) and incident tiles draped on the terrain
+  let ttT = 0;
+  const ttTiles = (kind, t) => [`https://api.tomtom.com/traffic/map/4/tile/${kind}/{z}/{x}/{y}.png?key=${TOMTOM}&tileSize=256&t=${t}`];
+  function addLiveFlow() {
+    if (map.getLayer('tt-flow')) return;
+    const t = Math.floor(Date.now() / 120e3);
+    map.addSource('tt-flow', { type: 'raster', tiles: ttTiles('flow/relative0', t), tileSize: 256, minzoom: 6, maxzoom: 18, attribution: '© TomTom traffic' });
+    map.addSource('tt-inc', { type: 'raster', tiles: ttTiles('incidents/s3', t), tileSize: 256, minzoom: 6, maxzoom: 18 });
+    map.addLayer({ id: 'tt-flow', type: 'raster', source: 'tt-flow', minzoom: 9, paint: { 'raster-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.6, 13, 0.95], 'raster-fade-duration': 400 } }, 'buildings');
+    map.addLayer({ id: 'tt-inc', type: 'raster', source: 'tt-inc', minzoom: 11, paint: { 'raster-opacity': 0.95 } }, 'buildings');
+    clearInterval(ttT);
+    ttT = setInterval(() => { const t = Math.floor(Date.now() / 120e3); ['flow/relative0', 'incidents/s3'].forEach((k, i) => { const src = map.getSource(i ? 'tt-inc' : 'tt-flow'); if (src && src.setTiles) src.setTiles(ttTiles(k, t)); }); }, 120e3);
+  }
   function addFlow() {
+    if (TOMTOM) return addLiveFlow();
     if (map.getLayer('traffic-flow')) return;
     map.addLayer({ id: 'traffic-flow', type: 'line', source: 'vec', 'source-layer': 'roads', minzoom: 10, filter: ['in', ['get', 'c'], ['literal', ['motorway', 'trunk', 'primary', 'secondary']]], layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: { 'line-width': ['interpolate', ['exponential', 1.6], ['zoom'], 10, 1, 14, 3, 17, 7], 'line-opacity': 0.9, 'line-dasharray': DASH[0], 'line-color': '#7be08a' } }, 'buildings');
@@ -629,7 +645,7 @@ const Live = (() => {
     map.setPaintProperty('traffic-flow', 'line-color', sky.lightsOn ? ['match', ['get', 'c'], ['trunk', 'primary', 'motorway'], b > 0.5 ? '#ff7b5c' : '#fff1c9', '#ffd89a'] : col);
     map.setPaintProperty('traffic-flow', 'line-opacity', ['*', parkway, 0.35 + 0.6 * b]);
   }
-  function removeFlow() { clearTimeout(flowT); if (map.getLayer('traffic-flow')) map.removeLayer('traffic-flow'); }
+  function removeFlow() { clearTimeout(flowT); clearInterval(ttT); ['traffic-flow', 'tt-flow', 'tt-inc'].forEach(id => map.getLayer(id) && map.removeLayer(id)); ['tt-flow', 'tt-inc'].forEach(id => map.getSource(id) && map.removeSource(id)); }
 
   function applyToggles(k) {
     if (k === 'clouds') { if (st.on.clouds) addCloudLayer(); else if (map.getLayer(Clouds.id)) map.removeLayer(Clouds.id); }
@@ -663,5 +679,6 @@ const Live = (() => {
     setInterval(flowColor, 60e3);
     setInterval(() => { if (st.tab === 'cams' && $('#live').classList.contains('open')) document.querySelectorAll('#lview .li[data-k="cam"]').forEach(el => { const c = st.traffic.cameras[+el.dataset.i]; const im = el.querySelector('img'); if (c && c.still && im) im.src = camSrc(c); }); }, 300e3);
   }
-  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render };
+  const refresh = () => Promise.all([refreshFast(), refreshSlow()]);
+  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render, refresh, liveTraffic: () => !!TOMTOM };
 })();

@@ -304,6 +304,16 @@ def fetch_traffic():
         note('cameras:nps', True, n)
     except Exception as e:
         note('cameras:nps', False, err=e)
+    # hand-picked public webcams in town (scripts/cams.json): link to the operator's live page
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        extra = json.load(open(os.path.join(here, 'cams.json')))
+        for c in extra:
+            cameras.append({'id': c['id'], 'name': c['name'], 'lng': c['lng'], 'lat': c['lat'], 'img': c.get('img'), 'still': bool(c.get('still')),
+                            'page': c['url'], 'live': True, 'source': c.get('operator') or 'Webcam', 'spot': c.get('spot')})
+        note('cameras:curated', True, len(extra))
+    except Exception as e:
+        note('cameras:curated', False, err=e)
     save('traffic.json', {'updated': NOW.isoformat(timespec='seconds'), 'incidents': incidents, 'cameras': cameras})
     return len(incidents) + len(cameras)
 

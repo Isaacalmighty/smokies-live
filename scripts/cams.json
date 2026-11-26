@@ -1,0 +1,14 @@
+[
+  {"id": "cur-spaceneedle", "name": "Gatlinburg Space Needle cam", "spot": "Downtown Gatlinburg Parkway", "operator": "Gatlinburg Space Needle", "lng": -83.5168, "lat": 35.7114, "url": "https://www.gatlinburgspaceneedle.com/webcam/"},
+  {"id": "cur-anakeesta", "name": "Anakeesta cams", "spot": "Anakeesta, Gatlinburg", "operator": "Anakeesta", "lng": -83.5133, "lat": 35.7127, "url": "https://www.anakeesta.com/live-cameras-at-anakeesta/"},
+  {"id": "cur-skypark", "name": "Gatlinburg SkyPark cam", "spot": "SkyLift and SkyBridge, Gatlinburg", "operator": "Gatlinburg SkyLift Park", "lng": -83.5195, "lat": 35.7090, "url": "https://www.gatlinburgskylift.com/video-and-photos"},
+  {"id": "cur-ober", "name": "Ober Mountain cams", "spot": "Ober Mountain ski slopes", "operator": "Ober Mountain", "lng": -83.5585, "lat": 35.7030, "url": "https://obergatlinburg.com/webcams/"},
+  {"id": "cur-summit", "name": "The Gatlinburg Summit cam", "spot": "Mt. Harrison over downtown Gatlinburg", "operator": "MTC Rentals", "lng": -83.5450, "lat": 35.7035, "url": "https://www.bestgatlinburgviews.com/en/2290113/live--webcam"},
+  {"id": "cur-elksprings", "name": "Elk Springs Resort cam", "spot": "Gatlinburg view from Elk Springs", "operator": "Elk Springs Resort", "lng": -83.4670, "lat": 35.7485, "url": "https://www.elkspringsresort.com/live-gatlinburg-webcam/"},
+  {"id": "cur-pfparkway", "name": "Pigeon Forge Parkway cam", "spot": "Parkway near the Titanic Museum, Pigeon Forge", "operator": "CabinsUSA", "lng": -83.5787, "lat": 35.8027, "url": "http://www.cabinsusa.com/pigeon-forge-live-web-cam.php"},
+  {"id": "cur-wonderworks", "name": "WonderWorks cam", "spot": "WonderWorks, Pigeon Forge Parkway", "operator": "WonderWorks", "lng": -83.5801, "lat": 35.8058, "url": "https://www.wonderworksonline.com/pigeon-forge/wonderworks-pigeon-forge-smoky-mountain-webcam/"},
+  {"id": "cur-innriver", "name": "Little Pigeon River cam", "spot": "Inn on the River, Pigeon Forge", "operator": "Inn on the River", "lng": -83.5555, "lat": 35.7905, "url": "https://www.myinnontheriver.com/pigeon-forge-web-cam/"},
+  {"id": "cur-bluff", "name": "Bluff Mountain cam", "spot": "Bluff Mountain from Pigeon Forge", "operator": "Mountain Valley Winery", "lng": -83.4950, "lat": 35.7740, "url": "https://www.youtube.com/watch?v=3ialPsG026g"},
+  {"id": "cur-hartford", "name": "Pigeon River at Hartford cam", "spot": "Pigeon River, Hartford", "operator": "EarthCam", "lng": -83.1576, "lat": 35.8187, "url": "https://www.earthcam.com/usa/tennessee/hartford/?cam=hartford_tn"},
+  {"id": "cur-newfound", "name": "Newfound Gap cam", "spot": "Newfound Gap, Great Smoky Mountains", "operator": "Air Resource Specialists", "lng": -83.4255, "lat": 35.6111, "url": "https://www.air-resource.net/grsmnfgap/"}
+]
