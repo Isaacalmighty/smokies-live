@@ -1,7 +1,6 @@
-desktop state {"blocked":false,"wx":true,"puffs":2708,"alerts":["Special Weather Statement","Wind Advisory","Special Weather Statement","Special Weather Statement"],"news":70,"events":75,"incidents":5,"cams":17,"gauges":0,"fires":0,"sky":"12:45 AM · Night","chip":"Mostly clear in Gatlinburg · wind 9 mph SW"}
-desktop tomtom {"200":26}
-desktop console info [live] iss The user aborted a request.
-desktop console info [live] iss The user aborted a request.
+desktop state {"blocked":false,"wx":true,"puffs":2457,"alerts":[],"news":70,"events":75,"incidents":5,"cams":17,"gauges":0,"fires":0,"sky":"12:50 AM · Night","chip":"Clear in Gatlinburg · wind 9 mph SW"}
+desktop tomtom {}
+desktop console error Failed to load resource: the server responded with a status of 404 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
@@ -140,16 +139,10 @@ desktop console error Failed to load resource: the server responded with a statu
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
-phone state {"blocked":false,"wx":true,"puffs":1485,"alerts":["Special Weather Statement","Wind Advisory","Special Weather Statement","Special Weather Statement"],"news":70,"events":75,"incidents":5,"cams":17,"gauges":0,"fires":0,"sky":"12:48 AM · Night","chip":"Mostly clear in Gatlinburg · wind 9 mph SW"}
+phone state {"blocked":false,"wx":true,"puffs":1343,"alerts":["Special Weather Statement","Wind Advisory","Special Weather Statement","Special Weather Statement"],"news":70,"events":75,"incidents":5,"cams":17,"gauges":11,"fires":0,"sky":"12:53 AM · Night","chip":"Clear in Gatlinburg · wind 9 mph SW"}
 phone tomtom {"200":23}
+phone console error Failed to load resource: the server responded with a status of 404 ()
+phone failed https://api.tomtom.com/traffic/map/4/tile/flow/relative0/15/8781/12920.png?key=j81wnoR8SajwacDSKgn20e1SNEzZzf1r&tileSize=256&t=14964656 net::ERR_ABORTED
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
@@ -169,7 +162,6 @@ phone console error Failed to load resource: the server responded with a status 
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
-phone console info [live] iss The user aborted a request.
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
