@@ -787,6 +787,7 @@ body.ingroup #stories,body.ingroup #fchips{display:none}
 .dmfound div{display:flex;flex-direction:column}
 .dmfound small{color:var(--ink-faint)}
 @media (prefers-reduced-motion:reduce){#dmView,.dmrow,.bub{animation:none}}
+.pgrid button{position:relative}.pgrid .gvid{position:absolute;top:6px;right:6px;z-index:1;color:#fff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}.pgrid .gvid .ic{fill:#fff;stroke:none;width:16px;height:16px}
 /* SOCIAL-CSS-END */
 /* BRAND-CSS-BEGIN */
 /* ---------- brand: Misty Ridges (outdoors theme) ---------- */
@@ -3577,7 +3578,7 @@ const Social = (() => {
   }
   function renderProfile() {
     const me = meAcct();
-    const L = signedIn() ? S.remote.filter(r => r.user_id === Cloud.user.id).map(r => ({ id: 's' + r.id, img: imgOf(r.image_url), caption: r.caption, place: r.lng != null ? { name: r.place_name, lng: r.lng, lat: r.lat } : null })).concat(S.posts) : S.posts;
+    const L = signedIn() ? S.remote.filter(r => r.user_id === Cloud.user.id).map(r => ({ id: 's' + r.id, img: imgOf(r.image_url), vid: !!r.video_url, caption: r.caption, place: r.lng != null ? { name: r.place_name, lng: r.lng, lat: r.lat } : null })).concat(S.posts) : S.posts;
     $('#sv-profile').innerHTML = `<header class="top"><b class="title">${esc(me.h)}</b></header>
       <div class="prof">${avatar(me, 86)}<div class="nums"><div><b>${L.length}</b><span>posts</span></div><div><b>${Object.keys(S.likes).length}</b><span>liked</span></div><div><b>${Object.keys(S.saved).length}</b><span>saved</span></div></div></div>
       <div class="bio"><b>${esc(me.name)}</b>${S.me && S.me.bio ? `<p>${esc(S.me.bio)}</p>` : ''}</div>
@@ -3585,7 +3586,7 @@ const Social = (() => {
       ${Cloud.on && !Cloud.groupsOff ? `<div class="pgroups"><div class="sideHead">Your groups</div><div>${S.groups.map(g => `<button data-scope="${g.id}" style="--c:${esc(g.color)}"><span class="ge">${esc(g.emoji)}</span><b>${esc(g.name)}</b><small>${g.role === 'owner' ? 'Owner' : 'Member'}</small></button>`).join('')}<button data-scope="new" class="gnew"><span class="ge">+</span><b>New or join</b><small>Family, friends</small></button></div></div>` : ''}
       ${installRow()}
       <div class="ptabs"><button aria-selected="true">${svg('grid', 'sm')}</button></div>
-      <div class="pgrid">${L.length ? L.map(p => `<button data-id="${p.id}">${p.img ? `<img src="${p.img}" alt="">` : `<span>${esc((p.caption || '').slice(0, 60))}</span>`}</button>`).join('') : `<div class="empty" style="grid-column:1/-1">${svg('camera', 'big')}<b>Share your first photo</b><span>Waterfalls, wildlife, traffic, sunsets. Every post lands on the map.</span></div>`}</div>`;
+      <div class="pgrid">${L.length ? L.map(p => `<button data-id="${p.id}">${p.vid ? `<i class="gvid">${svg('play', 'xs')}</i>` : ''}${p.img ? `<img src="${p.img}" alt="">` : `<span>${esc((p.caption || '').slice(0, 60))}</span>`}</button>`).join('') : `<div class="empty" style="grid-column:1/-1">${svg('camera', 'big')}<b>Share your first photo</b><span>Waterfalls, wildlife, traffic, sunsets. Every post lands on the map.</span></div>`}</div>`;
     const v = $('#sv-profile');
     const q = k => v.querySelector(k);
     if (q('[data-edit]')) q('[data-edit]').onclick = editProfile; q('[data-new]').onclick = openCreate;
@@ -3725,6 +3726,14 @@ const Social = (() => {
     Cloud.init().then(() => { if (Cloud.on) { refresh(); pendingJoin(); Inbox.load().then(() => Inbox.listen()); } });
     document.addEventListener('click', e => { const b = e.target.closest('[data-dm]'); if (b) { e.preventDefault(); openMessages(); } });
     document.addEventListener('visibilitychange', () => { if (!document.hidden && signedIn()) Inbox.load(); });
+    window.addEventListener('hashchange', () => { // a tapped phone notification lands here while the app is open
+      const x = decodeURIComponent(location.hash || '');
+      if (x.startsWith('#dm=')) openMessages(x.slice(4));
+      else if (x.startsWith('#post=')) openPost(x.slice(6));
+      else if (x === '#activity') setView('activity');
+      else return;
+      history.replaceState(null, '', location.pathname + location.search);
+    });
     // the place index is big; fetch it once, after the map has settled
     setTimeout(() => placesReady().then(j => { window.__placeIndex = j.filter(p => p[4] === 1 || p[4] === 0 || /park|trail|waterfall|historic|campground|attraction|amusement/.test(p[3])); }), 8000);
     // new activity dot once feeds arrive

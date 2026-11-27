@@ -482,3 +482,4 @@ body.ingroup #stories,body.ingroup #fchips{display:none}
 .dmfound div{display:flex;flex-direction:column}
 .dmfound small{color:var(--ink-faint)}
 @media (prefers-reduced-motion:reduce){#dmView,.dmrow,.bub{animation:none}}
+.pgrid button{position:relative}.pgrid .gvid{position:absolute;top:6px;right:6px;z-index:1;color:#fff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}.pgrid .gvid .ic{fill:#fff;stroke:none;width:16px;height:16px}
