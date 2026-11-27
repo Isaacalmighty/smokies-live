@@ -13,6 +13,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIX = json.load(open(os.path.join(ROOT, 'tools/places_fix.json')))
 # Places the map data is missing. [name, lng, lat, category]
 ADD = [['Riverpark Apartments', -83.58234, 35.88464, 'apartments']]
+# News still uses old names. The news place list matches the old name and shows the current one
+# (an optional 6th field). old name -> (current name, lng, lat)
+ALIASES = {'Clingmans Dome': ('Kuwohi', -83.4985, 35.5628), "Clingman's Dome": ('Kuwohi', -83.4985, 35.5628),
+           'Ober Mountain': ('Ober Gatlinburg', -83.5594, 35.7106), 'Gatlinburg SkyLift': ('Gatlinburg SkyPark', -83.5154, 35.7109),
+           'Gatlinburg Sky Lift': ('Gatlinburg SkyPark', -83.5154, 35.7109), 'Dixie Stampede': ("Dolly Parton's Stampede", -83.54671, 35.77985)}
+CURRENT = [['Gatlinburg SkyPark', -83.5154, 35.7109, 'curated', 5], ['Ober Gatlinburg', -83.5594, 35.7106, 'curated', 5]]
 
 def km(a, b): return math.hypot((a[0] - b[0]) * 90.3, (a[1] - b[1]) * 111.2)
 def key(n): return n.replace('\n', ' · ').replace(';', ' · ').strip().lower()
@@ -28,7 +34,9 @@ def find(g, name, lng, lat, tol=0.012):
             for r in g.get((k, cx + dx, cy + dy), []):
                 if km((lng, lat), (r[1], r[2])) < tol: return r
     return None
-DROP, RECAT = grid(FIX['drop']), grid(FIX['recat'])
+DROP, RECAT, RENAME = grid(FIX['drop']), grid(FIX['recat']), grid(FIX.get('rename', []))
+# Buildings (from OpenStreetMap via Overture) whose name changed. old -> new
+BUILDING_RENAME = {'Ober Mountain': 'Ober Gatlinburg', 'Ober Mountain Lodge': 'Ober Gatlinburg Lodge'}
 
 # ---------------------------------------------------------------- protobuf, just enough for MVT
 def varint(b, i):
@@ -66,11 +74,11 @@ def ll_tile(z, x, y, lon, lat, ext):
     n = 2 ** z; r = math.radians(lat)
     return round(((lon + 180) / 360 * n - x) * ext), round(((1 - math.log(math.tan(r) + 1 / math.cos(r)) / math.pi) / 2 * n - y) * ext)
 
-stats = {'dropped': 0, 'recat': 0, 'added': 0}
+stats = {'dropped': 0, 'recat': 0, 'renamed': 0, 'added': 0}
 def fix_layer(lb, z, x, y):
     parts = list(fields(lb))
     name = next(v for f, wt, v, raw in parts if f == 1).decode()
-    if name != 'poi': return lb
+    if name not in ('poi', 'building'): return lb
     ext = next((v for f, wt, v, raw in parts if f == 5), 4096)
     keys = [v.decode() for f, wt, v, raw in parts if f == 3]
     vals = []
@@ -91,10 +99,21 @@ def fix_layer(lb, z, x, y):
         geom = next((packed(fv) for ff, _, fv, _ in fp if ff == 4), [])
         props = {keys[tags[j]]: vals[tags[j + 1]] for j in range(0, len(tags), 2)}
         n = props.get('n')
+        def retag(k, new):
+            ki = key_index(k); t = list(tags)
+            for j in range(0, len(t), 2):
+                if t[j] == ki: t[j + 1] = val_index(new)
+            return ld(2, b''.join(ld(2, b''.join(enc_varint(x) for x in t)) if ff == 2 else fraw for ff, _, _, fraw in fp))
+        if name == 'building':
+            if n in BUILDING_RENAME: feats.append(retag('n', BUILDING_RENAME[n])); stats['renamed'] += 1
+            else: feats.append(raw)
+            continue
         if n and len(geom) >= 3 and (geom[0] & 7) == 1:
             lon, lat = tile_ll(z, x, y, zz(geom[1]), zz(geom[2]), ext)
             seen.add(key(n))
             if find(DROP, n, lon, lat): stats['dropped'] += 1; continue
+            rn = find(RENAME, n, lon, lat)
+            if rn: feats.append(retag('n', rn[3])); seen.add(key(rn[3])); stats['renamed'] += 1; continue
             rc = find(RECAT, n, lon, lat)
             if rc and props.get('c') != rc[3] and key_index('c') is not None:
                 ci = key_index('c'); tags = list(tags)
@@ -103,7 +122,7 @@ def fix_layer(lb, z, x, y):
                 body = b''.join(ld(2, b''.join(enc_varint(t) for t in tags)) if ff == 2 else fraw for ff, _, _, fraw in fp)
                 feats.append(ld(2, body)); stats['recat'] += 1; continue
         feats.append(raw)
-    if z >= 13:
+    if z >= 13 and name == 'poi':
         for n, lon, lat, c in ADD:
             px, py = ll_tile(z, x, y, lon, lat, ext)
             if not (0 <= px < ext and 0 <= py < ext) or key(n) in seen: continue
@@ -147,10 +166,17 @@ def fix_list(path, tier):
         if find(DROP, r[0], r[1], r[2]): stats['dropped'] += 1; continue
         rc = find(RECAT, r[0], r[1], r[2])
         if rc: r = [r[0], r[1], r[2], rc[3], r[4]]
+        rn = find(RENAME, r[0], r[1], r[2])
+        if rn: r = [rn[3]] + r[1:]
         out.append(r)
     for n, lon, lat, c in ADD:
         if key(n) not in names: out.append([n, lon, lat, c, tier])
-    if 'gazetteer' in path: out.sort(key=lambda r: -len(r[0]))
+    if 'gazetteer' in path:
+        out = [r for r in out if r[0] not in ALIASES]
+        out += [[old, lng, lat, 'curated', 5, new] for old, (new, lng, lat) in ALIASES.items()]
+        have = {(r[0], r[3]) for r in out}
+        out += [r for r in CURRENT if (r[0], r[3]) not in have]
+        out.sort(key=lambda r: -len(r[0]))
     json.dump(out, open(path, 'w'), separators=(',', ':'))
 fix_list(os.path.join(ROOT, 'data/search.json'), 3)
 fix_list(os.path.join(ROOT, 'scripts/gazetteer.json'), 4)
