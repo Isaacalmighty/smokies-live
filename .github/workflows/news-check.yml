@@ -18,3 +18,8 @@ jobs:
         with:
           deno-version: v2.1.x
       - run: deno run --allow-net --allow-env --allow-read supabase/functions/news/index.ts --dry
+      - name: Backup-file mode (what the 10-minute refresher writes)
+        run: |
+          deno run --allow-net --allow-env --allow-read --allow-write supabase/functions/news/index.ts --json /tmp/news.json
+          deno run --allow-net --allow-env --allow-read --allow-write supabase/functions/news/index.ts --json /tmp/news.json
+          python3 -c "import json; d=json.load(open('/tmp/news.json')); [print(i.get('source'),'|',i.get('cat'),'|',i['title'][:60],'|',(i.get('img') or '-')[:70],'|',i['link'][:60],'|',(i.get('summary') or '')[:80],'|',i.get('author')) for i in d['items'][:40]]"
