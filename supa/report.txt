@@ -1,0 +1,20 @@
+Supabase check 2026-11-27T18:19:36.459Z
+ON   posts table   [200 [{"id":"864ed72b-aa60-49b8-8b5e-fcc1cce88b68"}]]
+ON   report votes (02)   [200 []]
+ON   groups (03)   [200 []]
+ON   group posts column (03)   [200 [{"group_id":null}]]
+ON   push devices (03_push)   [200 {"code":"P0001","details":null,"hint":null,"message":"bad token"}]
+ON   news table (04)   [200 [{"id":"innkeeperreflectsonlossoflodgeatbuckberrycreek10yearsafterga","source":"WATE 6 On Your Side","published":"2026-11-25T20:22:31+00:00"]
+     news rows: 14, last collected: 2026-11-27T18:16:59.661+00:00 (3 min ago)
+     per outlet: {"WATE 6 On Your Side":7,"WBIR 10News":5,"National Park Service":1,"WVLT":1}
+ON   video columns (05)   [200 [{"video_url":null,"video_meta":null}]]
+ON   messages (05)   [401 {"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.dm_messages TO anon;",]
+ON   conversations (05)   [401 {"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.dm_threads TO anon;","]
+ON   notifications (05)   [401 {"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.notifications TO anon;]
+ON   start_dm function (05)   [401 {"code":"42501","details":null,"hint":null,"message":"permission denied for function start_dm"}]
+ON   tags column (06)   [200 [{"tagged":[]}]]
+ON   family locations (07)   [401 {"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.member_locations TO an]
+ON   post_feed view has videos   [200 [{"video_url":null}]]
+ON   function send-push   [200 {"skipped":true}]
+ON   function news (deployed?)   [500]
+auth settings: {"external":{"anonymous_users":false,"apple":false,"azure":false,"bitbucket":false,"discord":false,"facebook":false,"snapchat":false,"figma":false,"fly":false,"github":false,"gitlab":false,"google":false,"keycloak":false,"kakao":false,"linkedin":false,"linkedin_oidc":false,"notion":false,"spotify":f
