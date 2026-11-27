@@ -128,3 +128,5 @@ body.mm-far .lflow-m{visibility:hidden}
 .lflow-m.mm-hide{visibility:hidden}
 
 @media (prefers-reduced-motion:reduce){#mmSheet,.mm-fam,.mm-me b,.mmrow,#mmShare{transition:none!important;animation:none!important}.mm-me .pulse{display:none}}
+
+#mmPerf{position:fixed;z-index:30;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 4px);padding:4px 8px;border-radius:8px;background:rgba(0,0,0,.78);color:#9f9;font:600 11px/1.3 var(--font-data);pointer-events:none}
