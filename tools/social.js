@@ -331,7 +331,7 @@ const Social = (() => {
   function shell() {
     const nav = document.createElement('nav'); nav.id = 'tabbar'; nav.setAttribute('aria-label', 'Main');
     nav.innerHTML = `<div class="logo">${window.Brand ? Brand.mark(30) : ''}<span>Smokies <em>Live</em></span></div>` +
-      [['map', 'map', 'Map'], ['today', 'sun', 'Today'], ['create', 'plus', 'Share'], ['feed', 'home', 'Feed'], ['more', 'menu', 'More']].map(([k, ic, l]) => `<button data-v="${k}" aria-label="${l}"${k === 'map' ? ' aria-current="page"' : ''}>${k === 'profile' ? `<span class="me">${svg(ic)}</span>` : svg(ic)}<span>${l}</span>${k === 'feed' ? '<i class="dot" hidden></i>' : ''}</button>`).join('');
+      [['feed', 'home', 'Feed'], ['map', 'map', 'Map'], ['create', 'plus', 'Share'], ['today', 'sun', 'Today'], ['more', 'menu', 'More']].map(([k, ic, l]) => `<button data-v="${k}" aria-label="${l}"${k === 'feed' ? ' aria-current="page"' : ''}>${k === 'profile' ? `<span class="me">${svg(ic)}</span>` : svg(ic)}<span>${l}</span>${k === 'feed' ? '<i class="dot" hidden></i>' : ''}</button>`).join('');
     document.body.appendChild(nav);
     nav.querySelectorAll('button').forEach(b => b.onclick = () => { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); b.dataset.v === 'create' ? (window.UX ? UX.share() : openCreate()) : setView(b.dataset.v); });
     const v = document.createElement('div'); v.id = 'socialView'; v.hidden = true;
@@ -1192,7 +1192,9 @@ const Social = (() => {
   /* ---------- start ---------- */
   async function init() {
     await loadLocal(); S.scope = await Store.get('scope', 'public'); S.wall = await Store.get('wall', true);
-    shell(); document.body.dataset.view = 'map'; registerSW(); Vid.init();
+    shell(); registerSW(); Vid.init();
+    // the app opens on the feed; the map is one tap away (and finishes loading behind it)
+    setView('feed');
     if (standalone()) document.body.classList.add('app');
     drawUserPins();
     Cloud.init().then(() => { if (Cloud.on) { refresh(); pendingJoin(); Inbox.load().then(() => Inbox.listen()); } });
