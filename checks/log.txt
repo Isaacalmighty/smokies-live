@@ -1,9 +1,5 @@
-desktop state {"blocked":false,"wx":false,"puffs":0,"alerts":[],"news":0,"events":0,"incidents":0,"cams":0,"gauges":0,"fires":0,"sky":"12:25 AM · Night","chip":"Connecting to live data…"}
-desktop tomtom {"200":48}
-desktop console info [live] weather signal is aborted without reason
-desktop failed https://api.open-meteo.com/v1/forecast?latitude=35.330,35.330,35.330,35.330,35.330,35.330,35.330,35.470,35.470,35.470,35.470,35.470,35.470,35.470,35.610,35.610, net::ERR_ABORTED
-desktop failed https://api.open-meteo.com/v1/forecast?latitude=35.714&longitude=-83.512&current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover,relative_hu net::ERR_ABORTED
-desktop failed https://api.open-meteo.com/v1/forecast?latitude=35.714,35.788,35.868,35.675,35.597,35.714,35.484,35.431,35.6363,35.6329,35.7046,35.6295,35.6108,35.6179,35.6533, net::ERR_ABORTED
+desktop state {"blocked":false,"wx":true,"puffs":2708,"alerts":["Special Weather Statement","Wind Advisory","Special Weather Statement","Special Weather Statement"],"news":70,"events":75,"incidents":5,"cams":17,"gauges":0,"fires":0,"sky":"12:45 AM · Night","chip":"Mostly clear in Gatlinburg · wind 9 mph SW"}
+desktop tomtom {"200":26}
 desktop console info [live] iss The user aborted a request.
 desktop console info [live] iss The user aborted a request.
 desktop console error Failed to load resource: the server responded with a status of 400 ()
@@ -143,24 +139,17 @@ desktop console error Failed to load resource: the server responded with a statu
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
-phone console info [live] weather signal is aborted without reason
-phone failed https://api.open-meteo.com/v1/forecast?latitude=35.330,35.330,35.330,35.330,35.330,35.330,35.330,35.470,35.470,35.470,35.470,35.470,35.470,35.470,35.610,35.610, net::ERR_ABORTED
-phone failed https://api.open-meteo.com/v1/forecast?latitude=35.714&longitude=-83.512&current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover,relative_hu net::ERR_ABORTED
-phone state {"blocked":false,"wx":false,"puffs":0,"alerts":["Special Weather Statement","Wind Advisory","Special Weather Statement","Special Weather Statement"],"news":70,"events":75,"incidents":5,"cams":17,"gauges":0,"fires":0,"sky":"12:29 AM · Night","chip":"Connecting to live data…"}
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+phone state {"blocked":false,"wx":true,"puffs":1485,"alerts":["Special Weather Statement","Wind Advisory","Special Weather Statement","Special Weather Statement"],"news":70,"events":75,"incidents":5,"cams":17,"gauges":0,"fires":0,"sky":"12:48 AM · Night","chip":"Mostly clear in Gatlinburg · wind 9 mph SW"}
 phone tomtom {"200":23}
-phone console error Failed to load resource: the server responded with a status of 503 ()
-phone failed https://api.open-meteo.com/v1/forecast?latitude=35.714,35.788,35.868,35.675,35.597,35.714,35.484,35.431,35.6363,35.6329,35.7046,35.6295,35.6108,35.6179,35.6533, net::ERR_TIMED_OUT
-phone console error Failed to load resource: net::ERR_TIMED_OUT
-phone console error Failed to load resource: the server responded with a status of 400 ()
-phone console error Failed to load resource: the server responded with a status of 400 ()
-phone console error Failed to load resource: the server responded with a status of 400 ()
-phone console error Failed to load resource: the server responded with a status of 400 ()
-phone console error Failed to load resource: the server responded with a status of 400 ()
-phone console error Failed to load resource: the server responded with a status of 400 ()
-phone console error Failed to load resource: the server responded with a status of 400 ()
-phone failed https://api.tomtom.com/traffic/map/4/tile/flow/relative0/15/8781/12920.png?key=j81wnoR8SajwacDSKgn20e1SNEzZzf1r&tileSize=256&t=14964644 net::ERR_ABORTED
-phone failed https://api.tomtom.com/traffic/map/4/tile/flow/relative0/15/8782/12921.png?key=j81wnoR8SajwacDSKgn20e1SNEzZzf1r&tileSize=256&t=14964644 net::ERR_ABORTED
-phone failed https://api.tomtom.com/traffic/map/4/tile/flow/relative0/15/8783/12921.png?key=j81wnoR8SajwacDSKgn20e1SNEzZzf1r&tileSize=256&t=14964644 net::ERR_ABORTED
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
@@ -170,6 +159,17 @@ phone console error Failed to load resource: the server responded with a status 
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
+phone console error Failed to load resource: the server responded with a status of 400 ()
+phone console error Failed to load resource: the server responded with a status of 400 ()
+phone console error Failed to load resource: the server responded with a status of 400 ()
+phone console error Failed to load resource: the server responded with a status of 400 ()
+phone console error Failed to load resource: the server responded with a status of 400 ()
+phone console error Failed to load resource: the server responded with a status of 400 ()
+phone console error Failed to load resource: the server responded with a status of 400 ()
+phone console error Failed to load resource: the server responded with a status of 400 ()
+phone console error Failed to load resource: the server responded with a status of 400 ()
+phone console error Failed to load resource: the server responded with a status of 400 ()
+phone console info [live] iss The user aborted a request.
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
