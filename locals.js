@@ -629,16 +629,17 @@
   }
   /* ---------- morning brief ---------- */
   const WMO = { 0: 'Clear', 1: 'Mostly clear', 2: 'Partly cloudy', 3: 'Overcast', 45: 'Fog', 48: 'Freezing fog', 51: 'Drizzle', 53: 'Drizzle', 55: 'Drizzle', 56: 'Freezing drizzle', 57: 'Freezing drizzle', 61: 'Light rain', 63: 'Rain', 65: 'Heavy rain', 66: 'Freezing rain', 67: 'Freezing rain', 71: 'Light snow', 73: 'Snow', 75: 'Heavy snow', 77: 'Snow', 80: 'Showers', 81: 'Showers', 82: 'Heavy showers', 85: 'Snow showers', 86: 'Snow showers', 95: 'Storms', 96: 'Storms with hail', 99: 'Storms with hail' };
+  const homeName = () => (window.Live && Live.home ? Live.home().n : 'Gatlinburg');
   function briefHTML() {
     const t = et(), hi = t.h < 4 ? 'Up late' : t.h < 12 ? 'Good morning' : t.h < 17 ? 'Good afternoon' : 'Good evening';
     const date = new Date().toLocaleDateString('en-US', { timeZone: TZN, weekday: 'long', month: 'long', day: 'numeric' });
     let wx = '';
     if (S.wx) {
-      const g = S.wx.gat.h, i0 = g.time.indexOf(t.key), d0 = g.time.indexOf(t.day + 'T00:00');
+      const LH = window.Live && Live.st.wx && Live.st.wx.hourly, g = LH && LH.precipitation_probability ? LH : S.wx.gat.h, i0 = g.time.indexOf(t.key), d0 = g.time.indexOf(t.day + 'T00:00'); // weather where you live
       if (i0 >= 0 && d0 >= 0) {
         const day = g.temperature_2m.slice(d0, d0 + 24), pp = Math.max(...g.precipitation_probability.slice(Math.max(i0, d0), d0 + 24).map(x => x || 0));
         const code = g.weather_code[i0], rainAt = g.precipitation_probability.slice(i0, d0 + 24).findIndex(x => x >= 50);
-        wx = `<div class="lbx wx"><span class="i">${code >= 61 ? '🌧️' : code >= 45 && code <= 48 ? '🌫️' : code >= 71 && code <= 86 ? '🌨️' : code <= 1 ? (t.h >= 7 && t.h < 18 ? '☀️' : '🌙') : '⛅'}</span><div><b>${Math.round(g.temperature_2m[i0])}° and ${esc((WMO[code] || '').toLowerCase())} in Gatlinburg</b><small>High ${Math.round(Math.max(...day))}°, low ${Math.round(Math.min(...day))}°. ${pp >= 50 ? `Rain likely${rainAt > 0 ? ' after ' + hh(t.h + rainAt) : ' now'} (${Math.round(pp)}%).` : pp >= 25 ? `Small chance of rain (${Math.round(pp)}%).` : 'Dry day.'}${S.wx.kuw ? ` Kuwohi ${Math.round(S.wx.kuw.h.temperature_2m[i0])}°.` : ''}</small></div></div>`;
+        wx = `<div class="lbx wx"><span class="i">${code >= 61 ? '🌧️' : code >= 45 && code <= 48 ? '🌫️' : code >= 71 && code <= 86 ? '🌨️' : code <= 1 ? (t.h >= 7 && t.h < 18 ? '☀️' : '🌙') : '⛅'}</span><div><b>${Math.round(g.temperature_2m[i0])}° and ${esc((WMO[code] || '').toLowerCase())} in ${esc(g === S.wx.gat.h ? 'Gatlinburg' : homeName())}</b><small>High ${Math.round(Math.max(...day))}°, low ${Math.round(Math.min(...day))}°. ${pp >= 50 ? `Rain likely${rainAt > 0 ? ' after ' + hh(t.h + rainAt) : ' now'} (${Math.round(pp)}%).` : pp >= 25 ? `Small chance of rain (${Math.round(pp)}%).` : 'Dry day.'}${S.wx.kuw ? ` Kuwohi ${Math.round(S.wx.kuw.h.temperature_2m[i0])}°.` : ''}</small></div></div>`;
       }
     }
     const R = roadsNow(), inc = (window.Live && Live.st.traffic.incidents || []).length;
@@ -832,7 +833,7 @@
       const feed = q('#socialView'); if (feed) new MutationObserver(() => prettyTags(feed)).observe(feed, { childList: true, subtree: true });
       setInterval(() => { const n = ((Social.S.remote || []).length) + ((Social.S.posts || []).length); if (n !== S._n) { S._n = n; drawMarkers(); } }, 4000);
       const hsh = decodeURIComponent(location.hash || ''); if (hsh.startsWith('#local')) openHub(hsh.split('=')[1] || 'today');
-      else setTimeout(() => { const t = et(); if (t.h >= 5 && t.h < 11 && pref.get('briefDay', '') !== t.day && S.wx) { pref.set('briefDay', t.day); const f = S.fog && S.fog[0], c = S.flow && S.flow.clock && S.flow.clock.sg && S.flow.clock.sg[0]; banner('☀️', 'Your morning brief is ready', [S.wx ? `${Math.round(S.wx.gat.h.temperature_2m[S.wx.gat.h.time.indexOf(t.key)])}° in Gatlinburg` : '', c ? `Parkway ${c.min} min` : '', f ? `${pct(f.p)} valley fog` : ''].filter(Boolean).join(' · '), 'today'); } }, 6000);
+      else setTimeout(() => { const t = et(); if (t.h >= 5 && t.h < 11 && pref.get('briefDay', '') !== t.day && S.wx) { pref.set('briefDay', t.day); const f = S.fog && S.fog[0], c = S.flow && S.flow.clock && S.flow.clock.sg && S.flow.clock.sg[0]; banner('☀️', 'Your morning brief is ready', [window.Live && Live.st.wx ? `${Math.round(Live.st.wx.current.temperature_2m)}° in ${homeName()}` : S.wx ? `${Math.round(S.wx.gat.h.temperature_2m[S.wx.gat.h.time.indexOf(t.key)])}° in Gatlinburg` : '', c ? `Parkway ${c.min} min` : '', f ? `${pct(f.p)} valley fog` : ''].filter(Boolean).join(' · '), 'today'); } }, 6000);
     }, 400);
   }
   window.Locals = { S, openHub, closeHub, refresh, compose, setLocalMode, fogMorning, buildWorth, drawMarkers, brief: () => briefHTML(), section: tabHTML, rings, onBody, itemsOf, roadsNow, clockHTML, feedEvents, setLayer(k, on) { S.layers[k] = on; pref.set('layers2', S.layers); drawMarkers(); } };

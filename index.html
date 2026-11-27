@@ -1121,16 +1121,24 @@ body:not([data-view="map"]) #uxshow,body.picking #uxshow{opacity:0;pointer-event
 @media (max-width:760px){
   body.ux #search{top:calc(env(safe-area-inset-top,0px) + 12px)!important}
   body.ux #live{left:max(12px,env(safe-area-inset-left,0px))!important;right:auto!important;top:calc(env(safe-area-inset-top,0px) + 68px)!important;max-width:calc(100vw - 24px)}
-  #uxshow{top:auto;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 68px);height:48px;border-radius:24px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
-  body.ux #credits{bottom:calc(env(safe-area-inset-bottom,0px) + 58px)!important;left:max(12px,env(safe-area-inset-left,0px));right:auto;max-width:52vw;font-size:8.5px!important;line-height:1.3}
-  body.ux #toast{bottom:calc(env(safe-area-inset-bottom,0px) + 128px)!important}
-  body.ux #radarStamp{bottom:calc(env(safe-area-inset-bottom,0px) + 128px)!important}
-  body.ux #sheet{bottom:calc(env(safe-area-inset-bottom,0px) + 62px)!important}
+  #uxshow{top:auto;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(var(--tabh,calc(env(safe-area-inset-bottom,0px) + 54px)) + 14px);height:48px;border-radius:24px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+  body.ux #credits{bottom:calc(var(--tabh,calc(env(safe-area-inset-bottom,0px) + 54px)) + 4px)!important;left:max(12px,env(safe-area-inset-left,0px));right:auto;max-width:52vw;font-size:8.5px!important;line-height:1.3}
+  body.ux #toast{bottom:calc(var(--tabh,calc(env(safe-area-inset-bottom,0px) + 54px)) + 76px)!important}
+  body.ux #radarStamp{bottom:calc(var(--tabh,calc(env(safe-area-inset-bottom,0px) + 54px)) + 76px)!important}
+  body.ux #sheet{bottom:calc(var(--tabh,calc(env(safe-area-inset-bottom,0px) + 54px)) + 8px)!important}
+  body.ux #lhub{bottom:var(--tabh,calc(env(safe-area-inset-bottom,0px) + 54px))!important}
   body.ux #sheet:not([hidden]) ~ #uxshow,body.ux.tool-open #uxshow{opacity:0;pointer-events:none}
 }
 @media (prefers-reduced-motion:reduce){#uxsheet,#uxscrim,.uxgroup,.uxbody>*,.uxshare button,.uxwhos button{animation:none!important}}
 .uxitem .cnt{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#ff3b5c;color:#fff;font:700 11.5px var(--font-body);font-style:normal;display:grid;place-items:center}
 .uxitem .cnt[hidden]{display:none}
+.uxchipsr{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
+.uxgps{width:100%;height:46px;border-radius:14px;border:1px solid rgba(240,163,94,.45);background:rgba(240,163,94,.14);color:var(--ink);font:600 15px var(--font-body);cursor:pointer;margin-bottom:12px}
+.uxtowns{display:flex;flex-wrap:wrap;gap:8px}
+.uxtowns button{height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);font:600 14px var(--font-body);cursor:pointer;animation:uxrise .4s var(--ease-out) both;animation-delay:calc(var(--i,0) * 18ms)}
+.uxtowns button[aria-pressed="true"]{background:rgba(240,163,94,.22);border-color:var(--ember);color:#ffe2c6}
+@media (min-width:761px){#uxsheet[data-kind="home"]{right:auto;left:50%;top:50%;width:min(520px,calc(100vw - 120px));transform:translate(-50%,-50%);transform-origin:50% 50%;animation:uxzoom .4s var(--spring,var(--ease-out)) both}}
+@media (max-width:760px){body.ux #socialView{padding-bottom:calc(var(--tabh,calc(env(safe-area-inset-bottom,0px) + 54px)) + 10px)!important}}
 /* UX-CSS-END */
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
@@ -1278,16 +1286,20 @@ ${ring ? `<circle class="rim" cx="50" cy="50" r="44" fill="none" stroke="#2f4a46
       const map = window.__smokies && window.__smokies.map; if (!map || !map.setPixelRatio) return;
       clearInterval(wait);
       const dpr = devicePixelRatio || 1, phone = matchMedia('(pointer:coarse)').matches;
-      const cap = Math.min(dpr, phone ? 2 : 2.5), floor = Math.min(dpr, 1);
+      // text turns soft below 1.5x on phone screens, so phones stay between 1.5x and 2x
+      const cap = Math.min(dpr, phone ? 2 : 2.5), floor = Math.min(dpr, phone ? 1.5 : 1);
       let pr = Math.min(map.getPixelRatio(), cap); map.setPixelRatio(pr);
-      let last = 0, frames = [], moving = false, calm = 0;
-      map.on('movestart', () => { moving = true; }); map.on('moveend', () => { moving = false; });
+      let last = 0, frames = [], moving = false, calm = 0, want = pr;
+      map.on('movestart', () => { moving = true; });
+      // resizing the canvas mid-gesture causes a hitch, so changes wait until the map stops
+      map.on('moveend', () => { moving = false; last = 0; if (want !== pr) { pr = want; map.setPixelRatio(pr); } });
       map.on('render', () => {
-        const now = performance.now(); if (last) frames.push(now - last); last = now;
+        const now = performance.now(); if (moving && last && now - last < 250) frames.push(now - last); last = now; // only gesture frames count: idle redraws are paced on purpose
         if (frames.length < 45) return;
         frames.sort((a, b) => a - b); const med = frames[frames.length >> 1]; frames = [];
-        if (med > 28 && pr > floor) { pr = Math.max(floor, +(pr - 0.25).toFixed(2)); map.setPixelRatio(pr); calm = 0; }
-        else if (med < 15 && pr < cap && moving) { if (++calm > 3) { pr = Math.min(cap, +(pr + 0.25).toFixed(2)); map.setPixelRatio(pr); calm = 0; } }
+        if (med > 28 && want > floor) { want = Math.max(floor, +(want - 0.25).toFixed(2)); calm = 0; }
+        else if (med < 15 && want < cap && moving) { if (++calm > 3) { want = Math.min(cap, +(want + 0.25).toFixed(2)); calm = 0; } }
+        if (!moving && want !== pr) { pr = want; map.setPixelRatio(pr); }
       });
       window.__smokies.quality = () => ({ pixelRatio: pr, cap });
       // body.sl-moving pauses decorative loops during gestures
@@ -1596,13 +1608,13 @@ const style = {
       'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 13.6, ['*', ['get', 'h'], EXAG]],
       'fill-extrusion-opacity': 0.96, 'fill-extrusion-vertical-gradient': true } },
     { id: 'fire', type: 'raster', source: 'fireSrc', paint: { 'raster-opacity': 1, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } },
-    { id: 'lbl-water', type: 'symbol', source: 'vec', 'source-layer': 'waterway', filter: ['all', ['has', 'n'], ['==', ['get', 'c'], 'river']], minzoom: 11, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 12, 'text-letter-spacing': 0.08, 'symbol-spacing': 400 }, paint: { 'text-color': '#cfe8ff', 'text-halo-color': 'rgba(10,30,50,0.85)', 'text-halo-width': 1.4 } },
-    { id: 'lbl-road', type: 'symbol', source: 'vec', 'source-layer': 'roads', filter: ['all', ['has', 'n'], ['in', ['get', 'c'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor']]]], minzoom: 13.5, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 11.5, 'symbol-spacing': 350 }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(0,0,0,0.75)', 'text-halo-width': 1.4 } },
-    { id: 'lbl-trail', type: 'symbol', source: 'vec', 'source-layer': 'roads', filter: ['all', ['has', 'n'], ['in', ['get', 'c'], ['literal', ['path', 'track']]]], minzoom: 13, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 11, 'symbol-spacing': 300 }, paint: { 'text-color': '#ffe7bd', 'text-halo-color': 'rgba(40,25,10,0.8)', 'text-halo-width': 1.3 } },
-    { id: 'lbl-poi', type: 'symbol', source: 'vec', 'source-layer': 'poi', minzoom: 15.5, layout: { 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 11, 'text-max-width': 9, 'text-offset': [0, 0.2], 'text-anchor': 'top', 'text-optional': true }, paint: { 'text-color': '#f3efe6', 'text-halo-color': 'rgba(0,0,0,0.8)', 'text-halo-width': 1.3 } },
-    { id: 'lbl-waterfall', type: 'symbol', source: 'vec', 'source-layer': 'poi', filter: ['==', ['get', 'c'], 'waterfall'], minzoom: 12, layout: { 'text-field': ['concat', '≋ ', ['get', 'n']], 'text-font': ['Noto'], 'text-size': 12 }, paint: { 'text-color': '#bfe3ff', 'text-halo-color': 'rgba(5,25,45,0.85)', 'text-halo-width': 1.4 } },
-    { id: 'lbl-peak', type: 'symbol', source: 'vec', 'source-layer': 'peak', filter: ['==', ['get', 'c'], 'peak'], layout: { 'text-field': ['format', '▲ ', { 'text-color': '#f2a65a' }, ['get', 'n'], {}, '\n', {}, ['concat', ['number-format', ['round', ['*', ['get', 'e'], M2FT]], { locale: 'en-US' }], ' ft'], { 'font-scale': 0.82, 'text-color': '#d9e2da' }], 'text-font': ['Noto'], 'text-size': ['interpolate', ['linear'], ['zoom'], 9, 11, 14, 14], 'text-anchor': 'bottom', 'text-max-width': 10, 'symbol-sort-key': ['-', 0, ['get', 'e']] }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(8,14,10,0.85)', 'text-halo-width': 1.5 } },
-    { id: 'lbl-place', type: 'symbol', source: 'vec', 'source-layer': 'place', layout: { 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-transform': ['match', ['get', 'c'], ['city', 'town'], 'uppercase', 'none'], 'text-letter-spacing': ['match', ['get', 'c'], ['city', 'town'], 0.18, 0.04], 'text-size': ['match', ['get', 'c'], 'city', 17, 'town', 15, 'village', 13, 11.5], 'symbol-sort-key': ['match', ['get', 'c'], 'city', 0, 'town', 1, 'village', 2, 3] }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(10,14,12,0.85)', 'text-halo-width': 1.8 } },
+    { id: 'lbl-water', type: 'symbol', source: 'vec', 'source-layer': 'waterway', filter: ['all', ['has', 'n'], ['==', ['get', 'c'], 'river']], minzoom: 11, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 12, 'text-letter-spacing': 0.08, 'symbol-spacing': 400 }, paint: { 'text-color': '#cfe8ff', 'text-halo-color': 'rgba(10,30,50,0.92)', 'text-halo-width': 2.0, 'text-halo-blur': 0.3 } },
+    { id: 'lbl-road', type: 'symbol', source: 'vec', 'source-layer': 'roads', filter: ['all', ['has', 'n'], ['in', ['get', 'c'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor']]]], minzoom: 13.5, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 11.5, 'symbol-spacing': 350 }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(0,0,0,0.75)', 'text-halo-width': 2.0, 'text-halo-blur': 0.3 } },
+    { id: 'lbl-trail', type: 'symbol', source: 'vec', 'source-layer': 'roads', filter: ['all', ['has', 'n'], ['in', ['get', 'c'], ['literal', ['path', 'track']]]], minzoom: 13, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 11, 'symbol-spacing': 300 }, paint: { 'text-color': '#ffe7bd', 'text-halo-color': 'rgba(40,25,10,0.92)', 'text-halo-width': 1.9, 'text-halo-blur': 0.3 } },
+    { id: 'lbl-poi', type: 'symbol', source: 'vec', 'source-layer': 'poi', minzoom: 15.5, layout: { 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 11, 'text-max-width': 9, 'text-offset': [0, 0.2], 'text-anchor': 'top', 'text-optional': true }, paint: { 'text-color': '#f3efe6', 'text-halo-color': 'rgba(0,0,0,0.92)', 'text-halo-width': 1.9, 'text-halo-blur': 0.3 } },
+    { id: 'lbl-waterfall', type: 'symbol', source: 'vec', 'source-layer': 'poi', filter: ['==', ['get', 'c'], 'waterfall'], minzoom: 12, layout: { 'text-field': ['concat', '≋ ', ['get', 'n']], 'text-font': ['Noto'], 'text-size': 12 }, paint: { 'text-color': '#bfe3ff', 'text-halo-color': 'rgba(5,25,45,0.92)', 'text-halo-width': 2.0, 'text-halo-blur': 0.3 } },
+    { id: 'lbl-peak', type: 'symbol', source: 'vec', 'source-layer': 'peak', filter: ['==', ['get', 'c'], 'peak'], layout: { 'text-field': ['format', '▲ ', { 'text-color': '#f2a65a' }, ['get', 'n'], {}, '\n', {}, ['concat', ['number-format', ['round', ['*', ['get', 'e'], M2FT]], { locale: 'en-US' }], ' ft'], { 'font-scale': 0.82, 'text-color': '#d9e2da' }], 'text-font': ['Noto'], 'text-size': ['interpolate', ['linear'], ['zoom'], 9, 11, 14, 14], 'text-anchor': 'bottom', 'text-max-width': 10, 'symbol-sort-key': ['-', 0, ['get', 'e']] }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(8,14,10,0.92)', 'text-halo-width': 2.1, 'text-halo-blur': 0.3 } },
+    { id: 'lbl-place', type: 'symbol', source: 'vec', 'source-layer': 'place', layout: { 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-transform': ['match', ['get', 'c'], ['city', 'town'], 'uppercase', 'none'], 'text-letter-spacing': ['match', ['get', 'c'], ['city', 'town'], 0.18, 0.04], 'text-size': ['match', ['get', 'c'], 'city', 17, 'town', 15, 'village', 13, 11.5], 'symbol-sort-key': ['match', ['get', 'c'], 'city', 0, 'town', 1, 'village', 2, 3] }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(10,14,12,0.92)', 'text-halo-width': 2.4, 'text-halo-blur': 0.3 } },
   ]
 };
 // fire source is a canvas, attached after load
@@ -2218,6 +2230,8 @@ const Live = (() => {
   const SITE = 'https://isaacalmighty.github.io/smokies-live/';
   // TomTom key for real traffic speeds (free plan; a browser key, like a map key). Empty = modeled traffic.
   const TOMTOM = 'j81wnoR8SajwacDSKgn20e1SNEzZzf1r';
+  const HOME_DEF = { n: 'Gatlinburg', lat: 35.714, lng: -83.512 };
+  let home = (() => { try { const h = JSON.parse(localStorage.getItem('sl-home')); return h && h.lat ? h : HOME_DEF; } catch (e) { return HOME_DEF; } })();
   const st = { blocked: false, wx: null, grid: null, alerts: [], news: [], events: [], traffic: { incidents: [], cameras: [] }, gauges: [], fires: [], radar: null, iss: null, tab: 'now', markers: {}, on: { clouds: true, radar: false, traffic: false, cams: false, news: false, rivers: false }, updated: {} };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ago = iso => { if (!iso) return ''; const s = (Date.now() - new Date(iso)) / 1000; if (s < 0) return new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }); if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' hr ago'; return Math.round(s / 86400) + ' d ago'; };
@@ -2300,7 +2314,7 @@ const Live = (() => {
       if (st.wx) {
         const c = st.wx.current, d = st.wx.daily;
         const summit = st.grid && st.grid.summit;
-        h += `<div class="lsec">Gatlinburg now</div><div class="nowgrid">
+        h += `<div class="lsec">${esc(home.n)} now</div><div class="nowgrid">
           <div><span>Feels like</span><b>${Math.round(c.apparent_temperature)}°</b></div>
           <div><span>Wind</span><b>${Math.round(c.wind_speed_10m)}<small> mph ${compass(c.wind_direction_10m)}</small></b></div>
           <div><span>Humidity</span><b>${Math.round(c.relative_humidity_2m)}%</b></div>
@@ -2460,7 +2474,7 @@ const Live = (() => {
     const pts = [...GRID, [-83.4357, 35.6545]];
     const base = 'https://api.open-meteo.com/v1/forecast?';
     const gridURL = base + `latitude=${pts.map(p => p[1].toFixed(3)).join(',')}&longitude=${pts.map(p => p[0].toFixed(3)).join(',')}&current=temperature_2m,dew_point_2m,relative_humidity_2m,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation,rain,showers,snowfall,weather_code,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph`;
-    const ptURL = base + 'latitude=35.714&longitude=-83.512&current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,visibility,precipitation&hourly=temperature_2m,weather_code,precipitation_probability,is_day&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FNew_York&forecast_days=2';
+    const ptURL = base + `latitude=${home.lat.toFixed(3)}&longitude=${home.lng.toFixed(3)}&` + 'current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,visibility,precipitation&hourly=temperature_2m,weather_code,precipitation_probability,is_day&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FNew_York&forecast_days=2';
     const [g, w] = await Promise.allSettled([jget(gridURL), jget(ptURL)]);
     if (w.status === 'fulfilled') { st.wx = w.value; st.updated.wx = new Date().toISOString(); chip(); applyLiveWind(); }
     if (g.status === 'fulfilled') {
@@ -2480,7 +2494,7 @@ const Live = (() => {
     const c = st.wx.current;
     $('#liveChip').querySelector('svg').outerHTML = icon(c.weather_code, c.is_day);
     $('#wxTemp').textContent = Math.round(c.temperature_2m) + '°';
-    $('#wxDesc').innerHTML = `<b>${WMO[c.weather_code] || ''}</b> in Gatlinburg · wind ${Math.round(c.wind_speed_10m)} mph ${compass(c.wind_direction_10m)}${st.grid && st.grid.summit ? `<br>Le Conte summit ${Math.round(st.grid.summit.temperature_2m)}°` : ''}`;
+    $('#wxDesc').innerHTML = `<b>${WMO[c.weather_code] || ''}</b> in ${esc(home.n)} · wind ${Math.round(c.wind_speed_10m)} mph ${compass(c.wind_direction_10m)}${st.grid && st.grid.summit ? `<br><span>Le Conte summit ${Math.round(st.grid.summit.temperature_2m)}°</span>` : ''}`;
   }
   function applyLiveWind() { // the wildfire tool starts from today's real wind
     if (!st.wx || toolState.fire) return; const c = st.wx.current;
@@ -2517,7 +2531,7 @@ const Live = (() => {
         const v = (k) => (c(i, j)[k] * (1 - tx) + c(i + 1, j)[k] * tx) * (1 - ty) + (c(i, j + 1)[k] * (1 - tx) + c(i + 1, j + 1)[k] * tx) * ty;
         return typeof key === 'function' ? key(v) : v(key);
       };
-      const small = innerWidth < 760 ? 0.55 : 1;
+      const small = innerWidth < 760 ? 0.32 : 1; // phones: fewer, slightly bolder puffs (big alpha sprites are the costliest thing on a phone GPU)
       const LAYERS = [
         // kept above the highest peaks (Kuwohi is 2,025 m) so the map stays readable under an overcast sky
         { key: 'cloud_cover_low', count: 2600, size: [1300, 2800], alpha: 0.4, thick: 600, base: (lng, lat) => Math.max(2350, cover(lng, lat, v => v('elev') + Math.max(150, (v('temperature_2m') - v('dew_point_2m')) * 0.5556 * 125))) },
@@ -2536,7 +2550,7 @@ const Live = (() => {
           const m = maplibregl.MercatorCoordinate.fromLngLat([lng, lat], 0);
           const alt = (L.base(lng, lat) + Math.pow(r(), 1.6) * L.thick * (0.4 + cv)) * EXAG;
           const size = (L.size[0] + r() * (L.size[1] - L.size[0])) * mpu * (li === 2 ? 1 : 0.6 + 0.6 * cv);
-          P.push({ x: m.x - O.x, y: m.y - O.y, z: alt * mpu, s: size, a: L.alpha * (0.45 + 0.55 * cv), l: li, r: r() });
+          P.push({ x: m.x - O.x, y: m.y - O.y, z: alt * mpu, s: size, a: Math.min(0.6, L.alpha * (0.45 + 0.55 * cv) * (small < 1 ? 1.35 : 1)), l: li, r: r() });
         }
       });
       this.puffs = P; this.n = P.length; this.dirty = true;
@@ -2595,7 +2609,7 @@ const Live = (() => {
       for (let i = 0; i < 4; i++) Mm[12 + i] = M[i] * ox + M[4 + i] * oy + M[12 + i];
       const t = (performance.now() - this.t0) / 1000;
       const now = performance.now();
-      if (this.dirty || now - this.lastSort > 280) { this.sort(Mm, t); this.lastSort = now; this.dirty = false; this.upload(gl); }
+      if (this.dirty || now - this.lastSort > (innerWidth < 760 ? 600 : 280)) { this.sort(Mm, t); this.lastSort = now; this.dirty = false; this.upload(gl); }
       const norm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
       const right = norm([M[0], M[4], M[8]]), up = norm([M[1], M[5], M[9]]);
       gl.useProgram(this.prog);
@@ -2902,7 +2916,7 @@ const Live = (() => {
     const b = document.querySelector(`[data-live="${k}"]`); if (b) b.setAttribute('aria-pressed', on);
     if (map) applyToggles(k);
   }
-  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render, refresh, setOn, setOpen: on => setOpen(on), icon, WMO, liveTraffic: () => !!TOMTOM };
+  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render, refresh, setOn, setOpen: on => setOpen(on), icon, WMO, home: () => home, setHome(h) { home = h; try { localStorage.setItem('sl-home', JSON.stringify(h)); } catch (e) { } return loadWeather(); }, liveTraffic: () => !!TOMTOM };
 })();
 /* LIVE-END */
 window.Live = Live;
@@ -4222,6 +4236,28 @@ const UX = (() => {
   /* ---------- Today ---------- */
   const WHO = [['visitor', '🧳', 'Visiting', 'Plan the day: weather, drive times, what\'s worth it'], ['local', '🏡', 'I live here', 'Roads, alerts, neighbors, the Parkway clock'], ['explorer', '🥾', 'Exploring', 'Hikes, sunrise, rivers, wildlife, photos']];
   const who = () => store.get('who', 'visitor');
+  const TOWNS = [['Sevierville', 35.868, -83.562], ['Pigeon Forge', 35.788, -83.554], ['Gatlinburg', 35.714, -83.510], ['Wears Valley', 35.702, -83.665], ['Kodak', 35.971, -83.618], ['Seymour', 35.886, -83.775], ['Townsend', 35.675, -83.756], ['Cosby', 35.789, -83.210], ['Newport', 35.967, -83.188], ['Maryville', 35.757, -83.971], ['Knoxville', 35.961, -83.921], ['Cherokee', 35.484, -83.315], ['Bryson City', 35.431, -83.450], ['Maggie Valley', 35.518, -83.098], ['Waynesville', 35.489, -82.989]];
+  const home = () => (window.Live && Live.home ? Live.home() : { n: 'Gatlinburg' });
+  function nearestTown(lat, lng) { let b = TOWNS[0], d = 1e9; TOWNS.forEach(t => { const k = (t[1] - lat) ** 2 + ((t[2] - lng) * 0.81) ** 2; if (k < d) { d = k; b = t; } }); return b; }
+  function setHome(t, quiet) {
+    if (!window.Live || !Live.setHome) return;
+    Promise.resolve(Live.setHome({ n: t[0], lat: t[1], lng: t[2] })).then(() => { if (document.body.dataset.view === 'today') today($('#sv-today')); });
+    store.set('homeSet', true); if (!quiet) toast(`Weather and your brief now follow ${t[0]}`);
+    if (document.body.dataset.view === 'today') today($('#sv-today'));
+  }
+  function askHome(first) {
+    const w = who(), q = w === 'local' ? 'Where do you live?' : w === 'explorer' ? 'Where are you based?' : 'Where are you staying?';
+    const s = sheet('home', `<header class="uxh"><div><b>${q}</b><small>Your weather, morning brief and drive times start from here.</small></div><button class="uxx" data-x aria-label="Close">✕</button></header>
+      <button class="uxgps" data-gps>📍 Use my location</button>
+      <div class="uxtowns">${TOWNS.map((t, i) => `<button data-town="${i}" aria-pressed="${t[0] === home().n}" style="--i:${i}">${esc(t[0])}</button>`).join('')}</div>
+      ${first ? '<p class="uxfine">You can change this any time from the Today screen.</p>' : ''}`);
+    s.querySelectorAll('[data-town]').forEach(b => b.onclick = () => { press(b); setHome(TOWNS[+b.dataset.town]); setTimeout(closeSheet, 200); });
+    s.querySelector('[data-gps]').onclick = () => {
+      if (!navigator.geolocation) return toast('Location is not available on this device');
+      s.querySelector('[data-gps]').textContent = '📍 Finding you…';
+      navigator.geolocation.getCurrentPosition(p => { const t = nearestTown(p.coords.latitude, p.coords.longitude); setHome(t); closeSheet(); }, () => { toast('Could not get your location. Pick your town instead.'); s.querySelector('[data-gps]').textContent = '📍 Use my location'; }, { timeout: 10000, maximumAge: 600000 });
+    };
+  }
   function greet() {
     const h = +new Date().toLocaleString('en-US', { timeZone: TZ, hour: 'numeric', hour12: false });
     return h < 4 ? 'Up late' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
@@ -4241,7 +4277,7 @@ const UX = (() => {
     let k = hrs.time.findIndex(t => new Date(t + ':00-05:00').valueOf() > now - 3600e3); if (k < 0) k = 0;
     const strip = hrs.time.slice(k, k + 12).map((t, j) => { const i = k + j; const p = hrs.precipitation_probability[i] || 0; return `<div><small>${j ? new Date(t + ':00-05:00').toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric' }) : 'Now'}</small>${Live.icon(hrs.weather_code[i], hrs.is_day ? hrs.is_day[i] : 1).replace('id="wxIcon"', 'width="26" height="26"')}<b>${Math.round(hrs.temperature_2m[i])}°</b>${p >= 20 ? `<i>${p}%</i>` : '<i></i>'}</div>`; }).join('');
     const fmt = s => new Date(s + ':00-05:00').toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
-    return `<div class="uxwx"><div class="big">${Live.icon(c.weather_code, c.is_day).replace('id="wxIcon"', 'width="64" height="64"')}<div><b>${Math.round(c.temperature_2m)}°</b><span>${esc(Live.WMO[c.weather_code] || '')} in Gatlinburg</span><small>High ${Math.round(d.temperature_2m_max[0])}° · Low ${Math.round(d.temperature_2m_min[0])}° · Feels ${Math.round(c.apparent_temperature)}°${L.grid && L.grid.summit ? ` · Le Conte ${Math.round(L.grid.summit.temperature_2m)}°` : ''}</small></div></div>
+    return `<div class="uxwx"><div class="big">${Live.icon(c.weather_code, c.is_day).replace('id="wxIcon"', 'width="64" height="64"')}<div><b>${Math.round(c.temperature_2m)}°</b><span>${esc(Live.WMO[c.weather_code] || '')} in ${esc(home().n)}</span><small>High ${Math.round(d.temperature_2m_max[0])}° · Low ${Math.round(d.temperature_2m_min[0])}° · Feels ${Math.round(c.apparent_temperature)}°${L.grid && L.grid.summit ? ` · Le Conte ${Math.round(L.grid.summit.temperature_2m)}°` : ''}</small></div></div>
       <div class="strip">${strip}</div><div class="sun">🌅 ${fmt(d.sunrise[0])} <span>·</span> 🌇 ${fmt(d.sunset[0])}</div></div>`;
   }
   function section(title, tab, body, more) {
@@ -4295,7 +4331,7 @@ const UX = (() => {
       local: [section('Your morning brief', 'today', brief(), 'Local hub'), section('Rivers', 'alerts', rivers(), 'My alerts'), sponsor()],
       explorer: [section('Sunrise and fog', 'sky', sunrise(), 'Forecast'), section('Best views now', 'go', worthTop(3), 'All places'), section('Rivers', 'alerts', rivers(), 'Alerts'), section('Out there', 'trails', chips([['trails', '🥾', 'Trail reports'], ['wild', '🐻', 'Sightings'], ['memory', '🕰️', 'Old photos']])), section('Happening today', 'events', events(), 'Events')],
     }[w];
-    el.innerHTML = `<header class="uxtop"><div><small>${esc(date)}</small><b>${greet()}${w === 'local' ? ', neighbor' : ''}.</b></div><button class="uxwho" data-who aria-label="Change who this is for">${WHO.find(x => x[0] === w)[1]} ${esc(WHO.find(x => x[0] === w)[2])} ▾</button></header>
+    el.innerHTML = `<header class="uxtop"><div><small>${esc(date)}</small><b>${greet()}${w === 'local' ? ', neighbor' : ''}.</b></div><div class="uxchipsr"><button class="uxwho" data-home aria-label="Change your town">📍 ${esc(home().n)} ▾</button><button class="uxwho" data-who aria-label="Change who this is for">${WHO.find(x => x[0] === w)[1]} ${esc(WHO.find(x => x[0] === w)[2])} ▾</button></div></header>
       <div class="uxbody">${urgent()}${weather()}${parts.join('')}<p class="uxfine">Weather from Open-Meteo and the National Weather Service. Drive times from TomTom. Events from the town calendars.</p></div>`;
     if (window.Locals && Locals.rings) Locals.rings(el);
   }
@@ -4319,6 +4355,7 @@ const UX = (() => {
   function onPane(e) {
     const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
     if (d.who != null) { askWho(true); return; }
+    if (d.home != null) { askHome(false); return; }
     if (d.setwho) { setWho(d.setwho); more($('#sv-more')); return; }
     if (d.hub) { if (window.Locals) { toView('map'); setTimeout(() => Locals.openHub(d.hub), 120); } return; }
     if (d.v) { toView(d.v); if (d.groups != null) setTimeout(() => { const g = document.querySelector('.pgroups'); if (g) g.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 250); return; }
@@ -4344,8 +4381,13 @@ const UX = (() => {
     const s = sheet('who', `<header class="uxh"><div><b>${again ? 'Who is this for?' : 'Welcome to Smokies Live'}</b><small>${again ? 'Today will show what matters to you first.' : 'The whole park, live. Tell us what brings you here and we\'ll keep it simple.'}</small></div>${again ? '<button class="uxx" data-x aria-label="Close">✕</button>' : ''}</header>
       <div class="uxwhos">${WHO.map(([k, ic, n, d], i) => `<button data-pick="${k}" style="--i:${i}"><span class="ic">${ic}</span><b>${esc(n)}</b><small>${esc(d)}</small></button>`).join('')}</div>
       ${again ? '' : '<p class="uxfine">You can change this any time under More. The map starts clean; tap <b>Show on map</b> to add traffic, radar, trails and more.</p>'}`);
-    s.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { press(b); setWho(b.dataset.pick); setTimeout(closeSheet, 220); if (!again) setTimeout(() => toast(b.dataset.pick === 'local' ? 'Welcome, neighbor. Today has your roads and alerts.' : 'You\'re set. Tap Today any time for the day\'s plan.'), 500); });
+    s.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { press(b); setWho(b.dataset.pick); if (again) { setTimeout(closeSheet, 220); return; } setTimeout(() => askHome(true), 260); });
   }
+  function quietHome() { // already allowed location? pick the nearest town without asking
+    if (store.get('homeSet', false) || !navigator.permissions || !navigator.geolocation) return;
+    navigator.permissions.query({ name: 'geolocation' }).then(r => { if (r.state === 'granted') navigator.geolocation.getCurrentPosition(p => setHome(nearestTown(p.coords.latitude, p.coords.longitude), true), () => { }, { timeout: 10000, maximumAge: 600000 }); }).catch(() => { });
+  }
+  function tabh() { const t = $('#tabbar'); if (!t) return; const r = t.getBoundingClientRect(); const h = r.top > innerHeight / 2 ? Math.max(0, innerHeight - r.top) : 0; document.body.style.setProperty('--tabh', h + 'px'); }
   function toast(msg) { const t = $('#toast'); if (!t) return; t.textContent = msg; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 3000); }
 
   /* ---------- search: popular places before you type ---------- */
@@ -4376,7 +4418,7 @@ const UX = (() => {
     const ab = $('#alertBar'); if (ab) ab.addEventListener('click', e => { e.stopImmediatePropagation(); toView('today'); }, true);
     ['#sv-today', '#sv-more'].forEach(s => { const el = $(s); if (el) el.addEventListener('click', onPane); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
-    searchHelp();
+    searchHelp(); tabh(); addEventListener('resize', tabh); setTimeout(tabh, 1500); setInterval(tabh, 5000); quietHome();
     // apply what this person chose last time (or the clean defaults)
     const w = want(); ALL.forEach(([k, , , , io]) => { if (io.get() !== w[k]) try { io.set(w[k]); } catch (e) { } });
     if (window.Locals) Locals.setLocalMode(who() === 'local', true);
@@ -4392,7 +4434,7 @@ const UX = (() => {
 
   return {
     render(v, el) { if (v === 'today') today(el); else if (v === 'more') more(el); },
-    share, openShow, closeSheet, preset, setLayer, askWho,
+    share, openShow, closeSheet, preset, setLayer, askWho, askHome,
   };
 })();
 window.UX = UX;

@@ -124,16 +124,20 @@ ${ring ? `<circle class="rim" cx="50" cy="50" r="44" fill="none" stroke="#2f4a46
       const map = window.__smokies && window.__smokies.map; if (!map || !map.setPixelRatio) return;
       clearInterval(wait);
       const dpr = devicePixelRatio || 1, phone = matchMedia('(pointer:coarse)').matches;
-      const cap = Math.min(dpr, phone ? 2 : 2.5), floor = Math.min(dpr, 1);
+      // text turns soft below 1.5x on phone screens, so phones stay between 1.5x and 2x
+      const cap = Math.min(dpr, phone ? 2 : 2.5), floor = Math.min(dpr, phone ? 1.5 : 1);
       let pr = Math.min(map.getPixelRatio(), cap); map.setPixelRatio(pr);
-      let last = 0, frames = [], moving = false, calm = 0;
-      map.on('movestart', () => { moving = true; }); map.on('moveend', () => { moving = false; });
+      let last = 0, frames = [], moving = false, calm = 0, want = pr;
+      map.on('movestart', () => { moving = true; });
+      // resizing the canvas mid-gesture causes a hitch, so changes wait until the map stops
+      map.on('moveend', () => { moving = false; last = 0; if (want !== pr) { pr = want; map.setPixelRatio(pr); } });
       map.on('render', () => {
-        const now = performance.now(); if (last) frames.push(now - last); last = now;
+        const now = performance.now(); if (moving && last && now - last < 250) frames.push(now - last); last = now; // only gesture frames count: idle redraws are paced on purpose
         if (frames.length < 45) return;
         frames.sort((a, b) => a - b); const med = frames[frames.length >> 1]; frames = [];
-        if (med > 28 && pr > floor) { pr = Math.max(floor, +(pr - 0.25).toFixed(2)); map.setPixelRatio(pr); calm = 0; }
-        else if (med < 15 && pr < cap && moving) { if (++calm > 3) { pr = Math.min(cap, +(pr + 0.25).toFixed(2)); map.setPixelRatio(pr); calm = 0; } }
+        if (med > 28 && want > floor) { want = Math.max(floor, +(want - 0.25).toFixed(2)); calm = 0; }
+        else if (med < 15 && want < cap && moving) { if (++calm > 3) { want = Math.min(cap, +(want + 0.25).toFixed(2)); calm = 0; } }
+        if (!moving && want !== pr) { pr = want; map.setPixelRatio(pr); }
       });
       window.__smokies.quality = () => ({ pixelRatio: pr, cap });
       // body.sl-moving pauses decorative loops during gestures
