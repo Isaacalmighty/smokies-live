@@ -1,16 +1,15 @@
-desktop state {"blocked":false,"wx":true,"puffs":2600,"alerts":[],"news":71,"events":29,"incidents":4,"cams":17,"gauges":11,"fires":0,"sky":"1:22 PM · Daylight","chip":"Overcast in Gatlinburg · wind 13 mph SW"}
+desktop state {"blocked":false,"wx":true,"puffs":2600,"alerts":[],"news":71,"events":29,"incidents":4,"cams":17,"gauges":0,"fires":0,"sky":"1:22 PM · Daylight","chip":"Overcast in Gatlinburg · wind 13 mph SW"}
 desktop tomtom {}
 desktop failed https://wsrv.nl/?url=http%3A%2F%2Fwww.seviervilletn.org%2FImageRepository%2FDocument%3FdocumentID%3D962&w=720&h=405&fit=cover&a=attention&output=webp&q=72 net::ERR_BLOCKED_BY_ORB
 desktop failed https://wsrv.nl/?url=https%3A%2F%2Fwww.knoxnews.com%2Fgcdn%2Fauthoring%2Fauthoring-images%2F2026%2F11%2F18%2FPKNS%2F92845878007-1-color-variation-russula-by-cha net::ERR_BLOCKED_BY_ORB
 desktop failed https://www.knoxnews.com/gcdn/authoring/authoring-images/2026/11/18/PKNS/92845878007-1-color-variation-russula-by-chance-noffsinger.jpg?width=1200&disable=upsca net::ERR_BLOCKED_BY_ORB
 desktop failed https://wsrv.nl/?url=https%3A%2F%2Fwww.knoxnews.com%2Fgcdn%2Fauthoring%2Fauthoring-images%2F2026%2F11%2F18%2FPKNS%2F92845878007-1-color-variation-russula-by-cha net::ERR_BLOCKED_BY_ORB
 desktop failed https://www.knoxnews.com/gcdn/authoring/authoring-images/2026/11/18/PKNS/92845878007-1-color-variation-russula-by-chance-noffsinger.jpg?width=1200&disable=upsca net::ERR_BLOCKED_BY_ORB
-desktop screenshot 2-today timed out
-phone failed https://wsrv.nl/?url=https%3A%2F%2Fwww.knoxnews.com%2Fgcdn%2Fauthoring%2Fauthoring-images%2F2026%2F11%2F18%2FPKNS%2F92845878007-1-color-variation-russula-by-cha net::ERR_BLOCKED_BY_ORB
 phone failed https://wsrv.nl/?url=http%3A%2F%2Fwww.seviervilletn.org%2FImageRepository%2FDocument%3FdocumentID%3D962&w=720&h=405&fit=cover&a=attention&output=webp&q=72 net::ERR_BLOCKED_BY_ORB
+phone failed https://wsrv.nl/?url=https%3A%2F%2Fwww.knoxnews.com%2Fgcdn%2Fauthoring%2Fauthoring-images%2F2026%2F11%2F18%2FPKNS%2F92845878007-1-color-variation-russula-by-cha net::ERR_BLOCKED_BY_ORB
+phone failed https://www.knoxnews.com/gcdn/authoring/authoring-images/2026/11/18/PKNS/92845878007-1-color-variation-russula-by-chance-noffsinger.jpg?width=1200&disable=upsca net::ERR_BLOCKED_BY_ORB
 phone state {"blocked":false,"wx":true,"puffs":832,"alerts":[],"news":71,"events":29,"incidents":4,"cams":17,"gauges":11,"fires":0,"sky":"1:25 PM · Daylight","chip":"Overcast in Gatlinburg · wind 13 mph SW"}
 phone tomtom {}
-phone failed https://www.knoxnews.com/gcdn/authoring/authoring-images/2026/11/18/PKNS/92845878007-1-color-variation-russula-by-chance-noffsinger.jpg?width=1200&disable=upsca net::ERR_BLOCKED_BY_ORB
 phone failed https://wsrv.nl/?url=https%3A%2F%2Fwww.knoxnews.com%2Fgcdn%2Fauthoring%2Fauthoring-images%2F2026%2F11%2F18%2FPKNS%2F92845878007-1-color-variation-russula-by-cha net::ERR_BLOCKED_BY_ORB
 phone failed https://www.knoxnews.com/gcdn/authoring/authoring-images/2026/11/18/PKNS/92845878007-1-color-variation-russula-by-chance-noffsinger.jpg?width=1200&disable=upsca net::ERR_BLOCKED_BY_ORB
 phone failed https://wsrv.nl/?url=https%3A%2F%2Fwww.knoxnews.com%2Fgcdn%2Fauthoring%2Fauthoring-images%2F2026%2F11%2F18%2FPKNS%2F92845878007-1-color-variation-russula-by-cha net::ERR_BLOCKED_BY_ORB
