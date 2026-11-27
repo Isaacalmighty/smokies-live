@@ -239,7 +239,7 @@ export async function run(dry = false) {
   const lines: string[] = [];
   const { rows, per } = await collect(s => lines.push(s));
   let known = new Map<string, Known>();
-  if (!dry && rows.length) { const have = await db(`news_items?select=id,link,img,summary,cat,author&id=in.(${rows.map(r => `"${String(r.id).replace(/"/g, '')}"`).join(',')})`) as Known[]; known = new Map(have.map(h => [h.id, { ...h, enriched: !!h.img && !/news\.google\.com/.test(String(h.link)) }])); }
+  if (!dry && rows.length) { const have = await db(`news_items?select=id,link,img,summary,cat,author&id=in.(${rows.map(r => `"${String(r.id).replace(/"/g, '')}"`).join(',')})`) as Known[]; known = new Map(have.map(h => [h.id, { ...h, enriched: !/news\.google\.com/.test(String(h.link)) }])); }
   const visited = await enrich(rows, known, dry ? 12 : 30, s => lines.push(s));
   const fresh = rows.filter(r => !known.has(String(r.id)));
   rows.forEach(r => delete r.enriched);
@@ -262,7 +262,8 @@ export async function writeJson(path: string, prevPath = path) {
   const known = new Map<string, Known>(prev.map(p => [String(p.id), { ...(p as Known), enriched: !!p.enriched }]));
   await enrich(rows, known, 30, s => lines.push(s));
   const ids = new Set(rows.map(r => String(r.id))), week = Date.now() - 7 * 864e5;
-  const keep = prev.filter(p => !ids.has(String(p.id)) && +new Date(String(p.published)) > week); // stories that scrolled off a station's feed stay for the week
+  const short = new Set(rows.map(r => String(r.id).slice(0, 40))); // the plain backup list uses shorter ids for the same stories
+  const keep = prev.filter(p => !ids.has(String(p.id)) && !short.has(String(p.id).slice(0, 40)) && +new Date(String(p.published)) > week); // stories that scrolled off a station's feed stay for the week
   const items = [...rows, ...keep].sort((a, b) => +new Date(String(b.published)) - +new Date(String(a.published))).slice(0, 120);
   if (!items.length) throw new Error('no stories');
   await Deno.writeTextFile(path, JSON.stringify({ updated: new Date().toISOString(), items }));

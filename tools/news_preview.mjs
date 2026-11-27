@@ -16,10 +16,10 @@ await page.route(/\/feeds\/live\/news\.json/, r => r.fulfill({ path: news, conte
 await page.addInitScript(() => { window.__noIntro = true; try { localStorage.setItem('sl-who', '"visitor"'); } catch (e) {} });
 await page.goto('http://localhost:8123/', { waitUntil: 'load', timeout: 90000 });
 await page.waitForFunction(() => window.Social && window.Live && Live.st.news.length > 0 && document.querySelector('#sv-feed'), null, { timeout: 90000 }).catch(() => log.push('never ready'));
-await page.addStyleTag({ content: '#loader{display:none!important}' });
-await page.evaluate(() => { if (window.UX) UX.closeSheet(); Social.setView('feed'); });
+await page.addStyleTag({ content: '#loader{display:none!important} .maplibregl-canvas{visibility:hidden!important}' });
+await page.evaluate(() => { if (window.UX) UX.closeSheet(); Social.setView('feed'); try { const m = window.__smokies.map; m.triggerRepaint = () => {}; m._render = () => {}; } catch (e) {} /* the map stays behind the feed; skip drawing it so screenshots are quick */ });
 const settle = async (ms = 2500) => { await page.waitForTimeout(ms); await page.evaluate(() => Promise.all([...document.images].filter(i => !i.complete && i.getBoundingClientRect().top < innerHeight).map(i => new Promise(r => { i.onload = i.onerror = r; setTimeout(r, 6000); })))); await page.waitForTimeout(900); };
-const shot = async n => { await settle(); await page.screenshot({ path: `${out}/${n}.jpg`, quality: 82 }); };
+const shot = async n => { await settle(); try { await page.screenshot({ path: `${out}/${n}.jpg`, quality: 82, timeout: 90000, animations: 'disabled' }); } catch (e) { log.push(n + ' ' + e.message.slice(0, 120)); } };
 const sv = js => page.evaluate(js);
 await sv(() => { const r = document.querySelector('.newspost .media') ? document.querySelector('.newspost .media').closest('.post') : document.querySelector('.newspost'); if (r) document.querySelector('#socialView').scrollTo(0, r.offsetTop - 56); }); await shot('1-feed-story');
 await sv(() => { const r = document.querySelector('.nrail'); if (r) document.querySelector('#socialView').scrollTo(0, r.offsetTop - 56); }); await shot('2-top-stories');
