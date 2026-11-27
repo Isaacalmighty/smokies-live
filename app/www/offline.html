@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Smokies Live</title>
+<style>
+:root{--bg:#0d1411;--ink:#e9efe8;--soft:#9fb3a5;--ember:#f2a65a}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,system-ui,Segoe UI,Roboto,sans-serif}
+main{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;text-align:center}
+svg{width:132px;height:auto;margin-bottom:18px}
+.r1{animation:drift 6s ease-in-out infinite alternate}.r2{animation:drift 8s ease-in-out infinite alternate-reverse}
+@keyframes drift{from{transform:translateX(-4px)}to{transform:translateX(4px)}}
+h1{font-size:22px;margin:0 0 6px}p{color:var(--soft);margin:0 0 22px;max-width:300px}
+button{background:var(--ember);color:#1b130b;border:0;border-radius:999px;padding:12px 26px;font-weight:600;font-size:16px;transition:transform .15s cubic-bezier(.3,1.6,.5,1)}
+button:active{transform:scale(.94)}
+</style></head><body><main>
+<svg viewBox="0 0 120 60" aria-hidden="true"><path class="r2" d="M0 52 L28 26 L44 38 L70 14 L100 40 L120 30 L120 60 L0 60Z" fill="#2b4235"/><path class="r1" d="M0 58 L22 40 L40 50 L62 32 L86 50 L120 42 L120 60 L0 60Z" fill="#1c2c23"/><circle cx="96" cy="12" r="5" fill="var(--ember)"/></svg>
+<h1>You're off the grid</h1>
+<p>Smokies Live needs a connection to load the live map. We'll pick right back up when you have signal.</p>
+<button onclick="location.href='https://isaacalmighty.github.io/smokies-live/'">Try again</button>
+</main>
+<script>window.addEventListener('online',()=>location.href='https://isaacalmighty.github.io/smokies-live/')</script>
+</body></html>

@@ -1,0 +1,27 @@
+{
+  "name": "smokies-live-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Native iOS and Android shell for Smokies Live (Capacitor). The app content is the live site.",
+  "scripts": {
+    "icons": "node scripts/make-assets.mjs && capacitor-assets generate --android --ios --iconBackgroundColor '#0d1411' --iconBackgroundColorDark '#0d1411' --splashBackgroundColor '#0d1411' --splashBackgroundColorDark '#0d1411'",
+    "sync": "cap sync",
+    "android:apk": "cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.3",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.6.3",
+    "@capacitor/keyboard": "^8.0.6",
+    "@capacitor/push-notifications": "^8.1.3",
+    "@capacitor/share": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.6.3"
+  }
+}
