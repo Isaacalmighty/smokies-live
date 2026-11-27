@@ -830,7 +830,13 @@ body.sl-revealed :is(#brand,#search,#rail,#tours,#season,#mobileBar,#tabbar){ani
 }
 
 /* phones: the radar time chip sits just above the season panel so it never covers the header */
-@media (max-width:760px){#radarStamp{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 232px)}}
+@media (max-width:760px){#radarStamp{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 196px)}}
+
+/* season follows the real date (no slider): a quiet caption above the time of day */
+#season .top{margin-bottom:6px;align-items:center}
+#seasonName{font-size:15px!important;display:flex;align-items:center;gap:7px}
+#seasonName::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 25%,transparent)}
+#seasonDate{font-size:10.5px!important;color:var(--ink-faint)!important}
 /* BRAND-CSS-END */
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
@@ -1043,13 +1049,9 @@ ${ring ? `<circle class="rim" cx="50" cy="50" r="44" fill="none" stroke="#2f4a46
 </section>
 
 <section id="season" class="panel" aria-label="Season">
+  <!-- the map always shows the season we are in now; imagery follows the real date -->
   <div class="top"><div id="seasonName">Peak fall color</div><div id="seasonDate">Sentinel-2 · Oct 22–30, 2026</div></div>
-  <div class="track">
-    <div class="rail-line"></div>
-    <div class="ticks" id="ticks"></div>
-    <input id="seasonRange" type="range" min="0" max="4" step="0.01" value="4" aria-label="Season">
-    <div class="knob" id="knob"></div>
-  </div>
+  <div hidden><div id="ticks"></div><input id="seasonRange" type="hidden" value="4"><div id="knob"></div></div>
   <div class="skyrow">
     <div class="when"><div id="skyTime">—</div><div id="skyMoon"></div></div>
     <div class="daytrack"><div id="dayGrad"></div><div id="dayNowMark"></div><input id="skyRange" type="range" min="0" max="1439" step="1" value="720" aria-label="Time of day"><div id="dayKnob"></div></div>
@@ -1474,7 +1476,7 @@ function goLive(animate) {
   sky.live = true; clearInterval(skyTimer);
   const to = new Date();
   if (animate && sky.date) tweenSky(sky.date, to, 1400); else applySky(to);
-  skyTimer = setInterval(() => { if (sky.live) applySky(new Date()); }, 30000);
+  skyTimer = setInterval(() => { if (sky.live) applySky(new Date()); const sn = seasonForDate(); if (Math.round(seasonVal) !== sn) animateSeason(sn); }, 30000);
   paintDayGradient();
 }
 function tweenSky(from, to, dur) { // slow in, slow out through the hours between
