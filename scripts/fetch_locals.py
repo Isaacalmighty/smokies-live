@@ -5,11 +5,15 @@ roads locals care about: the Parkway through Sevierville, Pigeon Forge and
 Gatlinburg, the back roads around it, and the park roads to Cades Cove, Kuwohi
 and Newfound Gap. Writes flow.json next to the other feeds.
 
+It also times the Parkway drive (Sevierville to Gatlinburg and back) now and
+for leaving in 30, 60, 90 and 120 minutes, for the Parkway clock.
+
 TomTom's free plan allows 2,500 of these calls a day, so this runs on every
-other feed refresh (about every 20 minutes): 17 roads x 72 runs = 1,224 calls.
+other feed refresh (about every 20 minutes): (17 roads + 6 routes) x 72 runs
+= 1,656 calls.
 """
-import json, os, sys, time, urllib.request
-from datetime import datetime, timezone
+import json, os, sys, time, urllib.parse, urllib.request
+from datetime import datetime, timedelta, timezone
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else 'out'
 os.makedirs(OUT, exist_ok=True)
@@ -44,6 +48,38 @@ def flow(lat, lng):
         return json.load(r).get('flowSegmentData', {})
 
 
+SEV = (35.8681, -83.5617)  # Sevier County Courthouse
+GAT = (35.7114, -83.5133)  # Parkway at the aquarium, downtown Gatlinburg
+
+
+def route(a, b, depart=None):
+    when = 'now' if depart is None else urllib.parse.quote(depart.strftime('%Y-%m-%dT%H:%M:%SZ'))
+    url = (f'https://api.tomtom.com/routing/1/calculateRoute/{a[0]},{a[1]}:{b[0]},{b[1]}/json'
+           f'?traffic=true&departAt={when}&routeType=fastest&travelMode=car&computeTravelTimeFor=all&key={KEY}')
+    req = urllib.request.Request(url, headers={'User-Agent': 'smokies-live-feeds'})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        sm = json.load(r)['routes'][0]['summary']
+    return {'min': round(sm['travelTimeInSeconds'] / 60), 'free': round(sm.get('noTrafficTravelTimeInSeconds', sm['travelTimeInSeconds']) / 60),
+            'delay': round(sm.get('trafficDelayInSeconds', 0) / 60), 'km': round(sm['lengthInMeters'] / 1000, 1)}
+
+
+def clock():
+    now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    out = {'sg': [], 'gs': None}
+    for k in (0, 30, 60, 90, 120):
+        try:
+            r = route(SEV, GAT, None if k == 0 else now + timedelta(minutes=k))
+            r['in'] = k
+            out['sg'].append(r)
+        except Exception as e:
+            print('route sev->gat +%d failed:' % k, e)
+    try:
+        out['gs'] = route(GAT, SEV)
+    except Exception as e:
+        print('route gat->sev failed:', e)
+    return out if out['sg'] else None
+
+
 def main():
     path = os.path.join(OUT, 'flow.json')
     force = os.environ.get('FORCE') == '1'
@@ -70,7 +106,7 @@ def main():
         print('no flow data this run')
         return
     with open(path, 'w') as fh:
-        json.dump({'updated': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), 'source': 'TomTom', 'items': items}, fh, separators=(',', ':'))
+        json.dump({'updated': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), 'source': 'TomTom', 'items': items, 'clock': clock()}, fh, separators=(',', ':'))
     print(f'flow.json: {len(items)} roads, {errors} errors')
 
 
