@@ -125,8 +125,10 @@ ${ring ? `<circle class="rim" cx="50" cy="50" r="44" fill="none" stroke="#2f4a46
       clearInterval(wait);
       const dpr = devicePixelRatio || 1, phone = matchMedia('(pointer:coarse)').matches;
       // text turns soft below 1.5x on phone screens; labels are drawn larger on phones to match
-      const cap = Math.min(dpr, phone ? 1.6 : 2.5), floor = Math.min(dpr, phone ? 1.5 : 1); // phones: a fixed, sharp-enough 1.5x (a 3x phone at 2x draws 78% more pixels)
-      let pr = Math.min(map.getPixelRatio(), cap); map.setPixelRatio(pr);
+      // phones: sharp text matters (labels drawn at 1.6x on a 2.6x screen looked soft). The lighter terrain mesh and still clouds pay for it;
+      // the governor starts at 2x, climbs to the screen's own sharpness when frames are quick, and never drops below 1.75x
+      const cap = Math.min(dpr, phone ? 3 : 2.5), floor = Math.min(dpr, phone ? 1.75 : 1);
+      let pr = phone ? Math.min(dpr, 2) : Math.min(map.getPixelRatio(), cap); map.setPixelRatio(pr);
       let last = 0, frames = [], moving = false, calm = 0, want = pr;
       map.on('movestart', () => { moving = true; });
       // resizing the canvas mid-gesture causes a hitch, so changes wait until the map stops
@@ -136,7 +138,7 @@ ${ring ? `<circle class="rim" cx="50" cy="50" r="44" fill="none" stroke="#2f4a46
         if (frames.length < 45) return;
         frames.sort((a, b) => a - b); const med = frames[frames.length >> 1]; frames = [];
         if (med > 28 && want > floor) { want = Math.max(floor, +(want - 0.25).toFixed(2)); calm = 0; }
-        else if (med < 15 && want < cap && moving) { if (++calm > 3) { want = Math.min(cap, +(want + 0.25).toFixed(2)); calm = 0; } }
+        else if (med < 17.5 && want < cap && moving) { if (++calm > 3) { want = Math.min(cap, +(want + 0.25).toFixed(2)); calm = 0; } }
         if (!moving && want !== pr) { pr = want; map.setPixelRatio(pr); }
       });
       window.__smokies.quality = () => ({ pixelRatio: pr, cap });

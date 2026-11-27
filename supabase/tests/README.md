@@ -16,3 +16,9 @@ Tags (update 6), after the same setup:
     psql -d t -f tags_test.sql
 
 Expected: only fellow group members stay tagged (no strangers, no yourself, no public-post tags), a tagged person gets one "tag" notification instead of "posted in", and tags added later notify only the newly tagged.
+
+Family locations (update 7), after the same setup:
+
+    psql -d t -f locations_test.sql
+
+Expected: only members of the same group see a shared spot (not other groups, strangers or anon), nobody can write or delete someone else's spot, shares over 7 days are refused, expired shares vanish, and leaving the group or tapping stop deletes the spot.

@@ -1549,8 +1549,10 @@ ${ring ? `<circle class="rim" cx="50" cy="50" r="44" fill="none" stroke="#2f4a46
       clearInterval(wait);
       const dpr = devicePixelRatio || 1, phone = matchMedia('(pointer:coarse)').matches;
       // text turns soft below 1.5x on phone screens; labels are drawn larger on phones to match
-      const cap = Math.min(dpr, phone ? 1.6 : 2.5), floor = Math.min(dpr, phone ? 1.5 : 1); // phones: a fixed, sharp-enough 1.5x (a 3x phone at 2x draws 78% more pixels)
-      let pr = Math.min(map.getPixelRatio(), cap); map.setPixelRatio(pr);
+      // phones: sharp text matters (labels drawn at 1.6x on a 2.6x screen looked soft). The lighter terrain mesh and still clouds pay for it;
+      // the governor starts at 2x, climbs to the screen's own sharpness when frames are quick, and never drops below 1.75x
+      const cap = Math.min(dpr, phone ? 3 : 2.5), floor = Math.min(dpr, phone ? 1.75 : 1);
+      let pr = phone ? Math.min(dpr, 2) : Math.min(map.getPixelRatio(), cap); map.setPixelRatio(pr);
       let last = 0, frames = [], moving = false, calm = 0, want = pr;
       map.on('movestart', () => { moving = true; });
       // resizing the canvas mid-gesture causes a hitch, so changes wait until the map stops
@@ -1560,7 +1562,7 @@ ${ring ? `<circle class="rim" cx="50" cy="50" r="44" fill="none" stroke="#2f4a46
         if (frames.length < 45) return;
         frames.sort((a, b) => a - b); const med = frames[frames.length >> 1]; frames = [];
         if (med > 28 && want > floor) { want = Math.max(floor, +(want - 0.25).toFixed(2)); calm = 0; }
-        else if (med < 15 && want < cap && moving) { if (++calm > 3) { want = Math.min(cap, +(want + 0.25).toFixed(2)); calm = 0; } }
+        else if (med < 17.5 && want < cap && moving) { if (++calm > 3) { want = Math.min(cap, +(want + 0.25).toFixed(2)); calm = 0; } }
         if (!moving && want !== pr) { pr = want; map.setPixelRatio(pr); }
       });
       window.__smokies.quality = () => ({ pixelRatio: pr, cap });
@@ -1742,6 +1744,8 @@ const BASE = new URL('data/', location.href).href;
 const EXAG = 1.3;
 const M2FT = 3.28084;
 const BOUNDS = [-84.07, 35.40, -82.98, 35.96];
+// phones: the 3D ground uses one coarser terrain level (about 2.5x fewer triangles every frame); imagery, shading and labels stay full detail
+const PHONE = matchMedia('(pointer:coarse)').matches && Math.min(screen.width, screen.height) < 820;
 
 /* ---------- pack loader: tiles are bundled into small binary packs ---------- */
 const packs = new Map();
@@ -1783,34 +1787,46 @@ maplibregl.addProtocol('pk', async (params) => {
   return { data };
 });
 // Outside the high-detail area, build a terrain tile by smoothly upsampling the nearest coarser tile.
-const scratch = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(256, 256) : null;
-async function synthTerrain(z, x, y) {
-  if (!scratch) return null;
-  for (let pz = z - 1; pz >= 5; pz--) {
-    const d = z - pz, px = x >> d, py = y >> d;
-    const buf = await getTile('terrain', pz, px, py);
-    if (!buf) continue;
-    const bmp = await createImageBitmap(new Blob([buf]));
-    const g = scratch.getContext('2d', { willReadFrequently: true });
-    g.clearRect(0, 0, 256, 256); g.drawImage(bmp, 0, 0);
-    const src = g.getImageData(0, 0, 256, 256).data;
+// The pixel work runs in a background worker so panning never waits on it, and finished tiles are kept.
+const SYNTH_SRC = `self.onmessage = async e => {
+  const { id, buf, d, ox, oy } = e.data;
+  try {
+    const bmp = await createImageBitmap(new Blob([buf])); const c = new OffscreenCanvas(256, 256); const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(bmp, 0, 0); const src = g.getImageData(0, 0, 256, 256).data;
     const el = i => src[i * 4] * 256 + src[i * 4 + 1] + src[i * 4 + 2] / 256 - 32768;
-    const k = 2 ** d, ox = (x - (px << d)) * 256 / k, oy = (y - (py << d)) * 256 / k;
-    const out = g.createImageData(256, 256), o = out.data;
+    const k = 2 ** d, out = g.createImageData(256, 256), o = out.data;
     for (let j = 0; j < 256; j++) {
       const fy = Math.min(255, Math.max(0, oy + (j + 0.5) / k - 0.5)); const y0 = Math.floor(fy), y1 = Math.min(255, y0 + 1), ty = fy - y0;
       for (let i = 0; i < 256; i++) {
         const fx = Math.min(255, Math.max(0, ox + (i + 0.5) / k - 0.5)); const x0 = Math.floor(fx), x1 = Math.min(255, x0 + 1), tx = fx - x0;
-        const e = (el(y0 * 256 + x0) * (1 - tx) + el(y0 * 256 + x1) * tx) * (1 - ty) + (el(y1 * 256 + x0) * (1 - tx) + el(y1 * 256 + x1) * tx) * ty;
-        const v = e + 32768, r = Math.floor(v / 256), gg = Math.floor(v - r * 256), b = Math.floor((v - Math.floor(v)) * 256);
+        const v = (el(y0 * 256 + x0) * (1 - tx) + el(y0 * 256 + x1) * tx) * (1 - ty) + (el(y1 * 256 + x0) * (1 - tx) + el(y1 * 256 + x1) * tx) * ty + 32768;
+        const r = Math.floor(v / 256), gg = Math.floor(v - r * 256), b = Math.floor((v - Math.floor(v)) * 256);
         const q = (j * 256 + i) * 4; o[q] = r; o[q + 1] = gg; o[q + 2] = b; o[q + 3] = 255;
       }
     }
     g.putImageData(out, 0, 0);
-    const blob = await scratch.convertToBlob({ type: 'image/png' });
-    return await blob.arrayBuffer();
-  }
-  return null;
+    const res = await (await c.convertToBlob({ type: 'image/png' })).arrayBuffer();
+    self.postMessage({ id, res }, [res]);
+  } catch (err) { self.postMessage({ id, res: null }); }
+};`;
+const synth = { worker: null, jobs: new Map(), n: 0, cache: new Map() };
+try { if (typeof OffscreenCanvas !== 'undefined') { synth.worker = new Worker(URL.createObjectURL(new Blob([SYNTH_SRC], { type: 'text/javascript' }))); synth.worker.onmessage = e => { const j = synth.jobs.get(e.data.id); if (j) { synth.jobs.delete(e.data.id); j(e.data.res); } }; } } catch (e) { synth.worker = null; }
+async function synthTerrain(z, x, y) {
+  if (!synth.worker) return null;
+  const key = z + '/' + x + '/' + y;
+  if (synth.cache.has(key)) { const v = synth.cache.get(key); synth.cache.delete(key); synth.cache.set(key, v); return v.then(b => b && b.slice(0)); }
+  const job = (async () => {
+    for (let pz = z - 1; pz >= 5; pz--) {
+      const d = z - pz, px = x >> d, py = y >> d;
+      const buf = await getTile('terrain', pz, px, py);
+      if (!buf) continue;
+      const k = 2 ** d, ox = (x - (px << d)) * 256 / k, oy = (y - (py << d)) * 256 / k, id = ++synth.n;
+      return await new Promise(res => { synth.jobs.set(id, res); synth.worker.postMessage({ id, buf, d, ox, oy }); });
+    }
+    return null;
+  })();
+  synth.cache.set(key, job); if (synth.cache.size > 160) synth.cache.delete(synth.cache.keys().next().value);
+  return job.then(b => b && b.slice(0));
 }
 
 /* ---------- seasons ---------- */
@@ -1829,7 +1845,7 @@ const style = {
   version: 8,
   glyphs: BASE + 'glyphs/{fontstack}/{range}.wasm',
   sources: {
-    dem: { type: 'raster-dem', tiles: ['pk://terrain/{z}/{x}/{y}'], tileSize: 256, encoding: 'terrarium', maxzoom: 13 },
+    dem: { type: 'raster-dem', tiles: ['pk://terrain/{z}/{x}/{y}'], tileSize: PHONE ? 512 : 256, encoding: 'terrarium', maxzoom: 13 },
     demShade: { type: 'raster-dem', tiles: ['pk://terrain/{z}/{x}/{y}'], tileSize: 256, encoding: 'terrarium', maxzoom: 13 },
     world: { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]] } } },
     fogSrc: { type: 'raster-dem', tiles: ['pk://fog/{z}/{x}/{y}'], tileSize: 256, encoding: 'terrarium', minzoom: 10, maxzoom: 13, bounds: BOUNDS },
@@ -2155,6 +2171,8 @@ function drawSkyCanvas() {
   const f = (H / 2) / Math.tan((map.transform.fovInRadians || 36.87 * RAD) / 2);
   const project = (az, alt) => { let rel = ((az - bearing + 540) % 360) - 180; if (Math.abs(rel) > 80) return null; const up = (90 - pitch) + alt; if (up >= 89) return null; const y = H / 2 - f * Math.tan(up * RAD); const x = W / 2 + f * Math.tan(rel * RAD) / Math.cos(up * RAD); return [x, y]; };
   const hz = project(bearing, 0); const horizonY = hz ? hz[1] : -1;
+  const idle = horizonY < 0 || (sky.sun.alt > 6 && !(sky.sun.alt > -2 && project(sky.sun.az, sky.sun.alt)) && !(sky.moon.alt > -1 && project(sky.moon.az, sky.moon.alt)));
+  if (c._idle !== idle) { c._idle = idle; c.style.visibility = idle ? 'hidden' : ''; }
   if (horizonY < 0) return;
   g.save(); g.beginPath(); g.rect(0, 0, W, Math.max(0, horizonY - 2)); g.clip();
   const veil = 1 - 0.92 * (sky.cloud || 0); // real cloud cover hides the stars and dims the moon
@@ -2823,6 +2841,8 @@ const Live = (() => {
       this.puffs = P; this.n = P.length; this.dirty = true;
       const toVec = (mph, from) => { const ms = mph * 0.447 * 14 /* drift sped up 14x so motion reads */; const to = (from + 180) * RAD; return [Math.sin(to) * ms * mpu, -Math.cos(to) * ms * mpu]; };
       const dir = g.dir ?? 225; this.wind = [toVec(g.wind, dir), toVec(g.wind * 2.2, dir + 15), toVec(g.wind * 4, dir + 25)];
+      // phones: clouds hold still. A drift that redraws once a second reads as stutter, and a smooth one keeps the GPU busy nonstop
+      if (PHONE) this.wind = [[0, 0], [0, 0], [0, 0]];
       this.t0 = performance.now();
       if (map.getLayer(this.id)) map.triggerRepaint(); else if (st.on.clouds) addCloudLayer();
     },
@@ -2876,7 +2896,7 @@ const Live = (() => {
       for (let i = 0; i < 4; i++) Mm[12 + i] = M[i] * ox + M[4 + i] * oy + M[12 + i];
       const t = (performance.now() - this.t0) / 1000;
       const now = performance.now();
-      if (this.dirty || now - this.lastSort > (innerWidth < 760 ? 600 : 280)) { this.sort(Mm, t); this.lastSort = now; this.dirty = false; this.upload(gl); }
+      if (this.dirty || now - this.lastSort > (PHONE ? 450 : 280)) { this.sort(Mm, t); this.lastSort = now; this.dirty = false; this.upload(gl); }
       const norm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
       const right = norm([M[0], M[4], M[8]]), up = norm([M[1], M[5], M[9]]);
       gl.useProgram(this.prog);
@@ -2898,7 +2918,7 @@ const Live = (() => {
       gl.drawArrays(gl.TRIANGLES, 0, this.n * 6);
       gl.disableVertexAttribArray(this.loc.a_c); gl.disableVertexAttribArray(this.loc.a_q); gl.disableVertexAttribArray(this.loc.a_p);
       // gentle drift without burning the battery; no drift at all while the feed or another screen covers the map
-      if (!this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, innerWidth < 760 ? 900 : 66); // phones: slow drift so the GPU can rest and the phone stays cool
+      if (!PHONE && !this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, 66); // phones: no idle redraws at all (clouds hold still)
     },
     sort(Mm, t) {
       const P = this.puffs, dx = this.dom[0], dy = this.dom[1];
@@ -2965,7 +2985,7 @@ const Live = (() => {
       const p = this.prog = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
       this.loc = {}; ['u_m', 'u_half', 'u_bot', 'u_h', 'u_t', 'u_len', 'u_snow', 'u_slant', 'u_col', 'u_alpha'].forEach(k => this.loc[k] = gl.getUniformLocation(p, k));
       this.loc.a_s = gl.getAttribLocation(p, 'a_s'); this.loc.a_e = gl.getAttribLocation(p, 'a_e');
-      const N = this.n = innerWidth < 760 ? 5000 : 11000; const arr = new Float32Array(N * 2 * 5);
+      const N = this.n = PHONE ? 3500 : 11000; const arr = new Float32Array(N * 2 * 5);
       let sd = 11; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647; let o = 0;
       for (let i = 0; i < N; i++) { const x = r(), y = r(), ph = r(), sp = r(); for (let e = 0; e < 2; e++) { arr[o++] = x; arr[o++] = y; arr[o++] = ph; arr[o++] = sp; arr[o++] = e; } }
       this.buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.buf); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
@@ -2998,7 +3018,7 @@ const Live = (() => {
       const count = Math.round(this.n * Math.min(1, 0.42 + this.rate / 4));
       if (this.snow) gl.drawArrays(gl.POINTS, 0, count * 2); else gl.drawArrays(gl.LINES, 0, count * 2);
       gl.disableVertexAttribArray(this.loc.a_s); gl.disableVertexAttribArray(this.loc.a_e);
-      if (!this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, innerWidth < 760 ? 66 : 33);
+      if (!this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, 33); // rain falls at a steady 30 frames a second everywhere: 15 looked choppy
     },
   };
 
@@ -3183,7 +3203,7 @@ const Live = (() => {
     const b = document.querySelector(`[data-live="${k}"]`); if (b) b.setAttribute('aria-pressed', on);
     if (map) applyToggles(k);
   }
-  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render, refresh, setOn, setOpen: on => setOpen(on), icon, WMO, home: () => home, setHome(h) { home = h; try { localStorage.setItem('sl-home', JSON.stringify(h)); } catch (e) { } return loadWeather(); }, liveTraffic: () => !!TOMTOM };
+  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render, refresh, setOn, setOpen: on => setOpen(on), icon, WMO, home: () => home, setHome(h) { home = h; try { localStorage.setItem('sl-home', JSON.stringify(h)); } catch (e) { } return loadWeather(); }, liveTraffic: () => !!TOMTOM, ttKey: () => TOMTOM };
 })();
 /* LIVE-END */
 window.Live = Live;
@@ -4567,6 +4587,8 @@ window.__smokies = { get map() { return map; }, getTile, synthTerrain, packName,
 </script>
 
 <script src="locals.js?v=3" defer></script>
+<link rel="stylesheet" href="mapme.css?v=1">
+<script src="mapme.js?v=1" defer></script>
 <script>
 /* UX-BEGIN */
 /* ---------- UX: one calm shell over the map ----------
