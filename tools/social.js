@@ -893,7 +893,7 @@ const Social = (() => {
       else if (p[4] === 1) { const w = /town|city/.test(p[3]) ? d * 0.45 : /village/.test(p[3]) ? d * 0.7 : d; if (w < td) { td = w; town = p; } }
       else if (d < kd) { kd = d; peak = p; }
     }
-    if (poi && pd < 0.08) return poi[0];
+    if (poi && pd < 0.08) { const l = window.Names ? Names.label(poi[0], { lng: poi[1], lat: poi[2] }) : poi[0]; if (l) return l; } // a local's fix wins
     if (town && td < 0.7) return town[0];
     if (peak && kd < 0.6) return peak[0];
     if (town && td < 3.5) return 'Near ' + town[0];
@@ -1368,5 +1368,5 @@ const Social = (() => {
     if (h.startsWith('#join=')) { const code = h.slice(6).replace(/[^A-Za-z0-9]/g, '').toUpperCase(); Store.set('joinCode', code); history.replaceState(null, '', location.pathname + location.search); setTimeout(() => { setView('feed'); Cloud.on ? joinGroup(code) : showToast('Open the full site to join this group'); }, 3500); }
     setInterval(() => { if (S.view !== 'map' || !document.hidden) drawUserPins(); }, 5 * 60e3); // reports expire on their own
   }
-  return { init, S, setView, openCreate, Store, Cloud, pickPlace, searchPlaces, placesReady, refresh, newStory, openMessages, messageUser, Inbox, Vid, drawUserPins, install, standalone };
+  return { init, S, setView, openCreate, Store, Cloud, sheet, closeSheet, needSignIn, pickPlace, searchPlaces, placesReady, refresh, newStory, openMessages, messageUser, Inbox, Vid, drawUserPins, install, standalone };
 })();

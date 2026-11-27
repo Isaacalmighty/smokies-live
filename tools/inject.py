@@ -1,4 +1,4 @@
-"""Inject tools/live.js, live.css, social.js, social.css, brand.js and brand.css into index.html between their markers.
+"""Inject tools/live.js, live.css, social.js, social.css, brand.js, brand.css, ux.js, ux.css and names.js into index.html between their markers.
 Edit those files, then run: python3 tools/inject.py  (from the repo root)."""
 import re, sys
 s = open('index.html').read()
@@ -12,6 +12,7 @@ put('/* LIVE-BEGIN */', '/* LIVE-END */', 'tools/live.js')
 put('/* BRAND-BEGIN */', '/* BRAND-END */', 'tools/brand.js')
 put('/* BRAND-CSS-BEGIN */', '/* BRAND-CSS-END */', 'tools/brand.css')
 put('/* UX-BEGIN */', '/* UX-END */', 'tools/ux.js')
+put('/* NAMES-BEGIN */', '/* NAMES-END */', 'tools/names.js')
 put('/* UX-CSS-BEGIN */', '/* UX-CSS-END */', 'tools/ux.css')
 open('index.html', 'w').write(s)
 print('injected')
