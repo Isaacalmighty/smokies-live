@@ -4555,6 +4555,26 @@ const UX = (() => {
     if (store.get('homeSet', false) || !navigator.permissions || !navigator.geolocation) return;
     navigator.permissions.query({ name: 'geolocation' }).then(r => { if (r.state === 'granted') navigator.geolocation.getCurrentPosition(p => setHome(nearestTown(p.coords.latitude, p.coords.longitude), true), () => { }, { timeout: 10000, maximumAge: 600000 }); }).catch(() => { });
   }
+  function labelPills() { // town and peak names sit on small dark tags, so they read over any imagery, cloud or haze
+    const m = window.__smokies.map;
+    try {
+      if (!m.hasImage('lblpill')) {
+        const S = 64, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d');
+        g.fillStyle = 'rgba(9,14,11,0.86)'; g.strokeStyle = 'rgba(255,255,255,0.16)'; g.lineWidth = 2;
+        g.beginPath(); g.roundRect(3, 3, S - 6, S - 6, 14); g.fill(); g.stroke();
+        m.addImage('lblpill', g.getImageData(0, 0, S, S), { pixelRatio: 2, stretchX: [[18, 46]], stretchY: [[18, 46]], content: [14, 12, 50, 52] });
+      }
+      [['lbl-place', [2, 6, 2, 6]], ['lbl-peak', [3, 6, 2, 6]], ['lbl-waterfall', [2, 6, 2, 6]], ['lbl-poi', [2, 5, 2, 5]]].forEach(([id, pad]) => {
+        if (!m.getLayer(id)) return;
+        m.setLayoutProperty(id, 'icon-image', 'lblpill'); m.setLayoutProperty(id, 'icon-text-fit', 'both'); m.setLayoutProperty(id, 'icon-text-fit-padding', pad);
+        m.setPaintProperty(id, 'text-halo-width', 0.6); m.setPaintProperty(id, 'text-halo-color', 'rgba(0,0,0,0.6)');
+      });
+      // line labels (rivers, roads, trails) can't carry a tag: give them a heavy solid outline instead
+      ['lbl-water', 'lbl-road', 'lbl-trail'].forEach(id => { if (!m.getLayer(id)) return; m.setPaintProperty(id, 'text-halo-width', 2.6); m.setPaintProperty(id, 'text-halo-blur', 0); m.setPaintProperty(id, 'text-halo-color', 'rgba(6,10,8,0.95)'); });
+      // and every label draws last, above clouds, radar and pins' shadows
+      m.getStyle().layers.filter(l => l.id.startsWith('lbl-')).forEach(l => m.moveLayer(l.id));
+    } catch (e) { console.warn('[ux] labels', e); }
+  }
   function phoneMap() { // phones: bigger labels, a lower top pitch (fewer far-off tiles), 3D buildings only up close
     if (!matchMedia('(max-width:760px)').matches) return;
     const m = window.__smokies.map;
@@ -4597,7 +4617,7 @@ const UX = (() => {
     const ab = $('#alertBar'); if (ab) ab.addEventListener('click', e => { e.stopImmediatePropagation(); toView('today'); }, true);
     ['#sv-today', '#sv-more'].forEach(s => { const el = $(s); if (el) el.addEventListener('click', onPane); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
-    phoneMap();
+    labelPills(); phoneMap();
     searchHelp(); tabh(); addEventListener('resize', tabh); setTimeout(tabh, 1500); setInterval(tabh, 5000); quietHome();
     // apply what this person chose last time (or the clean defaults)
     const w = want(); ALL.forEach(([k, , , , io]) => { if (io.get() !== w[k]) try { io.set(w[k]); } catch (e) { } });
