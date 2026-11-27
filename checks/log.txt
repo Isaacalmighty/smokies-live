@@ -1,9 +1,8 @@
-desktop console info [live] weather signal is aborted without reason
-desktop failed https://api.open-meteo.com/v1/forecast?latitude=35.330,35.330,35.330,35.330,35.330,35.330,35.330,35.470,35.470,35.470,35.470,35.470,35.470,35.470,35.610,35.610, net::ERR_ABORTED
-desktop failed https://api.open-meteo.com/v1/forecast?latitude=35.714&longitude=-83.512&current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover,relative_hu net::ERR_ABORTED
-desktop state {"blocked":false,"wx":false,"puffs":0,"alerts":[],"news":0,"events":0,"incidents":0,"cams":0,"gauges":0,"fires":0,"sky":"10:26 PM · Night","chip":"Connecting to live data…"}
-desktop tomtom {"200":48}
-desktop console info [live] iss The user aborted a request.
+desktop state {"blocked":false,"wx":true,"puffs":2422,"alerts":["Special Weather Statement","Wind Advisory","Special Weather Statement","Special Weather Statement"],"news":75,"events":77,"incidents":4,"cams":17,"gauges":0,"fires":0,"sky":"10:34 PM · Night","chip":"Overcast in Gatlinburg · wind 3 mph SW"}
+desktop tomtom {"200":9}
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
@@ -83,6 +82,13 @@ desktop console error Failed to load resource: the server responded with a statu
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop pageerror Cannot read properties of undefined (reading 'bind')
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
@@ -121,41 +127,34 @@ desktop console error Failed to load resource: the server responded with a statu
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop pageerror Cannot read properties of undefined (reading 'signal')
 desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop pageerror Cannot read properties of undefined (reading 'signal')
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop pageerror Cannot read properties of undefined (reading 'signal')
 desktop pageerror Cannot read properties of undefined (reading 'signal')
 desktop pageerror Cannot read properties of undefined (reading 'signal')
-desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop pageerror Cannot read properties of undefined (reading 'signal')
+desktop pageerror Cannot read properties of undefined (reading 'signal')
+desktop pageerror Cannot read properties of undefined (reading 'signal')
 desktop pageerror Cannot read properties of undefined (reading 'signal')
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop pageerror Cannot read properties of undefined (reading 'signal')
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop pageerror Cannot read properties of undefined (reading 'signal')
 desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop pageerror Cannot read properties of undefined (reading 'signal')
 desktop pageerror Cannot read properties of undefined (reading 'signal')
 desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop pageerror Cannot read properties of undefined (reading 'signal')
-desktop pageerror Cannot read properties of undefined (reading 'signal')
+desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop pageerror Cannot read properties of undefined (reading 'signal')
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop pageerror Cannot read properties of undefined (reading 'signal')
 desktop pageerror Cannot read properties of undefined (reading 'signal')
+desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop pageerror Cannot read properties of undefined (reading 'signal')
-phone failed https://api.open-meteo.com/v1/forecast?latitude=35.330,35.330,35.330,35.330,35.330,35.330,35.330,35.470,35.470,35.470,35.470,35.470,35.470,35.470,35.610,35.610, net::ERR_ABORTED
-phone console info [live] weather signal is aborted without reason
-phone failed https://api.open-meteo.com/v1/forecast?latitude=35.714&longitude=-83.512&current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover,relative_hu net::ERR_ABORTED
-phone state {"blocked":false,"wx":false,"puffs":0,"alerts":["Special Weather Statement","Wind Advisory","Special Weather Statement"],"news":75,"events":77,"incidents":4,"cams":17,"gauges":0,"fires":0,"sky":"10:28 PM · Night","chip":"Connecting to live data…"}
+desktop console error Failed to load resource: the server responded with a status of 400 ()
+desktop pageerror Cannot read properties of undefined (reading 'signal')
+phone state {"blocked":false,"wx":true,"puffs":1324,"alerts":["Special Weather Statement","Wind Advisory","Special Weather Statement","Special Weather Statement"],"news":75,"events":77,"incidents":4,"cams":17,"gauges":11,"fires":0,"sky":"10:36 PM · Night","chip":"Overcast in Gatlinburg · wind 3 mph SW"}
 phone tomtom {"200":23}
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
@@ -163,7 +162,9 @@ phone console error Failed to load resource: the server responded with a status 
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
-phone console error Failed to load resource: the server responded with a status of 400 ()
+phone failed https://api.tomtom.com/traffic/map/4/tile/flow/relative0/15/8781/12920.png?key=j81wnoR8SajwacDSKgn20e1SNEzZzf1r&tileSize=256&t=14964588 net::ERR_ABORTED
+phone failed https://api.tomtom.com/traffic/map/4/tile/flow/relative0/15/8782/12921.png?key=j81wnoR8SajwacDSKgn20e1SNEzZzf1r&tileSize=256&t=14964588 net::ERR_ABORTED
+phone failed https://api.tomtom.com/traffic/map/4/tile/flow/relative0/15/8783/12921.png?key=j81wnoR8SajwacDSKgn20e1SNEzZzf1r&tileSize=256&t=14964588 net::ERR_ABORTED
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
