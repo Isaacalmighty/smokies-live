@@ -21,11 +21,12 @@
   /* ---------- styles (only exist while this file is loaded) ---------- */
   const css = document.createElement('style');
   css.textContent = `
-#hzSheet{position:fixed;z-index:31;left:0;right:0;bottom:0;max-height:min(50vh,560px);overflow:auto;overscroll-behavior:contain;border-radius:22px 22px 0 0;padding:4px 16px calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateY(105%);transition:transform .5s cubic-bezier(.34,1.32,.64,1);background:#0f1713;box-shadow:0 -10px 40px rgba(0,0,0,.45);color:var(--ink,#eef2ec)}
+#hzSheet{position:fixed;z-index:31;left:0;right:0;bottom:0;display:flex;flex-direction:column;max-height:min(50vh,560px);overflow:hidden;border-radius:22px 22px 0 0;padding:4px 16px calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateY(105%);transition:transform .5s cubic-bezier(.34,1.32,.64,1);background:#0f1713;box-shadow:0 -10px 40px rgba(0,0,0,.45);color:var(--ink,#eef2ec)}
 #hzSheet.in{transform:none}
+#hzSheet .body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin:0 -16px;padding:0 16px}
 #hzSheet.out{transition:transform .32s cubic-bezier(.55,0,.75,.2)}
 @media (min-width:761px){#hzSheet{left:auto;right:24px;bottom:24px;width:400px;border-radius:20px;max-height:calc(100vh - 140px)}}
-#hzSheet .grab{height:20px;display:grid;place-items:center;touch-action:none;cursor:grab}
+#hzSheet .grab{flex:none;height:20px;display:grid;place-items:center;touch-action:none;cursor:grab}
 #hzSheet .grab::after{content:"";width:40px;height:5px;border-radius:3px;background:rgba(255,255,255,.25)}
 .hzh{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:8px}
 .hzh small{display:block;color:var(--ink-dim,#a9b7ad);font-size:12.5px;letter-spacing:.02em}
@@ -83,7 +84,7 @@
     return s;
   }
   function showSheet(html) {
-    const s = sheet(); s.querySelector('.body').innerHTML = html; s.classList.remove('out'); s.hidden = false; s.scrollTop = 0;
+    const s = sheet(); s.querySelector('.body').innerHTML = html; s.classList.remove('out'); s.hidden = false; s.querySelector('.body').scrollTop = 0;
     requestAnimationFrame(() => requestAnimationFrame(() => s.classList.add('in')));
     s.querySelector('.hzx').onclick = close;
     return s;
