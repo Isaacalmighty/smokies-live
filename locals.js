@@ -38,7 +38,7 @@
   const ft = m => Math.round(m * 3.28084 / 10) * 10;
   const fmtFt = f => f.toLocaleString('en-US') + ' ft';
 
-  const S = { tab: pref.get('tab', 'sky'), wx: null, flow: null, nps: [], fog: null, worth: null, localMode: pref.get('localMode', false), places: pref.get('places', []), hits: [], seen: pref.get('seen', {}), layers: pref.get('layers', { wild: true, memory: true, board: true }), markers: [], flowMarkers: [], placeWx: null, open: false, sel: null };
+  const S = { tab: pref.get('tab', 'today'), wx: null, flow: null, nps: [], fog: null, worth: null, localMode: pref.get('localMode', false), places: pref.get('places', []), hits: [], seen: pref.get('seen', {}), layers: { wild: true, trails: true, outages: true, pets: true, events: true, memory: true, board: true, ...pref.get('layers', {}) }, resident: pref.get('resident', null), clock: null, markers: [], flowMarkers: [], placeWx: null, open: false, sel: null };
 
   /* ---------- places we read the weather at ---------- */
   // v: valley floor, o: sunrise overlook, d: destination. Elevations come back from Open-Meteo's terrain model.
@@ -272,7 +272,7 @@
      4. NEIGHBOR ALERTS: your road or hollow. Everything stays on this
      device. Checks run every 5 minutes while the app is open.
      ===================================================================== */
-  const ALERT_KINDS = [['creek', 'Rising creeks', '🌊'], ['fire', 'Fire or smoke nearby', '🔥'], ['ice', 'Ice on the roads', '🧊'], ['power', 'Power outages', '⚡'], ['road', 'Road closed, trees, wrecks', '🚧'], ['nws', 'Weather warnings', '⚠️']];
+  const ALERT_KINDS = [['creek', 'Rising creeks', '🌊'], ['fire', 'Fire or smoke nearby', '🔥'], ['ice', 'Ice on the roads', '🧊'], ['power', 'Power outages', '⚡'], ['road', 'Road closed, trees, wrecks', '🚧'], ['pets', 'Lost and found pets', '🐾'], ['nws', 'Weather warnings', '⚠️']];
   const RHRS = { closed: 12, wreck: 3, traffic: 2, tree: 8, ice: 12, flood: 12, power: 12, smoke: 6, bear: 4, wildlife: 4, hazard: 8 };
   function reportsNear(p, cats) {
     const SS = window.Social && Social.S; if (!SS) return [];
@@ -311,7 +311,8 @@
         (L && L.fires || []).forEach(f => { const d = km(f, p); if (d <= Math.max(10, p.r * 3)) push('fire', 'f' + f.lat.toFixed(3) + f.lng.toFixed(3) + (f.date || ''), 'Satellite spotted a fire nearby', `A heat signature ${d.toFixed(1)} km from ${p.name}${f.date ? ' on ' + f.date : ''}. Could be a controlled burn; check local news.`, f); });
         reportsNear(p, ['smoke']).forEach(r => push('fire', 'rs' + r.t, 'Fire or smoke reported near ' + p.name, (r.text || r.place || '').slice(0, 120), r.ll));
       }
-      if (on('power')) reportsNear(p, ['power']).forEach(r => push('power', 'rp' + r.t, 'Power out near ' + p.name, `A neighbor reported it ${r.place ? 'at ' + r.place : ''}. ${(r.text || '').slice(0, 100)}`, r.ll));
+      if (on('power')) itemsOf('O').filter(x => km(x, p) <= p.r).forEach(x => push('power', 'o' + x.id, `${x.def[0]} near ${p.name}`, `A neighbor reported it${x.name ? ' at ' + x.name : ''}. ${(x.text || '').slice(0, 100)}`, x));
+      if (on('pets')) itemsOf('P').filter(x => km(x, p) <= Math.max(p.r, 5)).forEach(x => push('pets', 'p' + x.id, `${x.cat === 'lostpet' ? 'Lost pet' : 'Found pet'} near ${p.name}`, `${(x.text || 'Keep an eye out.').slice(0, 110)}${x.name ? ' · ' + x.name : ''}`, x));
       if (on('road')) reportsNear(p, ['closed', 'tree', 'wreck', 'ice']).forEach(r => push('road', 'rr' + r.t, ({ closed: 'Road closed', tree: 'Tree down', wreck: 'Wreck', ice: 'Ice reported' })[r.tag.slice(2)] + ' near ' + p.name, (r.place || '') + (r.text ? ': ' + r.text.slice(0, 100) : ''), r.ll));
       if (on('ice') && S.placeWx && S.placeWx[pi]) {
         const h = S.placeWx[pi].hourly, i0 = h.time.indexOf(et().key);
@@ -345,8 +346,9 @@
     }
     banner(icon, h.title + more, h.body);
   }
-  function banner(icon, title, body) {
-    let b = q('#lbanner'); if (!b) { b = document.createElement('button'); b.id = 'lbanner'; b.className = 'panel'; document.body.appendChild(b); b.onclick = () => { b.classList.remove('show'); openHub('alerts'); }; }
+  function banner(icon, title, body, tab = 'alerts') {
+    let b = q('#lbanner'); if (!b) { b = document.createElement('button'); b.id = 'lbanner'; b.className = 'panel'; document.body.appendChild(b); }
+    b.onclick = () => { b.classList.remove('show'); openHub(tab); };
     b.innerHTML = `<span class="i">${icon}</span><span><b>${esc(title)}</b><small>${esc(body)}</small></span>`;
     b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
     clearTimeout(b._t); b._t = setTimeout(() => b.classList.remove('show'), 9000);
@@ -361,7 +363,11 @@
   const KIND = {
     W: { name: 'Sightings', one: 'sighting', cats: { bear: ['Black bear', '🐻', 6], elk: ['Elk', '🦌', 6], deer: ['Deer', '🦌', 4], turkey: ['Wild turkey', '🦃', 4], owl: ['Other wildlife', '🦉', 6], fireflies: ['Fireflies', '✨', 30], flowers: ['Wildflowers', '🌸', 24 * 6], color: ['Fall color', '🍁', 24 * 5], ice: ['Rime ice or snow', '❄️', 24 * 2], falls: ['Waterfall running big', '💧', 30] } },
     M: { name: 'Memories', one: 'memory', cats: { m: ['Memory', '📜', 1e9] } },
-    B: { name: 'Board', one: 'post', cats: { deal: ['Deal', '🏷️', 24 * 7], open: ['Open now', '🟢', 24], job: ['Hiring', '🧰', 24 * 30], event: ['Happening tonight', '🎶', 18] } },
+    B: { name: 'Board', one: 'post', cats: { deal: ['Deal', '🏷️', 24 * 7], local: ['Locals-only deal', '🔑', 24 * 14], open: ['Open now', '🟢', 24], job: ['Hiring', '🧰', 24 * 30], event: ['Happening tonight', '🎶', 18] } },
+    O: { name: 'Outages', one: 'outage', cats: { power: ['Power out', '⚡', 12], water: ['Water out', '🚱', 24], boil: ['Boil-water notice', '💧', 72], net: ['Internet or phone down', '📶', 12] } },
+    P: { name: 'Pets', one: 'pet', cats: { lostpet: ['Lost pet', '🐕', 72], foundpet: ['Found pet', '🐾', 72] } },
+    T: { name: 'Trails', one: 'trail report', cats: { good: ['Good shape', '✅', 72], mud: ['Muddy', '🟤', 72], ice: ['Icy', '🧊', 48], tree: ['Tree down', '🌲', 24 * 7], bear: ['Bear activity', '🐻', 48], water: ['High water crossing', '🌊', 48], closed: ['Closed', '⛔', 24 * 7] } },
+    E: { name: 'Events', one: 'event', cats: { sports: ['High school sports', '🏈', 0], score: ['Final score', '🏆', 48], church: ['Church', '⛪', 0], community: ['Community', '🎪', 0] } },
   };
   const SEEDS = [ // a few memories to start the layer; locals add the rest
     { id: 'm1', y: '2016', name: 'Gatlinburg', lat: 35.7140, lng: -83.5120, text: 'The Chimney Tops 2 fire. It started on the Chimney Tops on Nov 23, 2016. On the night of Nov 28, winds over 80 mph drove it into Gatlinburg and up the ridges toward Pigeon Forge. Fourteen people died, about 2,400 buildings were damaged or destroyed, and more than 17,000 acres burned. Neighbors, volunteers and Dolly Parton\'s My People Fund helped families rebuild.' },
@@ -380,22 +386,27 @@
   function itemsOf(K) {
     const SS = window.Social && Social.S; const out = [];
     const take = (tag, x) => {
-      if (!tag || tag[0] !== K || tag[1] !== ':') return;
-      let cat = tag.slice(2), until = null, year = null;
+      if (!tag) return;
+      if (/^R:(lostpet|foundpet)$/.test(tag)) tag = 'P:' + tag.slice(2); // pets ride on the community report categories
+      else if (tag === 'R:power') tag = 'O:power';
+      if (tag[0] !== K || tag[1] !== ':') return;
+      let cat = tag.slice(2), until = null, year = null, on = null;
+      if (K === 'E' && cat.includes('@')) { const [c, md] = cat.split('@'); cat = c; const t = new Date(x.t), y = t.getFullYear() + (+md.slice(0, 2) < t.getMonth() + 1 ? 1 : 0); on = new Date(y, +md.slice(0, 2) - 1, +md.slice(2), 12); until = new Date(y, +md.slice(0, 2) - 1, +md.slice(2), 23, 59); }
       if (K === 'M') { year = cat; cat = 'm'; }
       if (K === 'B' && cat.startsWith('open@')) { const hhmm = cat.slice(5); cat = 'open'; const t = new Date(x.t); const e = et(t); until = new Date(t.getTime() + ((+hhmm.slice(0, 2) * 60 + +hhmm.slice(2)) - (e.h * 60 + e.min) + (hhmm < String(e.h).padStart(2, '0') + String(e.min).padStart(2, '0') ? 1440 : 0)) * 60e3); }
       const def = KIND[K].cats[cat]; if (!def) return;
-      const end = until ? +until : +new Date(x.t) + def[2] * 3600e3; if (end < Date.now()) return;
-      out.push({ ...x, K, cat, def, year, until });
+      const end = until ? +until : +new Date(x.t) + (def[2] || 24) * 3600e3; if (end < Date.now()) return;
+      out.push({ ...x, K, cat, def, year, until, on });
     };
     if (SS) {
       (SS.remote || []).forEach(r => r.lng != null && take(r.tag, { id: 's' + r.id, t: r.created_at, lng: r.lng, lat: r.lat, name: r.place_name, text: r.caption, img: r.image_url, who: r.name || r.handle }));
       (SS.posts || []).forEach(p => p.place && take(p.tag, { id: 'u' + p.id, t: p.t, lng: p.place.lng, lat: p.place.lat, name: p.place.name, text: p.caption, img: p.img, who: 'You', mine: true }));
     }
     if (K === 'M') SEEDS.forEach(s => out.push({ id: s.id, t: null, lng: s.lng, lat: s.lat, name: s.name, text: s.text, K, cat: 'm', def: KIND.M.cats.m, year: s.y, seed: true }));
+    if (K === 'E') return out.sort((a, b) => (a.on ? +a.on : +new Date(a.t)) - (b.on ? +b.on : +new Date(b.t)));
     return out.sort((a, b) => (b.t ? +new Date(b.t) : 0) - (a.t ? +new Date(a.t) : 0));
   }
-  const LAYER = { wild: 'W', memory: 'M', board: 'B' };
+  const LAYER = { wild: 'W', trails: 'T', outages: 'O', pets: 'P', events: 'E', memory: 'M', board: 'B' };
   function drawMarkers() {
     S.markers.forEach(m => m.remove()); S.markers = [];
     if (typeof maplibregl === 'undefined' || !map) return;
@@ -405,7 +416,8 @@
       itemsOf(K).slice(0, 80).forEach(it => {
         const el = document.createElement('button'); el.className = `lmk lmk-${K}${it.seed ? ' seed' : ''}`; // MapLibre positions this element with transform, so animate the inside
         el.innerHTML = `<div class="lmk-in" style="animation-delay:${(n++ % 30) * 25}ms"><span><em>${it.def[1]}</em></span>${K === 'M' && it.year ? `<i>${esc(it.year)}</i>` : ''}</div>`; el.setAttribute('aria-label', it.def[0] + ' at ' + (it.name || 'a spot'));
-        el.onclick = e => { e.stopPropagation(); showItem(it); };
+        const locked = it.K === 'B' && it.cat === 'local' && !isResident(); if (locked) el.querySelector('em').textContent = '🔒';
+        el.onclick = e => { e.stopPropagation(); locked ? (openHub('board')) : showItem(it); };
         S.markers.push(new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([it.lng, it.lat]).addTo(map));
       });
     });
@@ -443,40 +455,52 @@
 
   /* ---------- composer for sightings, memories and board posts ---------- */
   let draft = null;
+  const COPY = {
+    W: ['Post a sighting', 'What did you see? How many? Which way were they headed?', 'Sighting posted. Thanks!'],
+    M: ['Pin a memory', 'Tell the story. Who was there, what happened, what it looked like then.', 'Memory pinned to the map'],
+    B: ['Post to the local board', 'Your business and the deal, opening or job. Keep it short.', 'Posted to the board'],
+    O: ['Report an outage', 'What\'s out, since when, and how many houses on your road?', 'Outage reported. Neighbors will see it.'],
+    P: ['Lost or found pet', 'Name, breed, color, collar, and the best way to reach you.', 'Posted. People nearby will be alerted.'],
+    T: ['Trail conditions', 'Which part of the trail? Mud, ice, a tree down, a bear? Is it passable?', 'Thanks, hikers will see it.'],
+    E: ['Add an event or score', 'Who\'s playing, the church or group, the time and place. For a score: Final, team 28, team 14.', 'Added to local events'],
+  };
+  const ASK_GPS = { W: 1, O: 1, P: 1, T: 1 };
   function compose(K, cat, place) {
-    const c = map.getCenter();
-    draft = { K, cat: cat || Object.keys(KIND[K].cats)[0], text: '', img: null, year: '', until: '21:00', place: place || { name: 'Here on the map', lng: c.lng, lat: c.lat } };
-    if (!place && navigator.geolocation && K === 'W') navigator.geolocation.getCurrentPosition(p => { if (!draft) return; draft.place = { name: 'Where you are', lng: p.coords.longitude, lat: p.coords.latitude }; drawCompose(); }, () => {}, { timeout: 6000, maximumAge: 120000 });
+    const c = map.getCenter(), t = et();
+    draft = { K, cat: cat || Object.keys(KIND[K].cats)[0], text: '', img: null, year: '', until: '21:00', date: `${t.y}-${String(t.m).padStart(2, '0')}-${String(t.d).padStart(2, '0')}`, place: place || { name: 'Here on the map', lng: c.lng, lat: c.lat } };
+    if (!place && navigator.geolocation && ASK_GPS[K]) navigator.geolocation.getCurrentPosition(p => { if (!draft) return; draft.place = { name: 'Where you are', lng: p.coords.longitude, lat: p.coords.latitude }; drawCompose(); }, () => {}, { timeout: 6000, maximumAge: 120000 });
     let v = q('#lcompose'); if (!v) { v = document.createElement('div'); v.id = 'lcompose'; document.body.appendChild(v); }
     clearTimeout(v._t); v.hidden = false; v.classList.remove('out'); drawCompose();
   }
   function drawCompose() {
-    const v = q('#lcompose'), K = draft.K, kd = KIND[K];
-    const title = { W: 'Post a sighting', M: 'Pin a memory', B: 'Post to the local board' }[K];
-    const hint = { W: 'What did you see? How many? Which way were they headed?', M: 'Tell the story. Who was there, what happened, what it looked like then.', B: 'Your business and the deal, opening or job. Keep it short.' }[K];
+    const v = q('#lcompose'), K = draft.K, kd = KIND[K], [title, hint] = COPY[K];
     v.innerHTML = `<div class="lc-box"><header><button class="ib" data-x aria-label="Cancel">✕</button><b>${title}</b><button class="send" data-send>Post</button></header>
       ${K !== 'M' ? `<div class="lc-cats">${Object.entries(kd.cats).map(([k, d], i) => `<button data-c="${k}" class="${draft.cat === k ? 'on' : ''}" style="animation-delay:${i * 30}ms"><span>${d[1]}</span>${esc(d[0])}</button>`).join('')}</div>` : ''}
-      <label class="lc-photo">${draft.img ? `<img src="${draft.img}" alt="">` : '<span>📷 Add a photo</span>'}<input type="file" accept="image/*" hidden></label>
+      <label class="lc-photo">${draft.img ? `<img src="${draft.img}" alt="">` : `<span>📷 ${K === 'P' ? 'Add a photo of the pet' : 'Add a photo'}</span>`}<input type="file" accept="image/*" hidden></label>
       <textarea maxlength="700" placeholder="${hint}">${esc(draft.text)}</textarea>
       ${K === 'M' ? `<label class="lc-row">Year or decade <input data-year maxlength="8" placeholder="1985 or 1950s" value="${esc(draft.year)}"></label>` : ''}
       ${K === 'B' && draft.cat === 'open' ? `<label class="lc-row">Open until <input data-until type="time" value="${draft.until}"></label>` : ''}
-      <button class="lc-place" data-place><span>📍</span><span><b>${esc(draft.place.name)}</b><small>Tap to change where this goes on the map</small></span></button>
+      ${K === 'E' && draft.cat !== 'score' ? `<label class="lc-row">Date <input data-date type="date" value="${draft.date}"></label>` : ''}
+      ${K === 'B' && draft.cat === 'local' ? '<p class="fine">Only people who have checked that they live in Sevier County will see the details.</p>' : ''}
+      <button class="lc-place" data-place><span>📍</span><span><b>${esc(draft.place.name)}</b><small>${K === 'T' ? 'Tap to pick the trail' : 'Tap to change where this goes on the map'}</small></span></button>
       <p class="fine">${window.Social && Social.Cloud && Social.Cloud.on ? 'Shared with everyone in Smokies Live. It shows on the map and in the feed.' : 'Saved on this device until accounts are switched on.'}</p></div>`;
     v.querySelector('[data-x]').onclick = () => { v.classList.add('out'); v._t = setTimeout(() => { v.hidden = true; v.innerHTML = ''; draft = null; }, 260); };
     v.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { draft.cat = b.dataset.c; drawCompose(); });
     v.querySelector('textarea').oninput = e => draft.text = e.target.value;
     const y = v.querySelector('[data-year]'); if (y) y.oninput = e => draft.year = e.target.value.replace(/[^0-9s]/g, '');
     const u = v.querySelector('[data-until]'); if (u) u.oninput = e => draft.until = e.target.value;
+    const dt = v.querySelector('[data-date]'); if (dt) dt.oninput = e => draft.date = e.target.value;
     v.querySelector('input[type=file]').onchange = async e => { const f = e.target.files[0]; if (!f) return; draft.img = await shrink(f); drawCompose(); };
-    v.querySelector('[data-place]').onclick = async () => { if (!(window.Social && Social.pickPlace)) return; v.hidden = true; const p = await Social.pickPlace(draft.place, 'Where was this?'); v.hidden = false; if (p) { draft.place = p; drawCompose(); } };
+    v.querySelector('[data-place]').onclick = async () => { if (!(window.Social && Social.pickPlace)) return; v.hidden = true; const p = await Social.pickPlace(draft.place, K === 'T' ? 'Which trail?' : 'Where was this?'); v.hidden = false; if (p) { draft.place = p; drawCompose(); } };
     v.querySelector('[data-send]').onclick = post;
   }
   function shrink(file) { return new Promise((res, rej) => { const img = new Image(); img.onload = () => { const k = Math.min(1, 1080 / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(img.src); res(c.toDataURL('image/jpeg', 0.84)); }; img.onerror = rej; img.src = URL.createObjectURL(file); }); }
+  const LK = { W: 'wild', M: 'memory', B: 'board', O: 'outages', P: 'pets', T: 'trails', E: 'events' };
   async function post() {
     const d = draft; if (!d) return;
     if (!d.text.trim() && !d.img) return toast('Add a few words or a photo first');
     if (d.K === 'M' && !d.year) return toast('Add a year or decade, even a rough one');
-    const tag = d.K === 'M' ? 'M:' + d.year.slice(0, 8) : d.K === 'B' && d.cat === 'open' ? 'B:open@' + d.until.replace(':', '') : d.K + ':' + d.cat;
+    const tag = d.K === 'M' ? 'M:' + d.year.slice(0, 8) : d.K === 'B' && d.cat === 'open' ? 'B:open@' + d.until.replace(':', '') : d.K === 'P' ? 'R:' + d.cat : d.K === 'E' && d.cat !== 'score' ? `E:${d.cat}@${d.date.slice(5, 7)}${d.date.slice(8, 10)}` : d.K + ':' + d.cat;
     const C = window.Social && Social.Cloud, b = q('#lcompose [data-send]');
     if (C && C.on) {
       if (!C.user) { toast('Sign in from your profile to share with everyone'); Social.setView && Social.setView('profile'); return; }
@@ -492,35 +516,35 @@
       await Social.Store.set('posts', Social.S.posts);
     }
     const v = q('#lcompose'); v.classList.add('out'); v._t = setTimeout(() => { v.hidden = true; v.innerHTML = ''; }, 260); draft = null;
-    const lk = { W: 'wild', M: 'memory', B: 'board' }[d.K]; S.layers[lk] = true; pref.set('layers', S.layers);
+    S.layers[LK[d.K]] = true; pref.set('layers', S.layers);
     if (window.Social && Social.refresh) Social.refresh();
-    drawMarkers(); render(); toast({ W: 'Sighting posted. Thanks!', M: 'Memory pinned to the map', B: 'Posted to the board' }[d.K]);
+    drawMarkers(); render(); toast(COPY[d.K][2]);
     fly([d.place.lng, d.place.lat], 14.5, 55);
   }
 
   /* =====================================================================
      UI: launcher, hub, and the views
      ===================================================================== */
-  const TABS = [['sky', 'Sunrise'], ['go', 'Worth it?'], ['roads', 'Roads'], ['alerts', 'My alerts'], ['wild', 'Sightings'], ['memory', 'Memories'], ['board', 'Board']];
+  const TABS = [['today', 'Today'], ['sky', 'Sunrise'], ['go', 'Worth it?'], ['roads', 'Roads'], ['alerts', 'My alerts'], ['outages', 'Outages'], ['pets', 'Pets'], ['trails', 'Trails'], ['events', 'Events'], ['wild', 'Sightings'], ['board', 'Board'], ['memory', 'Memories']];
   const LOGO = '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="21" cy="10" r="4.2" fill="#ffc861"/><path d="M1 27 11 13l5 6 5-7 10 15z" fill="#3f7a55"/><path d="M1 27l6-6 4 3 6-5 4 3 5-3 5 8z" fill="#cfe3ef" opacity=".9"/></svg>';
   function shell() {
     // desktop: a card at the top of the layers rail
     const rail = q('#rail');
     if (rail) {
       const g = document.createElement('div'); g.className = 'group lrail';
-      g.innerHTML = `<div class="eyebrow">Local</div><button class="lsum" data-open="sky"><span class="lsum-ic">${LOGO}</span><span class="lsum-t"><b id="lsumT">Sunrise forecast</b><small id="lsumS">Reading the mountains…</small></span><span class="lbadge" hidden></span></button>
+      g.innerHTML = `<div class="eyebrow">Local</div><button class="lsum" data-open="today"><span class="lsum-ic">${LOGO}</span><span class="lsum-t"><b id="lsumT">Sunrise forecast</b><small id="lsumS">Reading the mountains…</small></span><span class="lbadge" hidden></span></button>
         <button class="toggle" data-lmode aria-pressed="${S.localMode}"><span class="k">Local's mode</span><span class="sw"></span></button>
-        <div class="lquick"><button data-open="go">Worth it?</button><button data-open="roads">Roads</button><button data-open="alerts">Alerts</button></div>
-        ${Object.entries({ wild: 'Sightings', memory: 'Memories', board: 'Local board' }).map(([k, v]) => `<button class="toggle" data-layer="${k}" aria-pressed="${S.layers[k]}"><span class="k">${v}</span><span class="sw"></span></button>`).join('')}`;
+        <div class="lquick"><button data-open="today">Today</button><button data-open="roads">Roads</button><button data-open="alerts">Alerts</button></div>
+        <button class="toggle" data-allpins aria-pressed="${Object.values(S.layers).some(Boolean)}"><span class="k">Community pins</span><span class="sw"></span></button>`;
       rail.insertBefore(g, rail.firstChild);
     }
     // phone: a button in the floating column
     const mb = q('#mobileBar');
-    if (mb) { const b = document.createElement('button'); b.id = 'm-local'; b.setAttribute('aria-pressed', 'false'); b.dataset.open = 'sky'; b.innerHTML = 'Local<span class="lbadge" hidden></span>'; mb.insertBefore(b, mb.firstChild); }
+    if (mb) { const b = document.createElement('button'); b.id = 'm-local'; b.setAttribute('aria-pressed', 'false'); b.dataset.open = 'today'; b.innerHTML = 'Local<span class="lbadge" hidden></span>'; mb.insertBefore(b, mb.firstChild); }
     if (!rail && !mb) { const b = document.createElement('button'); b.id = 'lfab'; b.className = 'panel'; b.dataset.open = 'sky'; b.innerHTML = LOGO + '<span>Local</span><span class="lbadge" hidden></span>'; document.body.appendChild(b); } // the layout changed: still give people a way in
     document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', e => { squish(b); openHub(b.dataset.open); }));
     document.querySelectorAll('[data-lmode]').forEach(b => b.addEventListener('click', () => setLocalMode(!S.localMode)));
-    document.querySelectorAll('[data-layer]').forEach(b => b.addEventListener('click', () => { const k = b.dataset.layer; S.layers[k] = !S.layers[k]; b.setAttribute('aria-pressed', S.layers[k]); pref.set('layers', S.layers); drawMarkers(); }));
+    document.querySelectorAll('[data-allpins]').forEach(b => b.addEventListener('click', () => { const on = !Object.values(S.layers).some(Boolean); Object.keys(S.layers).forEach(k => S.layers[k] = on); b.setAttribute('aria-pressed', on); pref.set('layers', S.layers); drawMarkers(); render(); }));
     // the hub
     const h = document.createElement('section'); h.id = 'lhub'; h.className = 'panel'; h.hidden = true; h.setAttribute('aria-label', 'Local');
     h.innerHTML = `<div class="grab" aria-hidden="true"></div><header><span class="logo">${LOGO}</span><div><b>Smokies <em>Local</em></b><small id="lhubSub">For the people who live here</small></div>
@@ -567,6 +591,67 @@
       <path d="M0 106 L30 96 L58 102 L96 86 L126 100 L160 94 L196 106 L240 96 L284 104 L320 98 V120 H0Z" fill="#17222c"/>
       ${f && f.best ? '<g class="seat"><circle cx="240" cy="95" r="3.4" fill="#ffc861"/><circle cx="240" cy="95" r="8" fill="none" stroke="#ffc861" stroke-width="1.4"/></g>' : ''}</svg>`;
   }
+  /* ---------- locals check (soft: location once, on this device) ---------- */
+  const SEVIER = { s: 35.63, n: 36.03, w: -83.80, e: -83.24 };
+  const isResident = () => !!(S.resident && S.resident.ok);
+  function verifyResident() {
+    if (!navigator.geolocation) return toast('Location is not available on this device');
+    navigator.geolocation.getCurrentPosition(p => {
+      const { latitude: la, longitude: lo } = p.coords, ok = la > SEVIER.s && la < SEVIER.n && lo > SEVIER.w && lo < SEVIER.e;
+      S.resident = { ok, t: Date.now() }; pref.set('resident', S.resident); render();
+      toast(ok ? 'Welcome, neighbor. Locals-only deals unlocked.' : 'You look to be outside Sevier County right now. Try again from home.');
+    }, () => toast('Could not get your location'), { enableHighAccuracy: false, timeout: 10000 });
+  }
+  /* ---------- events from the town calendars (summary starts "MM/DD/YYYY to MM/DD/YYYY") ---------- */
+  function feedEvents(days) {
+    const L = window.Live && Live.st; if (!L) return [];
+    const t = et(), today = new Date(t.y, t.m - 1, t.d), end = new Date(today.getTime() + days * 864e5);
+    return (L.events || []).map(e => {
+      const m = (e.summary || '').match(/(\d\d)\/(\d\d)\/(\d{4})\s+to\s+(\d\d)\/(\d\d)\/(\d{4})/); if (!m) return null;
+      const a = new Date(+m[3], +m[1] - 1, +m[2]), b = new Date(+m[6], +m[4] - 1, +m[5]);
+      if (b < today || a > end) return null;
+      const txt = e.title + ' ' + e.summary, kind = /church|chapel|worship|choir|nativity|baptist|methodist|ministr/i.test(txt) ? 'church' : /football|basketball|high school|tournament|wrestling|soccer|baseball|softball|volleyball|\bgame\b/i.test(txt) ? 'sports' : 'community';
+      const ongoing = (b - a) > 3 * 864e5, starts = a > today ? a : today;
+      return { ...e, kind, ongoing, start: a, today: a <= today, when: starts.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) };
+    }).filter(Boolean).sort((x, y) => (x.ongoing - y.ongoing) || (x.start - y.start));
+  }
+  /* ---------- Parkway clock ---------- */
+  function clockHTML(compact) {
+    const c = S.flow && S.flow.clock;
+    if (!c || !c.sg || !c.sg.length) return compact ? '' : `<div class="lclock"><div class="k">Parkway clock</div><p class="lsay">Sevierville to Gatlinburg drive times start with the next feed refresh.</p></div>`;
+    const now = c.sg[0], best = c.sg.reduce((m, x) => (x.min < m.min ? x : m), now), max = Math.max(...c.sg.map(x => x.min));
+    const at = k => new Date(new Date(S.flow.updated).getTime() + k * 60e3).toLocaleTimeString('en-US', { timeZone: TZN, hour: 'numeric', minute: '2-digit' });
+    const advice = best.in > 0 && now.min - best.min >= 4 ? `Leave around ${at(best.in)} to save ${now.min - best.min} min.` : now.delay >= 5 ? 'It won\'t get much better in the next two hours.' : 'Good time to go.';
+    return `<div class="lclock ${now.delay >= 10 ? 'bad' : now.delay >= 4 ? 'mid' : 'ok'}"><div class="k">Parkway clock</div>
+      <div class="big"><b data-count="${now.min}">${now.min}</b><span>min</span><small>Sevierville → Gatlinburg${now.delay > 0 ? ` · +${now.delay} min traffic` : ' · no delays'}</small></div>
+      ${compact ? `<small class="adv">${esc(advice)}</small>` : `<div class="bars">${c.sg.map((x, i) => `<div class="${x === best ? 'best' : ''}" style="--h:${Math.round(x.min / max * 100)}%;animation-delay:${i * 60}ms"><i></i><b>${x.min}</b><small>${x.in === 0 ? 'Now' : at(x.in)}</small></div>`).join('')}</div>
+      <div class="adv">${esc(advice)}${c.gs ? ` Coming back: ${c.gs.min} min.` : ''}</div>`}</div>`;
+  }
+  /* ---------- morning brief ---------- */
+  const WMO = { 0: 'Clear', 1: 'Mostly clear', 2: 'Partly cloudy', 3: 'Overcast', 45: 'Fog', 48: 'Freezing fog', 51: 'Drizzle', 53: 'Drizzle', 55: 'Drizzle', 56: 'Freezing drizzle', 57: 'Freezing drizzle', 61: 'Light rain', 63: 'Rain', 65: 'Heavy rain', 66: 'Freezing rain', 67: 'Freezing rain', 71: 'Light snow', 73: 'Snow', 75: 'Heavy snow', 77: 'Snow', 80: 'Showers', 81: 'Showers', 82: 'Heavy showers', 85: 'Snow showers', 86: 'Snow showers', 95: 'Storms', 96: 'Storms with hail', 99: 'Storms with hail' };
+  function briefHTML() {
+    const t = et(), hi = t.h < 4 ? 'Up late' : t.h < 12 ? 'Good morning' : t.h < 17 ? 'Good afternoon' : 'Good evening';
+    const date = new Date().toLocaleDateString('en-US', { timeZone: TZN, weekday: 'long', month: 'long', day: 'numeric' });
+    let wx = '';
+    if (S.wx) {
+      const g = S.wx.gat.h, i0 = g.time.indexOf(t.key), d0 = g.time.indexOf(t.day + 'T00:00');
+      if (i0 >= 0 && d0 >= 0) {
+        const day = g.temperature_2m.slice(d0, d0 + 24), pp = Math.max(...g.precipitation_probability.slice(Math.max(i0, d0), d0 + 24).map(x => x || 0));
+        const code = g.weather_code[i0], rainAt = g.precipitation_probability.slice(i0, d0 + 24).findIndex(x => x >= 50);
+        wx = `<div class="lbx wx"><span class="i">${code >= 61 ? '🌧️' : code >= 45 && code <= 48 ? '🌫️' : code >= 71 && code <= 86 ? '🌨️' : code <= 1 ? (t.h >= 7 && t.h < 18 ? '☀️' : '🌙') : '⛅'}</span><div><b>${Math.round(g.temperature_2m[i0])}° and ${esc((WMO[code] || '').toLowerCase())} in Gatlinburg</b><small>High ${Math.round(Math.max(...day))}°, low ${Math.round(Math.min(...day))}°. ${pp >= 50 ? `Rain likely${rainAt > 0 ? ' after ' + hh(t.h + rainAt) : ' now'} (${Math.round(pp)}%).` : pp >= 25 ? `Small chance of rain (${Math.round(pp)}%).` : 'Dry day.'}${S.wx.kuw ? ` Kuwohi ${Math.round(S.wx.kuw.h.temperature_2m[i0])}°.` : ''}</small></div></div>`;
+      }
+    }
+    const R = roadsNow(), inc = (window.Live && Live.st.traffic.incidents || []).length;
+    const roads = `<div class="lbx"><span class="i">🚗</span><div><b>${R.tip ? esc(R.tip) : R.worst && R.worst.cur / R.worst.free < 0.6 ? `Slow on ${esc(R.worst.name)} (${Math.round(R.worst.cur)} mph)` : R.live ? 'Roads are moving' : 'Road speeds loading'}</b><small>${inc ? `${inc} road report${inc > 1 ? 's' : ''} from TDOT, NCDOT and the park. ` : ''}${R.thin && R.thin.dh > 0 ? `Parkway crowds usually thin out around ${hh(R.thin.t.h)}.` : 'Parkway crowds are light right now.'}</small></div></div>`;
+    const f = S.fog && S.fog[0];
+    const fog = f ? `<button class="lbx" data-go-tab="sky"><span class="i">🌄</span><div><b>${dayName(f.day, t.day)} sunrise ${clock(f.sunrise)}: ${f.socked ? 'socked in' : f.sea >= 0.55 ? 'sea of clouds likely' : f.p >= 0.45 ? 'valley fog' : 'clear valleys'}</b><small>${pct(f.p)} valley fog${f.best && f.sea >= 0.3 ? ` · best seat ${esc(f.best.s.n.replace(/ \(.*/, ''))}` : ''}</small></div></button>` : '';
+    const ev = feedEvents(0).slice(0, 4), mine = itemsOf('E').filter(x => x.on && x.on.toDateString() === new Date(t.y, t.m - 1, t.d).toDateString());
+    const events = ev.length || mine.length ? `<div class="lsub">Today</div><div class="litems">${[...mine.map(x => `<div class="litem"><span class="e">${x.def[1]}</span><span class="t"><b>${esc((x.text || '').slice(0, 70))}</b><small>${esc(x.name || '')}</small></span></div>`), ...ev.map(e => `<a class="litem" href="${esc(e.link)}" target="_blank" rel="noopener"><span class="e">${e.kind === 'church' ? '⛪' : e.kind === 'sports' ? '🏈' : '🎪'}</span><span class="t"><b>${esc(e.title)}</b><small>${esc(e.source || '')}${e.ongoing ? ' · ongoing' : ''}</small></span></a>`)].join('')}</div>` : '';
+    const n = k => itemsOf(k).length, pets = itemsOf('P').filter(x => x.cat === 'lostpet').length;
+    const around = `<div class="lsub">Around the county</div><div class="lchips">${[['alerts', '⚠️', S.hits.length, 'alerts near your places'], ['outages', '⚡', n('O'), 'outages reported'], ['pets', '🐕', pets, 'lost pets'], ['trails', '🥾', n('T'), 'trail reports'], ['wild', '🐻', n('W'), 'sightings']].map(([tab, ic, c, l]) => `<button data-go-tab="${tab}" class="${c ? 'has' : ''}">${ic} <b>${c}</b> ${l}</button>`).join('')}</div>`;
+    return `<div class="lbrief"><small>${esc(date)}</small><b>${hi}${S.localMode ? ', neighbor' : ''}.</b></div>${wx}${clockHTML(true)}${roads}${fog}${events}${around}
+      <p class="fine">Your brief opens here each morning. Weather from Open-Meteo, drive times and road speeds from TomTom, events from the town calendars.</p>`;
+  }
   function render() {
     const el = q('#lbody'); if (!el || !S.open) return;
     const sub = q('#lhubSub'); if (sub) sub.textContent = S.localMode ? 'Local\'s mode is on' : 'For the people who live here';
@@ -591,12 +676,15 @@
           return `<div class="lcardg ${cls}" style="animation-delay:${i * 70}ms" data-go="${i}">${ring(w.now.s, cls)}<div class="t"><b>${esc(w.D.n)}</b><small>${esc(w.D.sub)}</small><span class="v">${v}</span></div>
           <ul>${why.map(x => `<li class="w-${x[0]}">${esc(x[1])}</li>`).join('')}</ul>${w.best ? `<div class="better">Better ${w.best.t.day === et().day ? 'around' : 'tomorrow around'} ${hh(w.best.t.h)}: ${w.best.s.toFixed(1)}</div>` : ''}</div>`; }).join('')}</div>
           <p class="fine">${S.flow ? `Road speeds from TomTom, updated ${new Date(S.flow.updated).toLocaleTimeString('en-US', { timeZone: TZN, hour: 'numeric', minute: '2-digit' })}.` : 'Live road speeds load with the next feed refresh; until then traffic is estimated.'} Weather from Open-Meteo. Crowds and parking are estimated from season, holidays, day and hour. Closures from park alerts and seasonal schedules.</p>`;
+    } else if (S.tab === 'today') {
+      h = briefHTML();
     } else if (S.tab === 'roads') {
       const R = roadsNow(); const bar = x => { const r = clamp(x.cur / x.free); return `<div class="lroad" style="--r:${r}"><span class="n">${esc(x.name)}</span><span class="b"><i class="${x.closed ? 'x' : r < 0.5 ? 'r' : r < 0.75 ? 'y' : 'g'}"></i></span><span class="s">${x.closed ? 'Closed' : Math.round(x.cur) + ' mph'}</span></div>`; };
-      h = `<div class="lmodebox ${S.localMode ? 'on' : ''}"><div><b>Local's mode</b><small>Hides tourist tours and puts the roads, the crowds and your alerts first.</small></div><button class="lmode" data-lmode2 aria-pressed="${S.localMode}"><i></i></button></div>
+      h = `${clockHTML()}
+        <div class="lmodebox ${S.localMode ? 'on' : ''}"><div><b>Local's mode</b><small>Hides tourist tours and puts the roads, the crowds and your alerts first.</small></div><button class="lmode" data-lmode2 aria-pressed="${S.localMode}"><i></i></button></div>
         ${R.tip ? `<div class="ltip">🚗 ${esc(R.tip)}</div>` : ''}
         <div class="lstats"><div><b>${R.c > 0.75 ? 'Heavy' : R.c > 0.45 ? 'Busy' : 'Light'}</b><small>Parkway crowds now</small></div><div><b>${R.thin ? (R.thin.dh === 0 ? 'Now' : hh(R.thin.t.h)) : 'Late'}</b><small>${R.thin && R.thin.dh === 0 ? 'Crowds are thin' : 'Crowds thin out'}</small></div><div><b>${R.worst ? Math.round(R.worst.cur) + ' mph' : '—'}</b><small>${R.worst ? 'Slowest: ' + esc(R.worst.name.replace('Parkway, ', '')) : 'Slowest spot'}</small></div></div>
-        ${R.live ? `<div class="lsub">The Parkway</div>${R.pk.map(bar).join('')}<div class="lsub">Back roads</div>${R.back.map(bar).join('')}<div class="lsub">Park roads</div>${R.park.map(bar).join('')}<p class="fine">Live speeds from TomTom, ${new Date(R.updated).toLocaleTimeString('en-US', { timeZone: TZN, hour: 'numeric', minute: '2-digit' })}. Bars show speed compared with a clear road.</p>`
+        ${R.live ? `<div class="lsub">The Parkway</div>${R.pk.map(bar).join('')}<div class="lsub">Back roads</div>${R.back.map(bar).join('')}${R.park.length ? `<div class="lsub">Park roads</div>${R.park.map(bar).join('')}` : ''}<p class="fine">Live speeds from TomTom, ${new Date(R.updated).toLocaleTimeString('en-US', { timeZone: TZN, hour: 'numeric', minute: '2-digit' })}. Bars show speed compared with a clear road.</p>`
           : `<p class="lsay">Live road speeds start with the next feed refresh (every 20 minutes). The traffic colors on the map are live now.</p>`}`;
     } else if (S.tab === 'alerts') {
       const perm = 'Notification' in window ? Notification.permission : 'unsupported';
@@ -607,19 +695,38 @@
           <div class="kinds">${ALERT_KINDS.map(([k, l, ic]) => `<button data-kind="${i}:${k}" class="${p.kinds.includes(k) ? 'on' : ''}">${ic} ${l}</button>`).join('')}</div></div>`).join('')}
         <div class="lacts"><button class="btn primary" data-addp="gps">📍 Add where I am</button><button class="btn" data-addp="map">Pick on the map</button></div>
         ${S.places.length && perm === 'default' ? '<button class="btn wide" data-perm>Turn on notifications</button>' : ''}${perm === 'denied' ? '<p class="fine">Notifications are blocked for this site in your browser settings. Alerts still show here.</p>' : ''}
-        <p class="fine">Watches creek gauges, satellite fire detections, the ice forecast for your exact spot, weather warnings and what neighbors report. Your places stay on this phone and are never uploaded. Alerts come in while Smokies Live is open; always-on push arrives with the app.</p>`;
+        <p class="fine">Watches creek gauges, satellite fire detections, the ice forecast for your exact spot, weather warnings, outages, lost pets and what neighbors report. Your places stay on this phone and are never uploaded. Alerts come in while Smokies Live is open; always-on push arrives with the app.</p>`;
     } else {
-      const K = LAYER[S.tab], items = itemsOf(K), kd = KIND[K];
-      const head = { W: ['Sightings', 'Bears, elk, fireflies, wildflowers and fall color, posted by people out there right now.', 'Post a sighting'], M: ['Memories', 'Old photos and stories pinned where they happened. Add your family\'s.', 'Pin a memory'], B: ['Local board', 'Deals, open-now status, jobs and tonight\'s music from local businesses.', 'Post to the board'] }[K];
+      const K = LAYER[S.tab], items = itemsOf(K), kd = KIND[K], res = isResident();
+      const head = {
+        W: ['Sightings', 'Bears, elk, fireflies, wildflowers and fall color, posted by people out there right now.', 'Post a sighting'],
+        M: ['Memories', 'Old photos and stories pinned where they happened. Add your family\'s.', 'Pin a memory'],
+        B: ['Local board', 'Deals, open-now status, jobs and tonight\'s music from local businesses.', 'Post to the board'],
+        O: ['Outages', 'Power, water and internet outages reported by neighbors, on the map.', 'Report an outage'],
+        P: ['Lost and found pets', 'Pinned where they went missing or were found. People nearby get an alert.', 'Post a pet'],
+        T: ['Trail conditions', 'Mud, ice, trees down and bear activity, reported by hikers on each trail.', 'Report a trail'],
+        E: ['Local events', 'High school games and scores, church and community events.', 'Add an event'],
+      }[K];
+      const row = (it, i) => { const locked = it.K === 'B' && it.cat === 'local' && !res; const title = it.K === 'M' ? it.name : it.K === 'T' ? (it.name || 'Trail') + ' · ' + it.def[0] : it.def[0] + (it.name ? ' · ' + it.name : '');
+        const when = it.year ? esc(it.year) : it.on ? it.on.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : it.t ? esc(agoShort(it.t)) : '';
+        return `<button class="litem${locked ? ' locked' : ''}" data-item="${K}:${i}" style="animation-delay:${Math.min(i, 12) * 40}ms"><span class="e">${locked ? '🔒' : it.def[1]}</span><span class="t"><b>${esc(locked ? 'Locals-only deal' : title)}</b><small>${locked ? 'Check that you live here to see it' : esc((it.text || '').slice(0, 90)) + ((it.text || '').length > 90 ? '…' : '')}</small></span><span class="a">${when}</span>${it.img && !locked ? `<img src="${esc(it.img)}" alt="" loading="lazy">` : ''}</button>`; };
+      let extra = '', list = items;
+      if (K === 'W') extra = `<div class="lsub">Out right now</div><div class="lseason">${seasonal().map(([ic, t, d], i) => `<div style="animation-delay:${i * 50}ms"><span>${ic}</span><b>${t}</b><small>${d}</small></div>`).join('')}</div>`;
+      if (K === 'M') { const t = et(); extra = t.m === 11 && t.d >= 21 && t.d <= 30 ? `<div class="lanniv">🕯️ <b>${t.d === 28 ? 'Ten years ago tonight' : 'Ten years ago this week'}</b>, fire came down into Gatlinburg. <button class="lnk" data-memo="m1">Read and share your story</button></div>` : ''; }
+      if (K === 'B') extra = `${items.length ? `<div class="lbf">${Object.entries(kd.cats).map(([k, d]) => [d, items.filter(x => x.cat === k).length]).filter(x => x[1]).map(([d, n]) => `<span>${d[1]} ${n} ${esc(d[0].toLowerCase())}</span>`).join('')}</div>` : ''}
+        <div class="lres ${res ? 'on' : ''}">${res ? '🔑 <b>You\'re checked as a local.</b> You can see locals-only deals.' : `🔑 <b>Locals-only deals</b> are hidden until you check that you live in Sevier County. <button class="lnk" data-resident>Check with my location</button>`}</div>`;
+      if (K === 'O') { const n = k => items.filter(x => x.cat === k).length; extra = `<div class="lstats"><div><b>${n('power')}</b><small>Power reports</small></div><div><b>${n('water') + n('boil')}</b><small>Water reports</small></div><div><b>${n('net')}</b><small>Internet or phone</small></div></div>`; }
+      if (K === 'P') extra = `<div class="lstats"><div><b>${items.filter(x => x.cat === 'lostpet').length}</b><small>Lost</small></div><div><b>${items.filter(x => x.cat === 'foundpet').length}</b><small>Found</small></div><div><b>${S.places.length ? 'On' : 'Off'}</b><small>${S.places.length ? 'Alerts near you' : 'Add a place in My alerts'}</small></div></div>`;
+      if (K === 'T') { const nps = S.nps.filter(a => /trail/i.test(a.title + ' ' + (a.desc || ''))); extra = nps.length ? `<div class="lsub">Park service notices</div>${nps.slice(0, 6).map(a => `<a class="lnps" href="${esc(a.link || 'https://www.nps.gov/grsm/planyourvisit/conditions.htm')}" target="_blank" rel="noopener">⛔ ${esc(a.title)}</a>`).join('')}` : ''; }
+      if (K === 'E') { const fe = feedEvents(7); extra = fe.length ? `<div class="lsub">This week from town calendars</div><div class="litems">${fe.slice(0, 12).map((e, i) => `<a class="litem" href="${esc(e.link)}" target="_blank" rel="noopener" style="animation-delay:${i * 40}ms"><span class="e">${e.kind === 'church' ? '⛪' : e.kind === 'sports' ? '🏈' : '🎪'}</span><span class="t"><b>${esc(e.title)}</b><small>${esc(e.source || '')}${e.ongoing ? ' · ongoing' : ''}</small></span><span class="a">${e.today ? 'Today' : esc(e.when)}</span></a>`).join('')}</div>` : ''; }
       h = `<div class="lhead2"><div><b>${head[0]}</b><small>${head[1]}</small></div><button class="btn primary" data-new="${K}">${head[2]}</button></div>
         <button class="toggle" data-layer2="${S.tab}" aria-pressed="${S.layers[S.tab]}"><span class="k">Show on the map</span><span class="sw"></span></button>
-        ${K === 'W' ? `<div class="lsub">Out right now</div><div class="lseason">${seasonal().map(([ic, t, d], i) => `<div style="animation-delay:${i * 50}ms"><span>${ic}</span><b>${t}</b><small>${d}</small></div>`).join('')}</div>` : ''}
-        ${K === 'M' ? (() => { const t = et(); return t.m === 11 && t.d >= 21 && t.d <= 30 ? `<div class="lanniv">🕯️ <b>${t.d === 28 ? 'Ten years ago tonight' : t.d < 28 ? 'Ten years ago this week' : 'Ten years ago this week'}</b>, fire came down into Gatlinburg. <button class="lnk" data-memo="m1">Read and share your story</button></div>` : ''; })() : ''}
-        ${K === 'B' && items.length ? `<div class="lbf">${Object.entries(kd.cats).map(([k, d]) => [d, items.filter(x => x.cat === k).length]).filter(x => x[1]).map(([d, n]) => `<span>${d[1]} ${n} ${esc(d[0].toLowerCase())}</span>`).join('')}</div>` : ''}
-        <div class="lsub">${K === 'M' ? 'On the map' : 'Latest'}</div>
-        ${items.length ? `<div class="litems">${items.slice(0, 40).map((it, i) => `<button class="litem" data-item="${K}:${i}" style="animation-delay:${Math.min(i, 12) * 40}ms"><span class="e">${it.def[1]}</span><span class="t"><b>${esc(it.K === 'M' ? it.name : it.def[0] + (it.name ? ' · ' + it.name : ''))}</b><small>${esc((it.text || '').slice(0, 90))}${(it.text || '').length > 90 ? '…' : ''}</small></span><span class="a">${it.year ? esc(it.year) : it.t ? esc(agoShort(it.t)) : ''}</span>${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy">` : ''}</button>`).join('')}</div>`
-          : `<div class="lempty">${{ W: 'No sightings yet today. Be the first: what did you see?', M: '', B: 'No posts yet. Own a business here? Post a deal, your hours or a job.' }[K]}</div>`}
-        ${K === 'B' ? '<p class="fine">Business owners post for free. Featured spots on the map are coming for sponsors.</p>' : ''}`;
+        ${extra}
+        <div class="lsub">${K === 'M' ? 'On the map' : K === 'E' ? 'Posted by neighbors' : 'Latest'}</div>
+        ${list.length ? `<div class="litems">${list.slice(0, 40).map(row).join('')}</div>`
+          : `<div class="lempty">${{ W: 'No sightings yet today. Be the first: what did you see?', M: '', B: 'No posts yet. Own a business here? Post a deal, your hours or a job.', O: 'No outages reported right now. Lights out on your road? Let neighbors know.', P: 'No lost or found pets right now. Good news.', T: 'No trail reports in the last few days. Hiked today? Tell people how it was.', E: 'Nothing posted yet. Add a game, a church supper or a community event.' }[K]}</div>`}
+        ${K === 'B' ? '<p class="fine">Business owners post for free. Featured spots on the map are coming for sponsors. The locals check uses your location once, on this device; full verification comes with accounts.</p>' : ''}
+        ${K === 'O' ? '<p class="fine">From neighbor reports. Sevier County Electric\'s own outage feed isn\'t connected yet.</p>' : ''}`;
     }
     el.innerHTML = h;
     el.querySelectorAll('.ring .fg').forEach(c => requestAnimationFrame(() => requestAnimationFrame(() => c.style.strokeDashoffset = c.style.getPropertyValue('--to'))));
@@ -630,6 +737,8 @@
     if (d.preview != null || d.look != null) { const f = S.fog[0], o = f.looks[+(d.preview ?? d.look)]; previewSunrise(f, o); return; }
     if (d.go != null) { const w = S.worth[+d.go]; fly(w.D.ll, 13.2, 64); return; }
     if (d.lmode2 != null) { setLocalMode(!S.localMode); return; }
+    if (d.resident != null) { verifyResident(); return; }
+    if (d.goTab) { const tb = q(`#lhub [data-tab="${d.goTab}"]`); if (tb) tb.click(); return; }
     if (d.addp) { addPlace(d.addp); return; }
     if (d.delp != null) { S.places.splice(+d.delp, 1); savePlaces(); render(); return; }
     if (d.rad) { const [i, r] = d.rad.split(':'); S.places[+i].r = +r; savePlaces(); render(); return; }
@@ -637,8 +746,8 @@
     if (d.perm != null) { Notification.requestPermission().then(() => render()); return; }
     if (d.hit != null) { const x = S.hits[+d.hit]; if (x.ll) fly([x.ll.lng, x.ll.lat], 13.5, 55); return; }
     if (d.new) { compose(d.new); return; }
-    if (d.layer2) { const k = d.layer2; S.layers[k] = !S.layers[k]; pref.set('layers', S.layers); document.querySelectorAll(`[data-layer="${k}"]`).forEach(x => x.setAttribute('aria-pressed', S.layers[k])); b.setAttribute('aria-pressed', S.layers[k]); drawMarkers(); return; }
-    if (d.item) { const [K, i] = d.item.split(':'); const it = itemsOf(K)[+i]; showItem(it); fly([it.lng, it.lat], 14.5, 58); return; }
+    if (d.layer2) { const k = d.layer2; S.layers[k] = !S.layers[k]; pref.set('layers', S.layers); document.querySelectorAll('[data-allpins]').forEach(x => x.setAttribute('aria-pressed', Object.values(S.layers).some(Boolean))); b.setAttribute('aria-pressed', S.layers[k]); drawMarkers(); return; }
+    if (d.item) { const [K, i] = d.item.split(':'); const it = itemsOf(K)[+i]; if (it.K === 'B' && it.cat === 'local' && !isResident()) { verifyResident(); return; } showItem(it); fly([it.lng, it.lat], 14.5, 58); return; }
     if (d.memo) { const it = itemsOf('M').find(x => x.id === d.memo); if (it) { showItem(it); fly([it.lng, it.lat], 14, 60); } return; }
   }
   function savePlaces() { pref.set('places', S.places); loadPlaceWx().then(checkAlerts); }
@@ -681,9 +790,9 @@
   /* ---------- feed: friendly labels for these tags ---------- */
   function prettyTags(root) {
     (root || document).querySelectorAll('.ptag').forEach(t => {
-      const m = t.textContent.match(/^#([wmb]):(.+)$/i); if (!m || t.dataset.lp) return;
-      const K = m[1].toUpperCase(); let cat = m[2].toLowerCase(), label;
-      if (K === 'M') label = `📜 Memory · ${m[2]}`; else { if (cat.startsWith('open@')) cat = 'open'; const d = KIND[K].cats[cat]; if (!d) return; label = `${d[1]} ${d[0]}${K === 'W' ? ' sighting' : ''}`; }
+      const m = t.textContent.match(/^#([wmbote]):(.+)$/i); if (!m || t.dataset.lp) return;
+      const K = m[1].toUpperCase(); let cat = m[2].toLowerCase().split('@')[0], label;
+      if (K === 'M') label = `📜 Memory · ${m[2]}`; else { const d = KIND[K].cats[cat]; if (!d) return; label = `${d[1]} ${d[0]}${K === 'W' ? ' sighting' : K === 'T' ? ' on the trail' : ''}`; }
       t.textContent = label; t.dataset.lp = 1; t.classList.add('lptag');
     });
   }
@@ -709,7 +818,7 @@
   }
   function ready() { map = window.__smokies && window.__smokies.map; return map && map.getLayer && window.Live && Live.st && window.Social && q('#rail') && q('#tabbar'); } // the social shell is built once the map has loaded
   function boot() {
-    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'locals.css?v=1'; document.head.appendChild(css);
+    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'locals.css?v=2'; document.head.appendChild(css);
     const wait = setInterval(() => {
       if (!ready()) return; clearInterval(wait);
       shell(); setLocalMode(S.localMode, true); badge();
@@ -719,7 +828,8 @@
       // keep community pins and feed labels in step with the social layer
       const feed = q('#socialView'); if (feed) new MutationObserver(() => prettyTags(feed)).observe(feed, { childList: true, subtree: true });
       setInterval(() => { const n = ((Social.S.remote || []).length) + ((Social.S.posts || []).length); if (n !== S._n) { S._n = n; drawMarkers(); } }, 4000);
-      const hsh = decodeURIComponent(location.hash || ''); if (hsh.startsWith('#local')) openHub(hsh.split('=')[1] || 'sky');
+      const hsh = decodeURIComponent(location.hash || ''); if (hsh.startsWith('#local')) openHub(hsh.split('=')[1] || 'today');
+      else setTimeout(() => { const t = et(); if (t.h >= 5 && t.h < 11 && pref.get('briefDay', '') !== t.day && S.wx) { pref.set('briefDay', t.day); const f = S.fog && S.fog[0], c = S.flow && S.flow.clock && S.flow.clock.sg && S.flow.clock.sg[0]; banner('☀️', 'Your morning brief is ready', [S.wx ? `${Math.round(S.wx.gat.h.temperature_2m[S.wx.gat.h.time.indexOf(t.key)])}° in Gatlinburg` : '', c ? `Parkway ${c.min} min` : '', f ? `${pct(f.p)} valley fog` : ''].filter(Boolean).join(' · '), 'today'); } }, 6000);
     }, 400);
   }
   window.Locals = { S, openHub, closeHub, refresh, compose, setLocalMode, fogMorning, buildWorth };
