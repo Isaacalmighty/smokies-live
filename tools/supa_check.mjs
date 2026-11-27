@@ -33,6 +33,6 @@ for (const [fn, body] of [['send-push', { notification_id: 0 }]]) {
   const r = await fetch(`${URL_}/functions/v1/${fn}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   const t = (await r.text()).slice(0, 200); log(`${r.ok ? 'ON ' : 'OFF'}  function ${fn}   [${r.status} ${t}]`);
 }
-const nf = await fetch(`${URL_}/functions/v1/news`, { method: 'OPTIONS' }); log(`${nf.status === 404 ? 'OFF' : 'ON '}  function news (deployed?)   [${nf.status}]`);
+if (process.env.RUN_NEWS) { const nf = await fetch(`${URL_}/functions/v1/news`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); log(`function news run   [${nf.status}] ` + (await nf.text()).slice(0, 4000)); }
 const st = await fetch(`${URL_}/auth/v1/settings`, { headers: { apikey: KEY } }); log('auth settings: ' + (await st.text()).slice(0, 300));
 fs.writeFileSync(out + '/report.txt', lines.join('\n') + '\n');

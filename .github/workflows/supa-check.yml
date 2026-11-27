@@ -1,6 +1,10 @@
 name: Check Supabase setup
 on:
   workflow_dispatch:
+    inputs:
+      run_news:
+        description: Also run the news collector once and show its log
+        default: ''
 permissions:
   contents: write
 jobs:
@@ -15,6 +19,8 @@ jobs:
         with:
           node-version: 22
       - run: node tools/supa_check.mjs supa
+        env:
+          RUN_NEWS: ${{ inputs.run_news }}
       - name: Save the report to the feeds branch
         env:
           TOKEN: ${{ github.token }}
