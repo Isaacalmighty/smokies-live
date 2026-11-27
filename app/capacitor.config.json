@@ -1,0 +1,49 @@
+{
+  "appId": "net.offnon.smokieslive",
+  "appName": "Smokies Live",
+  "webDir": "www",
+  "server": {
+    "url": "https://isaacalmighty.github.io/smokies-live/",
+    "errorPath": "offline.html",
+    "allowNavigation": [
+      "isaacalmighty.github.io",
+      "*.supabase.co"
+    ]
+  },
+  "backgroundColor": "#0d1411",
+  "android": {
+    "allowMixedContent": false
+  },
+  "ios": {
+    "contentInset": "never",
+    "scrollEnabled": false,
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1800,
+      "launchAutoHide": false,
+      "backgroundColor": "#0d1411",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP",
+      "splashFullScreen": true,
+      "splashImmersive": false
+    },
+    "StatusBar": {
+      "overlaysWebView": true,
+      "style": "DARK",
+      "backgroundColor": "#00000000"
+    },
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    },
+    "Keyboard": {
+      "resize": "native"
+    }
+  },
+  "appendUserAgent": "SmokiesLiveApp/1.0"
+}

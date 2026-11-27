@@ -1,0 +1,69 @@
+name: Phone app builds
+# Builds the Capacitor shell in app/. Android: an installable test APK (attached to the
+# "android-latest" release on main, and as a run artifact on every build). iOS: a compile
+# check for the simulator (real iPhone builds need Isaac's Apple Developer account).
+on:
+  push:
+    paths: ['app/**', '.github/workflows/app.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: app-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults: { run: { working-directory: app } }
+    steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: app }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: app/package-lock.json }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21, cache: gradle }
+      - run: npm ci
+      - name: Turn on push if Firebase is set up
+        env: { GSJ: '${{ secrets.GOOGLE_SERVICES_JSON }}' }
+        run: |
+          if [ -n "$GSJ" ]; then
+            printf '%s' "$GSJ" > android/app/google-services.json
+            node -e "const f='capacitor.config.json',c=require('./'+f);c.appendUserAgent+=' SmokiesPush';require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+            echo "Push enabled"
+          else echo "No GOOGLE_SERVICES_JSON secret: building without push"; fi
+      - run: npx cap sync android
+      - name: Build APK
+        working-directory: app/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug -PversionCode=${{ github.run_number }}
+          cp app/build/outputs/apk/debug/app-debug.apk ../../SmokiesLive.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: SmokiesLive-android, path: SmokiesLive.apk, retention-days: 30 }
+      - name: Publish to the android-latest release
+        if: github.ref == 'refs/heads/main'
+        working-directory: .
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          gh release view android-latest -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create android-latest -R "$GITHUB_REPOSITORY" --prerelease --title "Smokies Live for Android (test build)" \
+              --notes "Open this page on an Android phone, tap SmokiesLive.apk, and allow installing from your browser. Rebuilt automatically whenever the app shell changes."
+          gh release upload android-latest SmokiesLive.apk --clobber -R "$GITHUB_REPOSITORY"
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 40
+    defaults: { run: { working-directory: app } }
+    steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: app }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: app/package-lock.json }
+      - name: Use the newest Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1); echo "$X"; sudo xcode-select -s "$X/Contents/Developer"; xcodebuild -version
+      - run: npm ci
+      - run: npx cap sync ios
+      - name: Compile for the simulator (no signing)
+        working-directory: app/ios/App
+        run: xcodebuild -project App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build | tail -40
