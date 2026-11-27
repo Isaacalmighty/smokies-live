@@ -8,7 +8,7 @@ const log = [];
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 for (const [tag, vp] of [['desktop', { width: 1440, height: 900 }], ['phone', { width: 390, height: 844, isMobile: true, hasTouch: true }]]) {
   const page = await browser.newPage({ viewport: { width: vp.width, height: vp.height }, isMobile: !!vp.isMobile, hasTouch: !!vp.hasTouch, deviceScaleFactor: 1 });
-  page.on('pageerror', e => log.push(`${tag} pageerror ${e.message}`));
+  page.on('pageerror', e => log.push(`${tag} pageerror ${e.message} @ ${(e.stack || '').split('\n').slice(1, 4).map(s => s.trim()).join(' | ').slice(0, 400)}`));
   page.on('console', m => { if (m.type() === 'error' || /\[live\]/.test(m.text())) log.push(`${tag} console ${m.type()} ${m.text().slice(0, 300)}`); });
   page.on('requestfailed', r => log.push(`${tag} failed ${r.url().slice(0, 160)} ${r.failure() && r.failure().errorText}`));
   const tt = {}; page.on('response', r => { if (r.url().includes('api.tomtom.com')) { const k = r.status(); tt[k] = (tt[k] || 0) + 1; } });

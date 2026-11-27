@@ -10,7 +10,7 @@
       "*.supabase.co"
     ]
   },
-  "backgroundColor": "#0d1411",
+  "backgroundColor": "#0e1612",
   "android": {
     "allowMixedContent": false
   },
@@ -23,7 +23,7 @@
     "SplashScreen": {
       "launchShowDuration": 1800,
       "launchAutoHide": false,
-      "backgroundColor": "#0d1411",
+      "backgroundColor": "#0e1612",
       "showSpinner": false,
       "androidScaleType": "CENTER_CROP",
       "splashFullScreen": true,
