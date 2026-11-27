@@ -335,6 +335,8 @@ const Live = (() => {
       this.puffs = P; this.n = P.length; this.dirty = true;
       const toVec = (mph, from) => { const ms = mph * 0.447 * 14 /* drift sped up 14x so motion reads */; const to = (from + 180) * RAD; return [Math.sin(to) * ms * mpu, -Math.cos(to) * ms * mpu]; };
       const dir = g.dir ?? 225; this.wind = [toVec(g.wind, dir), toVec(g.wind * 2.2, dir + 15), toVec(g.wind * 4, dir + 25)];
+      // phones: clouds hold still. A drift that redraws once a second reads as stutter, and a smooth one keeps the GPU busy nonstop
+      if (PHONE) this.wind = [[0, 0], [0, 0], [0, 0]];
       this.t0 = performance.now();
       if (map.getLayer(this.id)) map.triggerRepaint(); else if (st.on.clouds) addCloudLayer();
     },
@@ -388,7 +390,7 @@ const Live = (() => {
       for (let i = 0; i < 4; i++) Mm[12 + i] = M[i] * ox + M[4 + i] * oy + M[12 + i];
       const t = (performance.now() - this.t0) / 1000;
       const now = performance.now();
-      if (this.dirty || now - this.lastSort > (innerWidth < 760 ? 600 : 280)) { this.sort(Mm, t); this.lastSort = now; this.dirty = false; this.upload(gl); }
+      if (this.dirty || now - this.lastSort > (PHONE ? 450 : 280)) { this.sort(Mm, t); this.lastSort = now; this.dirty = false; this.upload(gl); }
       const norm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
       const right = norm([M[0], M[4], M[8]]), up = norm([M[1], M[5], M[9]]);
       gl.useProgram(this.prog);
@@ -410,7 +412,7 @@ const Live = (() => {
       gl.drawArrays(gl.TRIANGLES, 0, this.n * 6);
       gl.disableVertexAttribArray(this.loc.a_c); gl.disableVertexAttribArray(this.loc.a_q); gl.disableVertexAttribArray(this.loc.a_p);
       // gentle drift without burning the battery; no drift at all while the feed or another screen covers the map
-      if (!this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, innerWidth < 760 ? 900 : 66); // phones: slow drift so the GPU can rest and the phone stays cool
+      if (!PHONE && !this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, 66); // phones: no idle redraws at all (clouds hold still)
     },
     sort(Mm, t) {
       const P = this.puffs, dx = this.dom[0], dy = this.dom[1];
@@ -477,7 +479,7 @@ const Live = (() => {
       const p = this.prog = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
       this.loc = {}; ['u_m', 'u_half', 'u_bot', 'u_h', 'u_t', 'u_len', 'u_snow', 'u_slant', 'u_col', 'u_alpha'].forEach(k => this.loc[k] = gl.getUniformLocation(p, k));
       this.loc.a_s = gl.getAttribLocation(p, 'a_s'); this.loc.a_e = gl.getAttribLocation(p, 'a_e');
-      const N = this.n = innerWidth < 760 ? 5000 : 11000; const arr = new Float32Array(N * 2 * 5);
+      const N = this.n = PHONE ? 3500 : 11000; const arr = new Float32Array(N * 2 * 5);
       let sd = 11; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647; let o = 0;
       for (let i = 0; i < N; i++) { const x = r(), y = r(), ph = r(), sp = r(); for (let e = 0; e < 2; e++) { arr[o++] = x; arr[o++] = y; arr[o++] = ph; arr[o++] = sp; arr[o++] = e; } }
       this.buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.buf); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
@@ -510,7 +512,7 @@ const Live = (() => {
       const count = Math.round(this.n * Math.min(1, 0.42 + this.rate / 4));
       if (this.snow) gl.drawArrays(gl.POINTS, 0, count * 2); else gl.drawArrays(gl.LINES, 0, count * 2);
       gl.disableVertexAttribArray(this.loc.a_s); gl.disableVertexAttribArray(this.loc.a_e);
-      if (!this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, innerWidth < 760 ? 66 : 33);
+      if (!this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, 33); // rain falls at a steady 30 frames a second everywhere: 15 looked choppy
     },
   };
 
@@ -695,5 +697,5 @@ const Live = (() => {
     const b = document.querySelector(`[data-live="${k}"]`); if (b) b.setAttribute('aria-pressed', on);
     if (map) applyToggles(k);
   }
-  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render, refresh, setOn, setOpen: on => setOpen(on), icon, WMO, home: () => home, setHome(h) { home = h; try { localStorage.setItem('sl-home', JSON.stringify(h)); } catch (e) { } return loadWeather(); }, liveTraffic: () => !!TOMTOM };
+  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render, refresh, setOn, setOpen: on => setOpen(on), icon, WMO, home: () => home, setHome(h) { home = h; try { localStorage.setItem('sl-home', JSON.stringify(h)); } catch (e) { } return loadWeather(); }, liveTraffic: () => !!TOMTOM, ttKey: () => TOMTOM };
 })();
