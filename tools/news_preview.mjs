@@ -1,0 +1,34 @@
+// Phone screenshots of the news pieces with real stories and photos (runs in GitHub Actions on claude/* branches).
+// node tools/news_preview.mjs <news.json> <outdir>   (serves the repo root on port 8123)
+import { chromium } from 'playwright';
+import fs from 'fs'; import path from 'path'; import http from 'http';
+const [news, out] = process.argv.slice(2); fs.mkdirSync(out, { recursive: true });
+const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const types = { html: 'text/html', js: 'text/javascript', json: 'application/json', css: 'text/css', webmanifest: 'application/json', png: 'image/png', jpg: 'image/jpeg' };
+const srv = http.createServer((q, r) => { let p = path.join(ROOT, decodeURIComponent(q.url.split('?')[0])); if (p.endsWith('/')) p += 'index.html'; fs.readFile(p, (e, b) => { if (e) { r.writeHead(404); return r.end(); } r.writeHead(200, { 'content-type': types[p.split('.').pop()] || 'application/octet-stream' }); r.end(b); }); }).listen(8123);
+const log = [];
+const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+const page = await ctx.newPage();
+page.on('pageerror', e => log.push('pageerror ' + e.message));
+page.on('requestfailed', r => { if (/wsrv|news|image/i.test(r.url())) log.push('failed ' + r.url().slice(0, 160)); });
+await page.route(/\/feeds\/live\/news\.json/, r => r.fulfill({ path: news, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' } }));
+await page.addInitScript(() => { window.__noIntro = true; try { localStorage.setItem('sl-who', '"visitor"'); } catch (e) {} });
+await page.goto('http://localhost:8123/', { waitUntil: 'load', timeout: 90000 });
+await page.waitForFunction(() => window.Social && window.Live && Live.st.news.length > 0 && document.querySelector('#sv-feed'), null, { timeout: 90000 }).catch(() => log.push('never ready'));
+await page.addStyleTag({ content: '#loader{display:none!important}' });
+await page.evaluate(() => { if (window.UX) UX.closeSheet(); Social.setView('feed'); });
+const settle = async (ms = 2500) => { await page.waitForTimeout(ms); await page.evaluate(() => Promise.all([...document.images].filter(i => !i.complete && i.getBoundingClientRect().top < innerHeight).map(i => new Promise(r => { i.onload = i.onerror = r; setTimeout(r, 6000); })))); await page.waitForTimeout(900); };
+const shot = async n => { await settle(); await page.screenshot({ path: `${out}/${n}.jpg`, quality: 82 }); };
+const sv = js => page.evaluate(js);
+await sv(() => { const r = document.querySelector('.newspost .media') ? document.querySelector('.newspost .media').closest('.post') : document.querySelector('.newspost'); if (r) document.querySelector('#socialView').scrollTo(0, r.offsetTop - 56); }); await shot('1-feed-story');
+await sv(() => { const r = document.querySelector('.nrail'); if (r) document.querySelector('#socialView').scrollTo(0, r.offsetTop - 56); }); await shot('2-top-stories');
+await sv(() => document.querySelector('#fchips [data-f="news"]').click()); await shot('3-local-news');
+await sv(() => document.querySelector('#socialView').scrollBy(0, 640)); await shot('4-local-news-more');
+await sv(() => { const s = document.querySelectorAll('.nsec')[1] || document.querySelector('.nsec'); if (s) document.querySelector('#socialView').scrollTo(0, s.offsetTop - 56); }); await shot('5-sections');
+await sv(() => document.querySelector('.nhero [data-act="read"]').click()); await shot('6-story-page');
+await sv(() => document.querySelector('.nvscroll').scrollBy(0, 560)); await shot('7-story-page-more');
+const st = await sv(() => ({ stories: Live.st.news.length, withImg: Live.st.news.filter(n => n.img).length, imgsLoaded: [...document.images].filter(i => i.src.includes('wsrv') && i.naturalWidth).length }));
+log.push(JSON.stringify(st));
+fs.writeFileSync(`${out}/log.txt`, log.join('\n') + '\n'); console.log(log.join('\n'));
+await b.close(); srv.close();

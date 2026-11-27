@@ -131,7 +131,7 @@ export async function gnResolve(link: string) {
 // what the story is about, for the section labels in the app
 const CATS: [string, RegExp][] = [
   ['Sports', /\b(football|basketball|baseball|softball|soccer|volleyball|wrestling|playoffs?|semifinals?|quarterfinals?|championship|coach|Vols\b|tournament|Lady \w+s\b|Bulldogs|Bears\b|Cougars|Smoky Bears|season opener|scores?\b)/i],
-  ['Safety', /\b(police|sheriff|deput|arrest|charged|indict|shooting|stabb|murder|homicide|missing|rescued?|search(ed|ing)? for|jury|trial|sentenc|pleads?|guilty|convicted|crime|suspect|investigat|firefighters? (are|battl)|brush fire|house fire|structure fire|blaze|acres|contained|burn ban|evacuat|fatal|killed in|dies after|died after)/i],
+  ['Safety', /\b(police|sheriff|deput|arrest|charged|indict|shooting|stabb|murder|homicide|missing|rescued?|search(ed|ing)? for|jury|trial|sentenc|pleads?|guilty|convicted|crime|suspect|investigat|firefighters? (are|battl)|brush fire|house fire|structure fire|blaze|acres|contained|burn ban|burn permits?|fire danger|evacuat|fatal|killed in|dies after|died after)/i],
   ['Weather', /\b(weather|forecast|storms?\b|snow|icy|freezing rain|flood|tornado|freeze|frost|heat wave|wind (advisory|gusts)|NWS|winter storm)/i],
   ['Roads', /\b(road|crash|wreck|closures?|lanes?\b|traffic|I-40|I-75|interstate|highway|parkway|spur\b|TDOT|detour|construction|bridge|US-?441|paving)/i],
   ['Outdoors', /\b(national park|Smokies|Great Smoky|NPS\b|trails?\b|hik(e|ing|ers?)|bears?\b|elk\b|wildlife|Cades Cove|rangers?\b|Clingmans|campgrounds?|waterfalls?|fishing|mushrooms?|fall colou?rs?|backcountry|Appalachian Trail)/i],
