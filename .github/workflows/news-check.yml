@@ -1,0 +1,20 @@
+name: News collector dry run
+# Runs the Supabase "news" function's collector against the live feeds without writing anything,
+# so changes to it can be checked before redeploying.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['supabase/functions/news/**']
+permissions:
+  contents: read
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.1.x
+      - run: deno run --allow-net --allow-env --allow-read supabase/functions/news/index.ts --dry

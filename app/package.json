@@ -4,7 +4,7 @@
   "private": true,
   "description": "Native iOS and Android shell for Smokies Live (Capacitor). The app content is the live site.",
   "scripts": {
-    "icons": "node scripts/make-assets.mjs && capacitor-assets generate --android --ios --iconBackgroundColor '#0d1411' --iconBackgroundColorDark '#0d1411' --splashBackgroundColor '#0d1411' --splashBackgroundColorDark '#0d1411'",
+    "icons": "node scripts/make-assets.mjs && capacitor-assets generate --android --ios --iconBackgroundColor '#1f3431' --iconBackgroundColorDark '#1f3431' --splashBackgroundColor '#0e1612' --splashBackgroundColorDark '#0e1612'",
     "sync": "cap sync",
     "android:apk": "cap sync android && cd android && ./gradlew assembleDebug"
   },
