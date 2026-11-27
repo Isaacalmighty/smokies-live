@@ -116,4 +116,10 @@ body.sl-revealed :is(#brand,#search,#rail,#tours,#season,#mobileBar,#tabbar){ani
 }
 
 /* phones: the radar time chip sits just above the season panel so it never covers the header */
-@media (max-width:760px){#radarStamp{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 232px)}}
+@media (max-width:760px){#radarStamp{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 196px)}}
+
+/* season follows the real date (no slider): a quiet caption above the time of day */
+#season .top{margin-bottom:6px;align-items:center}
+#seasonName{font-size:15px!important;display:flex;align-items:center;gap:7px}
+#seasonName::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 25%,transparent)}
+#seasonDate{font-size:10.5px!important;color:var(--ink-faint)!important}
