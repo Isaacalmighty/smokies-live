@@ -326,7 +326,7 @@ const Social = (() => {
     });
   }
   function setView(v) {
-    S.view = v; document.body.dataset.view = v;
+    S.view = v; document.body.dataset.view = v; if (window.UX) UX.closeSheet();
     document.querySelectorAll('#tabbar button').forEach(b => b.toggleAttribute('aria-current', b.dataset.v === v));
     const sv = $('#socialView');
     if (v === 'map') { sv.classList.add('out'); setTimeout(() => { if (S.view === 'map') { sv.hidden = true; sv.classList.remove('out'); } }, 300); return; }

@@ -158,7 +158,7 @@ const UX = (() => {
   function urgent() {
     const L = window.Live && Live.st; if (!L) return '';
     const out = [];
-    (L.alerts || []).forEach((a, i) => out.push(`<button class="uxalert" data-alert="${i}"><span>⚠️</span><div><b>${esc(a.event)}</b><small>${esc((a.headline || a.description || '').replace(/^\*\s*/, '').slice(0, 140))}</small></div></button>`));
+    (L.alerts || []).forEach((a, i) => out.push(`<button class="uxalert" data-alert="${i}"><span>⚠️</span><div><b>${esc(a.event)}</b><small>${esc((a.description || a.headline || '').replace(/^\*\s*/, '').replace(/\s*\*\s*/g, ' · '))}</small></div></button>`));
     if ((L.fires || []).length) out.push(`<button class="uxalert fire" data-fly="fire"><span>🔥</span><div><b>${L.fires.length} fire${L.fires.length > 1 ? 's' : ''} spotted by satellite</b><small>Heat detections in the last 24 hours. Tap to see where.</small></div></button>`);
     const closed = (L.traffic.incidents || []).filter(n => /clos/i.test(n.title + ' ' + (n.desc || '')));
     if (closed.length) out.push(`<button class="uxalert road" data-fly="closed"><span>🚧</span><div><b>${closed.length === 1 ? esc(closed[0].title) : closed.length + ' roads closed'}</b><small>${closed.slice(closed.length === 1 ? 0 : 0, 3).map(n => esc(closed.length === 1 ? (n.desc || '').slice(0, 120) : n.title)).join(' · ')}</small></div></button>`);
@@ -180,7 +180,7 @@ const UX = (() => {
   const L$ = (tab) => { try { return window.Locals ? Locals.section(tab) : ''; } catch (e) { console.warn('[ux] section', tab, e); return ''; } };
   function worthTop(n) { // the best few places to go right now, closed ones last
     const h = L$('go'); if (!h || !/lcardg/.test(h)) return h;
-    const W = (Locals.S.worth || []).map((w, i) => ({ i, s: w.now.shut ? -1 : w.now.s })).sort((a, b) => b.s - a.s).slice(0, n).map(x => x.i);
+    const W = (Locals.S.worth || []).map((w, i) => ({ i, s: w.now.shut ? -1 : w.now.s })).filter(x => x.s >= 0).sort((a, b) => b.s - a.s).slice(0, n).map(x => x.i);
     const box = document.createElement('div'); box.innerHTML = h; const g = box.querySelector('.lgo');
     const cards = [...box.querySelectorAll('.lcardg')]; cards.forEach(c => c.remove());
     W.forEach((i, j) => { const c = cards.find(x => +x.dataset.go === i); if (c) { c.style.animationDelay = j * 70 + 'ms'; g.appendChild(c); } });
@@ -257,7 +257,7 @@ const UX = (() => {
     if (d.tour != null) { toView('map'); setTimeout(() => $('#grand').click(), 200); return; }
     if (d.install != null) { Social.install(); return; }
     if (d.about != null) { $('#aboutBtn').click(); return; }
-    if (d.alert != null) { toView('map'); setTimeout(() => { Live.setOpen(true); }, 200); return; }
+    if (d.alert != null) { b.classList.toggle('open'); return; }
     if (d.fly) { toView('map'); const L = Live.st, m = window.__smokies.map; const pts = d.fly === 'fire' ? L.fires : L.traffic.incidents.filter(n => /clos/i.test(n.title + ' ' + (n.desc || ''))); if (pts.length && m) { const xs = pts.map(p => p.lng), ys = pts.map(p => p.lat); setTimeout(() => m.fitBounds([[Math.min(...xs) - .03, Math.min(...ys) - .03], [Math.max(...xs) + .03, Math.max(...ys) + .03]], { padding: 80, pitch: 55, duration: 2200, maxZoom: 13 }), 250); } return; }
     if (window.Locals && (d.go != null || d.preview != null || d.look != null || d.seat != null || d.item || d.hit != null || d.memo)) { toView('map'); setTimeout(() => Locals.onBody(e), 200); return; }
     if (d.goTab && window.Locals) { toView('map'); setTimeout(() => Locals.openHub(d.goTab), 120); }

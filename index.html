@@ -987,9 +987,10 @@ body:not([data-view="map"]) #uxshow,body.picking #uxshow{opacity:0;pointer-event
 .uxmore{border:0;background:none;color:var(--ember);font:600 13px var(--font-body);letter-spacing:0;text-transform:none;cursor:pointer;padding:0}
 .uxlink{border:0;background:none;color:var(--ember);font:600 13px var(--font-body);cursor:pointer;padding:0}
 .uxalert{display:flex;gap:12px;align-items:flex-start;width:100%;padding:12px 14px;margin-bottom:8px;border-radius:14px;border:1px solid rgba(255,106,77,.45);background:linear-gradient(90deg,rgba(255,106,77,.2),rgba(255,106,77,.06));color:var(--ink);text-align:left;cursor:pointer}
+.uxalert.open small{-webkit-line-clamp:unset;display:block}
 .uxalert>span{font-size:20px}
 .uxalert b{display:block;font-size:15px}
-.uxalert small{display:block;color:var(--ink-dim);font-size:12.5px;line-height:1.35;margin-top:2px}
+.uxalert small{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink-dim);font-size:12.5px;line-height:1.35;margin-top:2px}
 .uxwx{font-family:var(--font-body);margin-top:14px;padding:16px;border-radius:20px;background:linear-gradient(160deg,rgba(120,160,190,.18),rgba(255,255,255,.04));border:1px solid var(--line)}
 .uxwx.loading{display:flex;align-items:center;gap:12px;color:var(--ink-dim)}
 .uxwx .big{display:flex;align-items:center;gap:14px}
@@ -3168,7 +3169,7 @@ const Social = (() => {
     });
   }
   function setView(v) {
-    S.view = v; document.body.dataset.view = v;
+    S.view = v; document.body.dataset.view = v; if (window.UX) UX.closeSheet();
     document.querySelectorAll('#tabbar button').forEach(b => b.toggleAttribute('aria-current', b.dataset.v === v));
     const sv = $('#socialView');
     if (v === 'map') { sv.classList.add('out'); setTimeout(() => { if (S.view === 'map') { sv.hidden = true; sv.classList.remove('out'); } }, 300); return; }
@@ -3886,7 +3887,7 @@ const UX = (() => {
   function urgent() {
     const L = window.Live && Live.st; if (!L) return '';
     const out = [];
-    (L.alerts || []).forEach((a, i) => out.push(`<button class="uxalert" data-alert="${i}"><span>⚠️</span><div><b>${esc(a.event)}</b><small>${esc((a.headline || a.description || '').replace(/^\*\s*/, '').slice(0, 140))}</small></div></button>`));
+    (L.alerts || []).forEach((a, i) => out.push(`<button class="uxalert" data-alert="${i}"><span>⚠️</span><div><b>${esc(a.event)}</b><small>${esc((a.description || a.headline || '').replace(/^\*\s*/, '').replace(/\s*\*\s*/g, ' · '))}</small></div></button>`));
     if ((L.fires || []).length) out.push(`<button class="uxalert fire" data-fly="fire"><span>🔥</span><div><b>${L.fires.length} fire${L.fires.length > 1 ? 's' : ''} spotted by satellite</b><small>Heat detections in the last 24 hours. Tap to see where.</small></div></button>`);
     const closed = (L.traffic.incidents || []).filter(n => /clos/i.test(n.title + ' ' + (n.desc || '')));
     if (closed.length) out.push(`<button class="uxalert road" data-fly="closed"><span>🚧</span><div><b>${closed.length === 1 ? esc(closed[0].title) : closed.length + ' roads closed'}</b><small>${closed.slice(closed.length === 1 ? 0 : 0, 3).map(n => esc(closed.length === 1 ? (n.desc || '').slice(0, 120) : n.title)).join(' · ')}</small></div></button>`);
@@ -3908,7 +3909,7 @@ const UX = (() => {
   const L$ = (tab) => { try { return window.Locals ? Locals.section(tab) : ''; } catch (e) { console.warn('[ux] section', tab, e); return ''; } };
   function worthTop(n) { // the best few places to go right now, closed ones last
     const h = L$('go'); if (!h || !/lcardg/.test(h)) return h;
-    const W = (Locals.S.worth || []).map((w, i) => ({ i, s: w.now.shut ? -1 : w.now.s })).sort((a, b) => b.s - a.s).slice(0, n).map(x => x.i);
+    const W = (Locals.S.worth || []).map((w, i) => ({ i, s: w.now.shut ? -1 : w.now.s })).filter(x => x.s >= 0).sort((a, b) => b.s - a.s).slice(0, n).map(x => x.i);
     const box = document.createElement('div'); box.innerHTML = h; const g = box.querySelector('.lgo');
     const cards = [...box.querySelectorAll('.lcardg')]; cards.forEach(c => c.remove());
     W.forEach((i, j) => { const c = cards.find(x => +x.dataset.go === i); if (c) { c.style.animationDelay = j * 70 + 'ms'; g.appendChild(c); } });
@@ -3985,7 +3986,7 @@ const UX = (() => {
     if (d.tour != null) { toView('map'); setTimeout(() => $('#grand').click(), 200); return; }
     if (d.install != null) { Social.install(); return; }
     if (d.about != null) { $('#aboutBtn').click(); return; }
-    if (d.alert != null) { toView('map'); setTimeout(() => { Live.setOpen(true); }, 200); return; }
+    if (d.alert != null) { b.classList.toggle('open'); return; }
     if (d.fly) { toView('map'); const L = Live.st, m = window.__smokies.map; const pts = d.fly === 'fire' ? L.fires : L.traffic.incidents.filter(n => /clos/i.test(n.title + ' ' + (n.desc || ''))); if (pts.length && m) { const xs = pts.map(p => p.lng), ys = pts.map(p => p.lat); setTimeout(() => m.fitBounds([[Math.min(...xs) - .03, Math.min(...ys) - .03], [Math.max(...xs) + .03, Math.max(...ys) + .03]], { padding: 80, pitch: 55, duration: 2200, maxZoom: 13 }), 250); } return; }
     if (window.Locals && (d.go != null || d.preview != null || d.look != null || d.seat != null || d.item || d.hit != null || d.memo)) { toView('map'); setTimeout(() => Locals.onBody(e), 200); return; }
     if (d.goTab && window.Locals) { toView('map'); setTimeout(() => Locals.openHub(d.goTab), 120); }

@@ -93,9 +93,10 @@ body:not([data-view="map"]) #uxshow,body.picking #uxshow{opacity:0;pointer-event
 .uxmore{border:0;background:none;color:var(--ember);font:600 13px var(--font-body);letter-spacing:0;text-transform:none;cursor:pointer;padding:0}
 .uxlink{border:0;background:none;color:var(--ember);font:600 13px var(--font-body);cursor:pointer;padding:0}
 .uxalert{display:flex;gap:12px;align-items:flex-start;width:100%;padding:12px 14px;margin-bottom:8px;border-radius:14px;border:1px solid rgba(255,106,77,.45);background:linear-gradient(90deg,rgba(255,106,77,.2),rgba(255,106,77,.06));color:var(--ink);text-align:left;cursor:pointer}
+.uxalert.open small{-webkit-line-clamp:unset;display:block}
 .uxalert>span{font-size:20px}
 .uxalert b{display:block;font-size:15px}
-.uxalert small{display:block;color:var(--ink-dim);font-size:12.5px;line-height:1.35;margin-top:2px}
+.uxalert small{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink-dim);font-size:12.5px;line-height:1.35;margin-top:2px}
 .uxwx{font-family:var(--font-body);margin-top:14px;padding:16px;border-radius:20px;background:linear-gradient(160deg,rgba(120,160,190,.18),rgba(255,255,255,.04));border:1px solid var(--line)}
 .uxwx.loading{display:flex;align-items:center;gap:12px;color:var(--ink-dim)}
 .uxwx .big{display:flex;align-items:center;gap:14px}
