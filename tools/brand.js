@@ -124,8 +124,8 @@ ${ring ? `<circle class="rim" cx="50" cy="50" r="44" fill="none" stroke="#2f4a46
       const map = window.__smokies && window.__smokies.map; if (!map || !map.setPixelRatio) return;
       clearInterval(wait);
       const dpr = devicePixelRatio || 1, phone = matchMedia('(pointer:coarse)').matches;
-      // text turns soft below 1.5x on phone screens, so phones stay between 1.5x and 2x
-      const cap = Math.min(dpr, phone ? 2 : 2.5), floor = Math.min(dpr, phone ? 1.5 : 1);
+      // text turns soft below 1.5x on phone screens; labels are drawn larger on phones to match
+      const cap = Math.min(dpr, phone ? 1.6 : 2.5), floor = Math.min(dpr, phone ? 1.5 : 1); // phones: a fixed, sharp-enough 1.5x (a 3x phone at 2x draws 78% more pixels)
       let pr = Math.min(map.getPixelRatio(), cap); map.setPixelRatio(pr);
       let last = 0, frames = [], moving = false, calm = 0, want = pr;
       map.on('movestart', () => { moving = true; });

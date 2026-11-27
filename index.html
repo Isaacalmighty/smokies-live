@@ -1286,8 +1286,8 @@ ${ring ? `<circle class="rim" cx="50" cy="50" r="44" fill="none" stroke="#2f4a46
       const map = window.__smokies && window.__smokies.map; if (!map || !map.setPixelRatio) return;
       clearInterval(wait);
       const dpr = devicePixelRatio || 1, phone = matchMedia('(pointer:coarse)').matches;
-      // text turns soft below 1.5x on phone screens, so phones stay between 1.5x and 2x
-      const cap = Math.min(dpr, phone ? 2 : 2.5), floor = Math.min(dpr, phone ? 1.5 : 1);
+      // text turns soft below 1.5x on phone screens; labels are drawn larger on phones to match
+      const cap = Math.min(dpr, phone ? 1.6 : 2.5), floor = Math.min(dpr, phone ? 1.5 : 1); // phones: a fixed, sharp-enough 1.5x (a 3x phone at 2x draws 78% more pixels)
       let pr = Math.min(map.getPixelRatio(), cap); map.setPixelRatio(pr);
       let last = 0, frames = [], moving = false, calm = 0, want = pr;
       map.on('movestart', () => { moving = true; });
@@ -1880,7 +1880,7 @@ function updateSkyUI() {
 const starField = (() => { let s = 11; const r = () => (s = (s * 16807) % 2147483647) / 2147483647; return Array.from({ length: 900 }, () => ({ az: r() * 360, alt: Math.asin(r()) / RAD, m: r() })); })();
 function drawSkyCanvas() {
   const c = $('#stars'); if (!c || !map) return;
-  const d = Math.min(devicePixelRatio || 1, 2), W = innerWidth, H = innerHeight;
+  const d = Math.min(devicePixelRatio || 1, innerWidth < 760 ? 1 : 2), W = innerWidth, H = innerHeight; // stars are dots: 1x is plenty on phones
   if (c.width !== W * d) { c.width = W * d; c.height = H * d; c.style.width = W + 'px'; c.style.height = H + 'px'; }
   const g = c.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, W, H);
   if (!sky.sun) return;
@@ -2631,7 +2631,7 @@ const Live = (() => {
       gl.drawArrays(gl.TRIANGLES, 0, this.n * 6);
       gl.disableVertexAttribArray(this.loc.a_c); gl.disableVertexAttribArray(this.loc.a_q); gl.disableVertexAttribArray(this.loc.a_p);
       // gentle drift without burning the battery; no drift at all while the feed or another screen covers the map
-      if (!this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, innerWidth < 760 ? 200 : 66);
+      if (!this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, innerWidth < 760 ? 900 : 66); // phones: slow drift so the GPU can rest and the phone stays cool
     },
     sort(Mm, t) {
       const P = this.puffs, dx = this.dom[0], dy = this.dom[1];
@@ -4387,6 +4387,17 @@ const UX = (() => {
     if (store.get('homeSet', false) || !navigator.permissions || !navigator.geolocation) return;
     navigator.permissions.query({ name: 'geolocation' }).then(r => { if (r.state === 'granted') navigator.geolocation.getCurrentPosition(p => setHome(nearestTown(p.coords.latitude, p.coords.longitude), true), () => { }, { timeout: 10000, maximumAge: 600000 }); }).catch(() => { });
   }
+  function phoneMap() { // phones: bigger labels, a lower top pitch (fewer far-off tiles), 3D buildings only up close
+    if (!matchMedia('(max-width:760px)').matches) return;
+    const m = window.__smokies.map;
+    try {
+      m.setMaxPitch(72);
+      if (m.getLayer('buildings')) m.setLayerZoomRange('buildings', 13.5, 24);
+      ['lbl-water', 'lbl-road', 'lbl-trail', 'lbl-poi', 'lbl-waterfall'].forEach(id => { if (!m.getLayer(id)) return; const v = m.getLayoutProperty(id, 'text-size'); if (typeof v === 'number') m.setLayoutProperty(id, 'text-size', +(v * 1.2).toFixed(1)); });
+      if (m.getLayer('lbl-peak')) m.setLayoutProperty('lbl-peak', 'text-size', ['interpolate', ['linear'], ['zoom'], 9, 13.5, 14, 16.5]);
+      if (m.getLayer('lbl-place')) { const v = m.getLayoutProperty('lbl-place', 'text-size'); if (v) m.setLayoutProperty('lbl-place', 'text-size', ['*', 1.18, v]); }
+    } catch (e) { console.warn('[ux] phone map', e); }
+  }
   function tabh() { const t = $('#tabbar'); if (!t) return; const r = t.getBoundingClientRect(); const h = r.top > innerHeight / 2 ? Math.max(0, innerHeight - r.top) : 0; document.body.style.setProperty('--tabh', h + 'px'); }
   function toast(msg) { const t = $('#toast'); if (!t) return; t.textContent = msg; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 3000); }
 
@@ -4418,6 +4429,7 @@ const UX = (() => {
     const ab = $('#alertBar'); if (ab) ab.addEventListener('click', e => { e.stopImmediatePropagation(); toView('today'); }, true);
     ['#sv-today', '#sv-more'].forEach(s => { const el = $(s); if (el) el.addEventListener('click', onPane); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+    phoneMap();
     searchHelp(); tabh(); addEventListener('resize', tabh); setTimeout(tabh, 1500); setInterval(tabh, 5000); quietHome();
     // apply what this person chose last time (or the clean defaults)
     const w = want(); ALL.forEach(([k, , , , io]) => { if (io.get() !== w[k]) try { io.set(w[k]); } catch (e) { } });
