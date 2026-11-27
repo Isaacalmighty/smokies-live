@@ -50,7 +50,8 @@ for r in pq.read_table(sys.argv[1]).to_pylist():
     g = shapely.wkb.loads(r['geometry'])
     rows.append(dict(closed=r.get('operating_status') == 'permanently_closed', id=r['id'], name=n, n=norm(n), xy=(g.x, g.y), conf=r['confidence'] or 0, cat=r['basic_category'],
                      addr=street(r), web={domain(w) for w in (r['websites'] or []) if domain(w)},
-                     fb={s for s in (r['socials'] or []) if 'facebook' in s}))
+                     fb={s for s in (r['socials'] or []) if 'facebook' in s},
+                     src={x['dataset'] for x in r['sources']} - {'Overture', 'Overture-signals'}))
 
 drop = {}   # id -> reason
 rename = {}  # id -> new name
@@ -121,6 +122,24 @@ for k, g in groups.items():
     for r in g:
         if r is not best and km(r['xy'], best['xy']) > 0.15:
             drop[r['id']] = f"duplicate of '{best['name']}' {km(r['xy'], best['xy']):.1f} km away"
+
+# 4. old tenant names: a record that only Foursquare still lists, at the same street address,
+# with the same website and the same kind of business as a record other sources confirm, is the
+# old name of that business (e.g. "The Village Antique & Home Decor Mall", now Green Olde Deal
+# Antique Mall at 1442 Winfield Dunn Pkwy). Offices of several people (doctors, agents, churches
+# sharing a building) are left alone.
+PEOPLE = re.compile(r'financial|real_estate|health|clinic|medical|dental|doctor|diagnostic|pediatric|worship|church|attorney|insurance')
+# a website shared by many records is a big venue or an agency (casino, park, city): its records are separate places
+web_count = collections.Counter(w for r in rows for w in r['web'])
+at = collections.defaultdict(list)
+for r in rows:
+    if r['addr'] and r['id'] not in drop: at[norm(r['addr'])].append(r)
+for g in at.values():
+    for x in g:
+        if x['src'] != {'Foursquare'} or not x['cat'] or PEOPLE.search(x['cat']): continue
+        for y in g:
+            if y is x or y['id'] in drop or y['src'] <= {'Foursquare'} or y['cat'] != x['cat'] or y['n'] == x['n']: continue
+            if {w for w in x['web'] & y['web'] if web_count[w] <= 3}: drop[x['id']] = f"old name of '{y['name']}' (same address and website)"; break
 
 def home_kind(n):
     n = n.lower()
