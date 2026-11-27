@@ -9,7 +9,7 @@ const Live = (() => {
   const SITE = 'https://isaacalmighty.github.io/smokies-live/';
   // TomTom key for real traffic speeds (free plan; a browser key, like a map key). Empty = modeled traffic.
   const TOMTOM = 'j81wnoR8SajwacDSKgn20e1SNEzZzf1r';
-  const st = { blocked: false, wx: null, grid: null, alerts: [], news: [], events: [], traffic: { incidents: [], cameras: [] }, gauges: [], fires: [], radar: null, iss: null, tab: 'now', markers: {}, on: { clouds: true, radar: false, traffic: true, cams: true, news: true, rivers: true }, updated: {} };
+  const st = { blocked: false, wx: null, grid: null, alerts: [], news: [], events: [], traffic: { incidents: [], cameras: [] }, gauges: [], fires: [], radar: null, iss: null, tab: 'now', markers: {}, on: { clouds: true, radar: false, traffic: false, cams: false, news: false, rivers: false }, updated: {} };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ago = iso => { if (!iso) return ''; const s = (Date.now() - new Date(iso)) / 1000; if (s < 0) return new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }); if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' hr ago'; return Math.round(s / 86400) + ' d ago'; };
   async function jget(url, ms = 15000) {
@@ -187,10 +187,13 @@ const Live = (() => {
         st.markers.news.push(m);
       });
     }
-    if (st.on.traffic) st.traffic.incidents.forEach((n, i) => st.markers.traffic.push(pin('traffic', n.lng, n.lat, i, /clos/i.test(n.title + n.desc))));
+    // urgent things stay on the map even when their layer is off: road closures and active fires
+    const closed = n => /clos/i.test(n.title + ' ' + (n.desc || ''));
+    st.traffic.incidents.forEach((n, i) => { if (st.on.traffic || closed(n)) st.markers.traffic.push(pin('traffic', n.lng, n.lat, i, closed(n))); });
     if (st.on.cams) st.traffic.cameras.forEach((c, i) => st.markers.cams.push(pin('cam', c.lng, c.lat, i, c.live || c.still)));
     requestAnimationFrame(declutter);
-    if (st.on.rivers) { st.gauges.forEach((g, i) => st.markers.rivers.push(pin('gauge', g.lng, g.lat, i, trend(g.cfs24).includes('rising')))); st.fires.forEach((f, i) => st.markers.rivers.push(pin('fire', f.lng, f.lat, i, true))); }
+    if (st.on.rivers) st.gauges.forEach((g, i) => st.markers.rivers.push(pin('gauge', g.lng, g.lat, i, trend(g.cfs24).includes('rising'))));
+    st.fires.forEach((f, i) => st.markers.rivers.push(pin('fire', f.lng, f.lat, i, true)));
   }
   function showPlace(g) { // tapping a busy town lists everything there
     st.filter = g.place.name; st.tab = 'news';
@@ -684,5 +687,11 @@ const Live = (() => {
     setInterval(() => { if (st.tab === 'cams' && $('#live').classList.contains('open')) document.querySelectorAll('#lview .li[data-k="cam"]').forEach(el => { const c = st.traffic.cameras[+el.dataset.i]; const im = el.querySelector('img'); if (c && c.still && im) im.src = camSrc(c); }); }, 300e3);
   }
   const refresh = () => Promise.all([refreshFast(), refreshSlow()]);
-  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render, refresh, liveTraffic: () => !!TOMTOM };
+  // the simple "Show on map" sheet drives layers through this, and the old rail toggles stay in step
+  function setOn(k, on) {
+    if (!(k in st.on) || st.on[k] === on) return; st.on[k] = on; if (k === 'radar') st.radarTouched = true;
+    const b = document.querySelector(`[data-live="${k}"]`); if (b) b.setAttribute('aria-pressed', on);
+    if (map) applyToggles(k);
+  }
+  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render, refresh, setOn, setOpen: on => setOpen(on), icon, WMO, liveTraffic: () => !!TOMTOM };
 })();

@@ -1,0 +1,172 @@
+/* ---------- UX shell: clean map, one Show-on-map button, Today, Share, More ---------- */
+/* the old chrome steps away; its buttons stay in the page so the code that drives the map keeps working */
+body.ux :is(#rail,#tours,#season,#mobileBar,#sldock,#brand,#lfab){display:none!important}
+body.ux #liveBody,body.ux #live .chev{display:none!important}
+body.ux #live{width:auto!important;max-width:min(360px,calc(100vw - 32px));top:calc(env(safe-area-inset-top,0px) + 14px)!important}
+body.ux #liveChip{padding:8px 14px 8px 10px;gap:8px}
+body.ux #liveChip #wxIcon{width:30px;height:30px}
+body.ux #wxDesc{font-size:12.5px;line-height:1.25}
+body.ux #wxDesc br,body.ux #wxDesc br ~ *{display:none}
+body.ux #credits{opacity:.65}
+body.ux #lhub{z-index:13}
+
+#uxshow{position:fixed;z-index:6;display:flex;align-items:center;gap:8px;height:46px;padding:0 16px 0 14px;border-radius:23px;color:var(--ink);font:600 15px var(--font-body);cursor:pointer;
+  top:calc(env(safe-area-inset-top,0px) + 14px);right:calc(max(16px,env(safe-area-inset-right,0px)) + 312px);transition:transform .45s var(--spring,var(--ease-out)),opacity .25s}
+#uxshow svg{color:var(--ember)}
+#uxshow .n{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--ember);color:#1a120a;font-size:12px;display:grid;place-items:center;animation:uxpop .45s var(--spring,var(--ease-out))}
+#uxshow:active{transform:scale(.94)}
+body.ux-sheet-show #uxshow{background:rgba(240,163,94,.18);border-color:rgba(240,163,94,.5)}
+body:not([data-view="map"]) #uxshow,body.picking #uxshow{opacity:0;pointer-events:none}
+
+/* the sheet */
+#uxscrim{position:fixed;inset:0;z-index:14;background:rgba(0,0,0,.42);animation:uxfade .25s both}
+#uxscrim.out{animation:uxfade .25s reverse both}
+@media (min-width:761px){body.ux-sheet-show #uxscrim{background:transparent}}
+#uxsheet{position:fixed;z-index:15;overflow-y:auto;overscroll-behavior:contain;background:var(--glass-strong,rgba(10,17,15,.94));padding:6px 16px 18px;color:var(--ink)}
+#uxsheet .grab{width:38px;height:5px;border-radius:3px;background:rgba(255,255,255,.22);margin:4px auto 6px}
+@media (min-width:761px){
+  #uxsheet{right:max(16px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 70px);width:380px;max-height:calc(100vh - 90px);border-radius:18px;transform-origin:85% 0;animation:uxdrop .45s var(--spring,var(--ease-out)) both}
+  #uxsheet .grab{display:none}
+  #uxsheet[data-kind="share"],#uxsheet[data-kind="who"]{right:auto;left:50%;top:50%;width:min(520px,calc(100vw - 120px));transform:translate(-50%,-50%);transform-origin:50% 50%;animation:uxzoom .4s var(--spring,var(--ease-out)) both}
+  #uxsheet.out{animation:uxdropout .25s ease-in both}
+  #uxsheet[data-kind="share"].out,#uxsheet[data-kind="who"].out{animation:uxzoomout .22s ease-in both}
+}
+@media (max-width:760px){
+  #uxsheet{left:0;right:0;bottom:0;max-height:86vh;border-radius:22px 22px 0 0;border-width:1px 0 0;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 18px);animation:uxup .42s var(--spring,var(--ease-out)) both;transition:transform .3s var(--ease-out)}
+  #uxsheet.out{animation:uxdown .26s ease-in both}
+}
+.uxh{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:6px 2px 12px}
+.uxh b{display:block;font:700 22px var(--font-brand,var(--font-display));letter-spacing:.01em}
+.uxh small{display:block;color:var(--ink-dim);font-size:13.5px;line-height:1.35;margin-top:3px}
+.uxx{flex:none;width:34px;height:34px;border-radius:50%;border:0;background:rgba(255,255,255,.08);color:var(--ink);cursor:pointer;font-size:14px}
+.uxeyebrow{display:flex;justify-content:space-between;align-items:center;font:700 12px var(--font-display);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin:0 2px 8px}
+.uxeyebrow.hot{color:#ff9b85}
+.uxfine{color:var(--ink-faint);font-size:12px;line-height:1.45;margin:14px 2px 0}
+
+.uxpresets{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 14px;padding:2px 16px 4px}
+.uxpresets::-webkit-scrollbar{display:none}
+.uxpresets button{flex:none;display:flex;align-items:center;gap:7px;height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);font:600 14px var(--font-body);cursor:pointer;white-space:nowrap;transition:background .25s,border-color .25s,transform .4s var(--spring,var(--ease-out))}
+.uxpresets button[aria-pressed="true"]{background:rgba(240,163,94,.2);border-color:var(--ember);color:#ffe2c6}
+.uxgroup{margin-bottom:14px;animation:uxrise .5s var(--ease-out) both;animation-delay:calc(var(--i,0) * 45ms)}
+.uxrow{display:flex;align-items:center;gap:12px;width:100%;padding:9px 6px;border:0;border-radius:12px;background:none;color:var(--ink);text-align:left;cursor:pointer;transition:background .2s}
+.uxrow:hover{background:rgba(255,255,255,.05)}
+.uxrow .ic{width:36px;height:36px;flex:none;display:grid;place-items:center;border-radius:11px;background:rgba(255,255,255,.06);font-size:18px;transition:background .25s}
+.uxrow[aria-pressed="true"] .ic{background:rgba(240,163,94,.2)}
+.uxrow .t{flex:1;min-width:0}
+.uxrow b{display:block;font-weight:600;font-size:15px}
+.uxrow small{display:block;color:var(--ink-faint);font-size:12.5px;margin-top:1px}
+.uxrow .sw{width:44px;height:26px;border-radius:13px}
+.uxrow .sw::after{top:3px;left:3px;width:20px;height:20px;transition:transform .45s var(--spring,var(--ease-out)),width .18s ease}
+.uxrow[aria-pressed="true"] .sw{background:var(--ember-deep,#c9773a)}
+.uxrow[aria-pressed="true"] .sw::after{transform:translateX(18px)}
+.uxrow:active .sw::after{width:25px}
+.uxrow[aria-pressed="true"]:active .sw::after{transform:translateX(13px)}
+.uxgroup.fold .uxrow{padding:6px}.uxgroup.fold .uxrow .ic{width:30px;height:30px;font-size:15px}
+.uxtools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.uxtools button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:12px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink);text-align:left;cursor:pointer}
+.uxtools span{font-size:22px}.uxtools b{font-size:14.5px}.uxtools small{color:var(--ink-faint);font-size:12px;line-height:1.3}
+
+.uxshare{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (min-width:761px){.uxshare{grid-template-columns:1fr 1fr 1fr}}
+.uxshare button,.uxwhos button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:14px;border-radius:16px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);text-align:left;cursor:pointer;animation:uxrise .45s var(--ease-out) both;animation-delay:calc(var(--i,0) * 35ms);transition:transform .4s var(--spring,var(--ease-out)),background .2s}
+.uxshare button:hover,.uxwhos button:hover{background:rgba(255,255,255,.09)}
+.uxshare button:first-child{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr;column-gap:14px;align-items:center;background:linear-gradient(120deg,rgba(240,163,94,.26),rgba(240,163,94,.08));border-color:rgba(240,163,94,.45)}
+.uxshare button:first-child .ic{grid-row:1/3;font-size:32px}
+.uxshare .ic,.uxwhos .ic{font-size:26px;line-height:1}
+.uxshare b,.uxwhos b{font-size:15px}
+.uxshare small,.uxwhos small{color:var(--ink-dim);font-size:12.5px;line-height:1.3}
+.uxwhos{display:grid;gap:10px}
+.uxwhos button{display:grid;grid-template-columns:44px 1fr;grid-template-rows:auto auto;column-gap:12px;align-items:center;padding:16px}
+.uxwhos .ic{grid-row:1/3;font-size:32px;text-align:center}
+.uxwhos b{font-size:17px}
+
+/* Today and More pages */
+#sv-today,#sv-more{padding-bottom:30px}
+.uxtop{position:sticky;top:0;z-index:2;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 18px) 16px 12px;background:var(--bg-deep,#0e1612);box-shadow:0 12px 14px -4px var(--bg-deep,#0e1612)}
+.uxtop small{display:block;color:var(--ink-faint);font-size:13px;letter-spacing:.02em}
+.uxtop b{display:block;font:700 28px var(--font-brand,var(--font-display));line-height:1.1;margin-top:2px}
+.uxwho{flex:none;height:34px;padding:0 12px;border-radius:17px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);font:600 13px var(--font-body);cursor:pointer}
+.uxbody{padding:0 14px}
+.uxbody>*{animation:uxrise .5s var(--ease-out) both}
+.uxbody>*:nth-child(2){animation-delay:.05s}.uxbody>*:nth-child(3){animation-delay:.1s}.uxbody>*:nth-child(4){animation-delay:.15s}.uxbody>*:nth-child(5){animation-delay:.2s}.uxbody>*:nth-child(n+6){animation-delay:.25s}
+.uxsec{margin:18px 0 0}
+.uxmore{border:0;background:none;color:var(--ember);font:600 13px var(--font-body);letter-spacing:0;text-transform:none;cursor:pointer;padding:0}
+.uxlink{border:0;background:none;color:var(--ember);font:600 13px var(--font-body);cursor:pointer;padding:0}
+.uxalert{display:flex;gap:12px;align-items:flex-start;width:100%;padding:12px 14px;margin-bottom:8px;border-radius:14px;border:1px solid rgba(255,106,77,.45);background:linear-gradient(90deg,rgba(255,106,77,.2),rgba(255,106,77,.06));color:var(--ink);text-align:left;cursor:pointer}
+.uxalert>span{font-size:20px}
+.uxalert b{display:block;font-size:15px}
+.uxalert small{display:block;color:var(--ink-dim);font-size:12.5px;line-height:1.35;margin-top:2px}
+.uxwx{font-family:var(--font-body);margin-top:14px;padding:16px;border-radius:20px;background:linear-gradient(160deg,rgba(120,160,190,.18),rgba(255,255,255,.04));border:1px solid var(--line)}
+.uxwx.loading{display:flex;align-items:center;gap:12px;color:var(--ink-dim)}
+.uxwx .big{display:flex;align-items:center;gap:14px}
+.uxwx .big b{display:block;font:700 46px var(--font-brand,var(--font-display));line-height:1}
+.uxwx .big span,.uxwx .big small{font-family:var(--font-body)!important}
+.uxwx .big span{display:block;font-weight:600;font-size:15px;margin-top:2px}
+.uxwx .big small{display:block;color:var(--ink-dim);font-size:12.5px;margin-top:3px}
+.uxwx .strip{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin:14px -6px 0;padding:0 6px}
+.uxwx .strip::-webkit-scrollbar{display:none}
+.uxwx .strip div{flex:none;width:52px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;border-radius:12px}
+.uxwx .strip div:first-child{background:rgba(255,255,255,.07)}
+.uxwx .strip small{color:var(--ink-faint);font-size:11.5px}
+.uxwx .strip b{font-size:14px}
+.uxwx .strip i{font-style:normal;color:#7cc0ff;font-size:11px;height:13px}
+.uxwx .sun{margin-top:10px;color:var(--ink-dim);font-size:13px}
+.uxwx .sun span{opacity:.4;margin:0 4px}
+.uxspin{width:22px;height:22px;border-radius:50%;border:2.5px solid rgba(255,255,255,.15);border-top-color:var(--ember);animation:uxspin 1s linear infinite}
+.uxriv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.uxriv div{min-width:0;padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.uxriv b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.uxriv span{display:block;font:700 17px var(--font-display);margin-top:2px}
+.uxriv small{color:var(--ink-faint);font-size:12px}.uxriv small.up{color:#7cc0ff;font-weight:600}
+.uxchips{display:flex;gap:8px;flex-wrap:wrap}
+.uxchips button{height:38px;padding:0 14px;border-radius:19px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);font:600 13.5px var(--font-body);cursor:pointer}
+.uxsponsor{margin-top:18px;padding:14px 16px;border-radius:16px;border:1px dashed rgba(240,163,94,.4);background:rgba(240,163,94,.06)}
+.uxsponsor .tag{display:inline-block;font:700 10.5px var(--font-display);letter-spacing:.14em;text-transform:uppercase;color:var(--ember);margin-bottom:4px}
+.uxsponsor b{display:block;font-size:15px}
+.uxsponsor small{display:block;color:var(--ink-dim);font-size:12.5px;line-height:1.35;margin:3px 0 6px}
+.uxitem{display:flex;align-items:center;gap:12px;width:100%;padding:11px 8px;border:0;border-radius:12px;background:none;color:var(--ink);text-align:left;cursor:pointer;transition:background .2s}
+.uxitem:hover{background:rgba(255,255,255,.05)}
+.uxitem .ic{width:38px;height:38px;flex:none;display:grid;place-items:center;border-radius:12px;background:rgba(255,255,255,.06);font-size:19px}
+.uxitem .t{flex:1;min-width:0}.uxitem b{display:block;font-size:15px;font-weight:600}.uxitem small{display:block;color:var(--ink-faint);font-size:12.5px;margin-top:1px}
+.uxitem i{font-style:normal;color:var(--ink-faint);font-size:20px}
+.uxseg{display:flex;gap:6px;padding:4px;border-radius:14px;background:rgba(255,255,255,.05)}
+.uxseg button{flex:1;height:40px;border:0;border-radius:11px;background:none;color:var(--ink-dim);font:600 13.5px var(--font-body);cursor:pointer;transition:background .25s,color .25s}
+.uxseg button[aria-pressed="true"]{background:rgba(240,163,94,.22);color:#ffe2c6}
+.uxstops{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:6px 8px 2px}
+.uxstops::-webkit-scrollbar{display:none}
+.uxstops button{flex:none;height:34px;padding:0 12px;border-radius:17px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink);font:500 13px var(--font-body);cursor:pointer}
+/* reuse the local cards inside Today without the hub's chrome */
+#sv-today .lgo{display:grid;gap:8px}
+#sv-today .lhero{border-radius:18px;overflow:hidden}
+.uxsugg{padding:8px 10px 4px;font:700 11.5px var(--font-display);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+
+.uxpress{animation:uxsquash .42s var(--spring,var(--ease-out))}
+@keyframes uxsquash{0%{transform:scale(1)}30%{transform:scale(.94,.9)}65%{transform:scale(1.03,1.05)}100%{transform:scale(1)}}
+@keyframes uxpop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes uxfade{from{opacity:0}}
+@keyframes uxup{from{transform:translateY(100%)}}
+@keyframes uxdown{to{transform:translateY(100%)}}
+@keyframes uxdrop{from{opacity:0;transform:translateY(-10px) scale(.94)}}
+@keyframes uxdropout{to{opacity:0;transform:translateY(-8px) scale(.96)}}
+@keyframes uxzoom{from{opacity:0;transform:translate(-50%,-46%) scale(.92)}}
+@keyframes uxzoomout{to{opacity:0;transform:translate(-50%,-48%) scale(.96)}}
+@keyframes uxrise{from{opacity:0;transform:translateY(12px)}}
+@keyframes uxspin{to{transform:rotate(360deg)}}
+
+@media (min-width:761px){
+  body.ux #live{left:calc(76px + 16px)!important}
+}
+@media (min-width:1100px){
+  body.ux #live{left:calc(232px + 16px)!important}
+}
+@media (max-width:760px){
+  body.ux #search{top:calc(env(safe-area-inset-top,0px) + 12px)!important}
+  body.ux #live{left:max(12px,env(safe-area-inset-left,0px))!important;right:auto!important;top:calc(env(safe-area-inset-top,0px) + 68px)!important;max-width:calc(100vw - 24px)}
+  #uxshow{top:auto;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 68px);height:48px;border-radius:24px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+  body.ux #credits{bottom:calc(env(safe-area-inset-bottom,0px) + 58px)!important;left:max(12px,env(safe-area-inset-left,0px));right:auto;max-width:52vw;font-size:8.5px!important;line-height:1.3}
+  body.ux #toast{bottom:calc(env(safe-area-inset-bottom,0px) + 128px)!important}
+  body.ux #radarStamp{bottom:calc(env(safe-area-inset-bottom,0px) + 128px)!important}
+  body.ux #sheet{bottom:calc(env(safe-area-inset-bottom,0px) + 62px)!important}
+  body.ux #sheet:not([hidden]) ~ #uxshow,body.ux.tool-open #uxshow{opacity:0;pointer-events:none}
+}
+@media (prefers-reduced-motion:reduce){#uxsheet,#uxscrim,.uxgroup,.uxbody>*,.uxshare button,.uxwhos button{animation:none!important}}
