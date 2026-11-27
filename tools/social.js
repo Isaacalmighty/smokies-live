@@ -36,6 +36,10 @@ const Social = (() => {
     lock: '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/>',
     users: '<circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M15.5 5.2a3.3 3.3 0 0 1 0 6.6M17.5 14.2a6 6 0 0 1 4 5.8"/>',
     link: '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>',
+    play: '<path d="M8 5.5v13l10.5-6.5z"/>',
+    mute: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>',
+    sound: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
+    video: '<rect x="3" y="6" width="13" height="12" rx="2.5"/><path d="M16 10.5l5-3v9l-5-3z"/>',
     globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/>',
   };
   const svg = (k, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`;
@@ -63,7 +67,7 @@ const Social = (() => {
         const probe = await this.sb.from('post_feed').select('id').limit(1); if (probe.error) throw new Error('tables not set up: ' + probe.error.message);
         const { data } = await this.sb.auth.getSession(); this.user = data.session ? data.session.user : null;
         this.on = true; Store.shared = true;
-        this.sb.auth.onAuthStateChange(async (ev, ses) => { const was = this.user && this.user.id; this.user = ses ? ses.user : null; if ((this.user && this.user.id) !== was) { await this.loadMe(); await this.loadGroups(); await this.loadFeed(); refresh(); if (ev === 'SIGNED_IN') { showToast('Signed in'); pendingJoin(); } } });
+        this.sb.auth.onAuthStateChange(async (ev, ses) => { const was = this.user && this.user.id; this.user = ses ? ses.user : null; if ((this.user && this.user.id) !== was) { await this.loadMe(); await this.loadGroups(); await this.loadFeed(); refresh(); if (Inbox.ch) { this.sb.removeChannel(Inbox.ch); Inbox.ch = null; } Inbox.load().then(() => Inbox.listen()); if (ev === 'SIGNED_IN') { showToast('Signed in'); pendingJoin(); } } });
         await this.loadMe(); await this.loadGroups(); await this.loadFeed();
         this.sb.channel('posts').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, () => this.loadFeed().then(refresh)).subscribe();
         await this.loadNews();
@@ -96,7 +100,7 @@ const Social = (() => {
       if (S.scope !== 'public' && !S.groups.some(g => g.id === S.scope)) S.scope = 'public';
     },
     async signPhotos() { // group photos are private: get short-lived links for the ones in view
-      const need = [...new Set(S.remote.map(r => r.image_url).filter(u => u && u.startsWith('gp:') && !S.signed[u.slice(3)]))].map(u => u.slice(3));
+      const need = [...new Set(S.remote.flatMap(r => [r.image_url, r.video_url]).filter(u => u && u.startsWith('gp:') && !S.signed[u.slice(3)]))].map(u => u.slice(3));
       if (!need.length) return;
       const { data } = await this.sb.storage.from('group-photos').createSignedUrls(need, 6 * 3600);
       (data || []).forEach(d => { if (d.signedUrl) S.signed[d.path] = d.signedUrl; });
@@ -106,6 +110,14 @@ const Social = (() => {
       const { error } = await this.sb.storage.from('group-photos').upload(path, blob, { contentType: 'image/jpeg' }); if (error) throw error;
       S.signed[path] = dataUrl; return 'gp:' + path;
     },
+    async uploadVideo(blob, gid, name) { // public videos sit in your own folder; group videos in the group's private folder
+      const ext = /webm/.test(blob.type) ? 'webm' : /quicktime/.test(blob.type) ? 'mov' : 'mp4';
+      const bucket = gid ? 'group-photos' : 'photos', path = `${gid || this.user.id}/${name}.${ext}`;
+      const { error } = await this.sb.storage.from(bucket).upload(path, blob, { contentType: blob.type || 'video/mp4' }); if (error) throw error;
+      if (gid) { S.signed[path] = URL.createObjectURL(blob); return 'gp:' + path; }
+      return this.sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
+    },
+    dropFiles(urls) { urls.forEach(u => { if (!u) return; if (u.startsWith('gp:')) this.sb.storage.from('group-photos').remove([u.slice(3)]); else if (u.includes('/photos/')) this.sb.storage.from('photos').remove([u.split('/photos/')[1].split('?')[0]]); }); },
     votesOff: false,
     async loadVotes() { // "still there" / "cleared" votes on community reports
       const reps = S.remote.filter(r => isReport(r.tag)); if (this.votesOff || !reps.length) return;
@@ -145,8 +157,8 @@ const Social = (() => {
   const RC = { // key: [label, emoji, colour, hours it stays up unless someone says "still there"]
     closed: ['Road closed', '🚧', '#d93a3a', 12], wreck: ['Wreck', '💥', '#e8662b', 3], traffic: ['Heavy traffic', '🚗', '#e8892b', 2], tree: ['Tree down', '🌲', '#3f8f4f', 8],
     ice: ['Ice or snow', '🧊', '#4f9fd8', 12], flood: ['Flooding', '🌊', '#2f7fe0', 12], power: ['Power out', '⚡', '#d9a400', 12], smoke: ['Fire or smoke', '🔥', '#e0452f', 6],
-    bear: ['Bear', '🐻', '#8a5a33', 4], wildlife: ['Wildlife', '🦌', '#9a7b4f', 4], hazard: ['Hazard', '⚠️', '#c99400', 8], lostpet: ['Lost pet', '🐕', '#9b5bd6', 72],
-    foundpet: ['Found pet', '🐾', '#7a4fbf', 72], help: ['Help needed', '🙋', '#d6457a', 24], info: ['Heads up', '📣', '#3d6fd6', 12],
+    bear: ['Bear', '🐻', '#8a5a33', 4], wildlife: ['Wildlife', '🦌', '#9a7b4f', 4], hazard: ['Hazard', '⚠️', '#c99400', 8], lostpet: ['Lost pet', '🐕', '#9b5bd6', 24 * 14],
+    foundpet: ['Found pet', '🐾', '#7a4fbf', 24 * 14], help: ['Help needed', '🙋', '#d6457a', 24], info: ['Heads up', '📣', '#3d6fd6', 12],
   };
   const isReport = tag => /^R:/.test(tag || '');
   const rcat = tag => (RC[(tag || '').slice(2)] ? (tag || '').slice(2) : 'info');
@@ -168,11 +180,12 @@ const Social = (() => {
     const out = new Map();
     (S.news || []).forEach(n => out.set(nkey(n.title), { ...n }));
     Live.st.news.forEach((n, i) => { const k = nkey(n.title); const have = out.get(k); if (have) { have.li = i; if (!have.img && n.img) have.img = n.img; if (!have.place && n.place) have.place = n.place; } else out.set(k, { ...n, id: k, li: i }); });
-    return [...out.values()];
+    const old = Date.now() - 3 * 864e5; // news leaves the feed after 3 days
+    return [...out.values()].filter(n => !n.published || +new Date(n.published) > old);
   }
   const imgOf = u => u && u.startsWith('gp:') ? S.signed[u.slice(3)] || '' : u;
   const groupOf = id => id ? S.groups.find(g => g.id === id) || { id, name: 'Private group', emoji: '🔒', color: '#555' } : null;
-  const remoteItem = r => ({ id: 's' + r.id, kind: 'user', group: groupOf(r.group_id), a: authorOf(r), t: r.created_at, img: imgOf(r.image_url), text: r.caption, tag: r.tag, place: r.lng != null ? { name: r.place_name || 'Pinned spot', lng: r.lng, lat: r.lat } : null, likes: r.like_count, ncom: r.comment_count, mine: !!(Cloud.user && r.user_id === Cloud.user.id), ref: { id: 's' + r.id, sid: r.id, remote: true, img: r.image_url, gid: r.group_id } });
+  const remoteItem = r => ({ id: 's' + r.id, kind: 'user', group: groupOf(r.group_id), a: authorOf(r), t: r.created_at, img: imgOf(r.image_url), vid: r.video_url ? imgOf(r.video_url) : null, vm: r.video_meta, text: r.caption, tag: r.tag, place: r.lng != null ? { name: r.place_name || 'Pinned spot', lng: r.lng, lat: r.lat } : null, likes: r.like_count, ncom: r.comment_count, mine: !!(Cloud.user && r.user_id === Cloud.user.id), ref: { id: 's' + r.id, sid: r.id, remote: true, img: r.image_url, vid: r.video_url, gid: r.group_id, uid: r.user_id, h: r.handle } });
 
   async function loadLocal() {
     S.me = await Store.get('me', null);
@@ -222,13 +235,16 @@ const Social = (() => {
     }
     return mixed.slice(0, 120);
   }
+  const vAR = m => m && m.w && m.h ? ` style="aspect-ratio:${Math.max(0.8, Math.min(1.91, m.w / m.h)).toFixed(3)}"` : ''; // tall clips show 4:5 in the feed, full height in stories and reels
+  const pic = p => p.vid ? `<video class="fv"${vAR(p.vm)} data-src="${esc(p.vid)}" poster="${esc(p.img || '')}" muted playsinline loop preload="none" disablepictureinpicture></video><button class="vplay" data-act="vplay" aria-label="Play video">${svg('play')}</button><button class="snd" data-act="sound" aria-label="Sound on or off">${svg(Vid.sound ? 'sound' : 'mute', 'sm')}</button>`
+    : `<img loading="lazy" src="${esc(p.img)}" alt="" onerror="this.parentNode.classList.add('broken')">`;
   function card(p, j) {
     const liked = !!(S.likes[p.id] || S.serverLikes[p.id]), saved = !!S.saved[p.id];
     let media = '';
     const R = p.kind === 'report' ? p.rs : null;
-    if (R && p.img) media = `<div class="media"><img loading="lazy" src="${esc(p.img)}" alt="" onerror="this.parentNode.classList.add('broken')"><span class="rbadge" style="--c:${R.col}">${R.emo} ${esc(R.label)}</span><i class="burst">${svg('heart')}</i></div>`;
+    if (R && p.img) media = `<div class="media${p.vid ? ' vid' : ''}">${pic(p)}<span class="rbadge" style="--c:${R.col}">${R.emo} ${esc(R.label)}</span><i class="burst">${svg('heart')}</i></div>`;
     else if (R) media = `<div class="media txt report" style="--c:${R.col}"><div><span class="remo">${R.emo}</span><small>Community report</small><h3>${esc(R.label)}</h3>${p.place ? `<p>${svg('pin', 'sm')} ${esc(p.place.name)}</p>` : ''}</div><i class="burst">${svg('heart')}</i></div>`;
-    else if (p.img) media = `<div class="media${p.live ? ' live' : ''}"><img loading="lazy" src="${esc(p.img)}" alt="" onerror="this.parentNode.classList.add('broken')">${p.live ? '<span class="badge">LIVE</span>' : ''}<i class="burst">${svg('heart')}</i></div>`;
+    else if (p.img) media = `<div class="media${p.live ? ' live' : ''}${p.vid ? ' vid' : ''}">${pic(p)}${p.live ? '<span class="badge">LIVE</span>' : ''}<i class="burst">${svg('heart')}</i></div>`;
     else if (p.card === 'alert') media = `<div class="media txt alert"><div><small>National Weather Service</small><h3>${esc(p.title)}</h3><p>${esc(p.text.slice(0, 220))}</p></div><i class="burst">${svg('heart')}</i></div>`;
     else if (p.card === 'event') { const d = p.start ? new Date(p.start) : null; media = `<div class="media txt event"><div>${d && !isNaN(d) ? `<span class="date"><b>${d.toLocaleDateString('en-US', { timeZone: TZ, day: 'numeric' })}</b>${d.toLocaleDateString('en-US', { timeZone: TZ, month: 'short' })}</span>` : '<small>Event</small>'}<h3>${esc(p.title)}</h3>${p.place ? `<p>${svg('pin', 'sm')} ${esc(p.place.name)}</p>` : ''}</div><i class="burst">${svg('heart')}</i></div>`; }
     else if (p.card === 'road') media = `<div class="media txt road"><div><small>Roads</small><h3>${esc(p.title)}</h3><p>${esc((p.text || '').slice(0, 200))}</p></div><i class="burst">${svg('heart')}</i></div>`;
@@ -254,6 +270,10 @@ const Social = (() => {
   function buildStories() {
     const L = Live.st; const st = [];
     if (S.posts.length) st.push({ a: meAcct(), label: 'Your story', slides: S.posts.slice(0, 8).map(p => ({ img: p.img, text: p.caption, place: p.place, t: p.t })) });
+    const day = S.remote.filter(r => !r.group_id && !isReport(r.tag) && r.image_url && Date.now() - new Date(r.created_at) < 864e5), byU = new Map();
+    day.forEach(r => { if (!byU.has(r.user_id)) byU.set(r.user_id, []); byU.get(r.user_id).push(r); });
+    const isMe = rs => !!(Cloud.user && rs[0].user_id === Cloud.user.id);
+    [...byU.values()].sort((a, b) => isMe(b) - isMe(a) || b.some(r => r.video_url) - a.some(r => r.video_url)).slice(0, 12).forEach(rs => st.push({ a: authorOf(rs[0]), label: isMe(rs) ? 'Your story' : rs[0].handle || 'someone', slides: rs.slice(0, 10).reverse().map(r => ({ img: imgOf(r.image_url), vid: r.video_url ? imgOf(r.video_url) : null, text: r.caption, place: r.lng != null ? { name: r.place_name, lng: r.lng, lat: r.lat } : null, t: r.created_at })) }));
     if (L.wx) { const c = L.wx.current; st.push({ a: acct('Weather'), label: 'Weather', slides: [{ wx: true, title: `${Math.round(c.temperature_2m)}° in Gatlinburg`, text: `Feels like ${Math.round(c.apparent_temperature)}°. Wind ${Math.round(c.wind_speed_10m)} mph, gusts ${Math.round(c.wind_gusts_10m)}. ${Math.round(c.cloud_cover)}% cloud cover.${L.grid && L.grid.summit ? ` Le Conte summit ${Math.round(L.grid.summit.temperature_2m)}°.` : ''}`, fly: { center: [-83.47, 35.64], zoom: 11.2, pitch: 74, bearing: 200 } }] }); }
     if (L.alerts.length) st.push({ a: acct('Weather'), label: 'Alerts', hot: true, slides: L.alerts.map(a => ({ alert: true, title: a.event, text: (a.headline || '').slice(0, 220) })) });
     L.traffic.cameras.filter(c => c.img && (c.still || c.live)).forEach(c => st.push({ a: { ...acct(c.source), photo: c.img }, label: c.name.replace(/ Webcam$/, ''), slides: [{ img: c.still ? c.img + '?r=' + Math.floor(Date.now() / 300000) : c.img, title: c.name, live: true, place: { name: c.name, lng: c.lng, lat: c.lat } }] }));
@@ -276,7 +296,7 @@ const Social = (() => {
     const v = $('#storyView'); v.hidden = false;
     v.innerHTML = `<div class="bars">${s.slides.map((_, j) => `<i class="${j < k ? 'done' : j === k ? 'run' : ''}"><b></b></i>`).join('')}</div>
       <header>${avatar(s.a, 32)}<b>${esc(s.a.h)}</b><span>${sl.t ? ago(sl.t) : 'live'}</span><button class="ib" data-x aria-label="Close">${svg('close')}</button></header>
-      <div class="slide ${sl.alert ? 'alert' : sl.night ? 'night' : sl.wx ? 'wx' : ''}">${sl.img ? `<img src="${esc(sl.img)}" alt="">` : ''}<div class="txt">${sl.live ? '<span class="badge">LIVE</span>' : ''}${sl.title ? `<h3>${esc(sl.title)}</h3>` : ''}${sl.text ? `<p>${esc(sl.text).replace(/\n/g, '<br>')}</p>` : ''}${sl.place || sl.fly ? `<button class="btn primary" data-go>${svg('pin', 'sm')} See it on the map</button>` : ''}</div></div>
+      <div class="slide ${sl.alert ? 'alert' : sl.night ? 'night' : sl.wx ? 'wx' : ''}">${sl.vid ? `<video src="${esc(sl.vid)}" poster="${esc(sl.img || '')}" playsinline muted></video><button class="snd" data-snd aria-label="Sound on or off">${svg(Vid.sound ? 'sound' : 'mute', 'sm')}</button>` : sl.img ? `<img src="${esc(sl.img)}" alt="">` : ''}<div class="txt">${sl.live ? '<span class="badge">LIVE</span>' : ''}${sl.title ? `<h3>${esc(sl.title)}</h3>` : ''}${sl.text ? `<p>${esc(sl.text).replace(/\n/g, '<br>')}</p>` : ''}${sl.place || sl.fly ? `<button class="btn primary" data-go>${svg('pin', 'sm')} See it on the map</button>` : ''}</div></div>
       <button class="tap l" aria-label="Previous"></button><button class="tap r" aria-label="Next"></button>`;
     v.querySelector('[data-x]').onclick = closeStory;
     v.querySelector('.tap.l').onclick = () => k > 0 ? openStory(i, k - 1) : openStory(Math.max(0, i - 1), 0);
@@ -284,9 +304,16 @@ const Social = (() => {
     const go = v.querySelector('[data-go]'); if (go) go.onclick = () => { closeStory(); setView('map'); stopOrbit(); map.flyTo({ ...(sl.fly || { center: [sl.place.lng, sl.place.lat], zoom: 14, pitch: 62 }), duration: 3000, curve: 1.5, easing: easeInOut, essential: true }); };
     // swipe down to close
     let y0 = null; v.ontouchstart = e => y0 = e.touches[0].clientY; v.ontouchend = e => { if (y0 != null && e.changedTouches[0].clientY - y0 > 90) closeStory(); y0 = null; };
-    clearTimeout(storyT); storyT = setTimeout(() => openStory(i, k + 1), sl.img ? 6000 : 5000);
+    clearTimeout(storyT);
+    const sv = v.querySelector('.slide video');
+    if (sv) { // a video slide runs as long as the video, with sound if you turned it on
+      Vid.stop(); sv.muted = !Vid.sound; sv.play().catch(() => { sv.muted = true; sv.play().catch(() => {}); });
+      sv.onloadedmetadata = () => { const b = v.querySelector('.bars i.run b'); if (b && isFinite(sv.duration)) b.style.animationDuration = sv.duration.toFixed(1) + 's'; };
+      sv.onended = () => openStory(i, k + 1); storyT = setTimeout(() => openStory(i, k + 1), 62000);
+      v.querySelector('[data-snd]').onclick = e => { e.stopPropagation(); Vid.toggle(); sv.muted = !Vid.sound; if (sv.paused) sv.play().catch(() => {}); };
+    } else storyT = setTimeout(() => openStory(i, k + 1), sl.img ? 6000 : 5000);
   }
-  function closeStory() { clearTimeout(storyT); const v = $('#storyView'); v.classList.add('out'); setTimeout(() => { v.hidden = true; v.classList.remove('out'); v.innerHTML = ''; }, 280); }
+  function closeStory() { clearTimeout(storyT); const v = $('#storyView'); const sv = v.querySelector('video'); if (sv) sv.pause(); v.classList.add('out'); setTimeout(() => { v.hidden = true; v.classList.remove('out'); v.innerHTML = ''; }, 280); }
 
   /* ---------- views ---------- */
   function shell() {
@@ -296,7 +323,7 @@ const Social = (() => {
     document.body.appendChild(nav);
     nav.querySelectorAll('button').forEach(b => b.onclick = () => { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); b.dataset.v === 'create' ? openCreate() : setView(b.dataset.v); });
     const v = document.createElement('div'); v.id = 'socialView'; v.hidden = true;
-    v.innerHTML = `<div class="col"><div id="sv-feed" class="pane"><div class="ptr" aria-hidden="true"><i></i></div><header class="top"><div class="logo"><span>Smokies <em>Live</em></span></div><button class="rbtn" data-report>${svg('alert', 'sm')} Report</button><button class="ib" data-v="activity" aria-label="Activity">${svg('heart')}</button></header><div id="scopes" class="scopes" role="tablist" hidden></div><div id="stories" class="stories"></div><div id="fchips" class="chips" role="tablist"></div><div id="feed"></div></div>
+    v.innerHTML = `<div class="col"><div id="sv-feed" class="pane"><div class="ptr" aria-hidden="true"><i></i></div><header class="top"><div class="logo"><span>Smokies <em>Live</em></span></div><button class="rbtn" data-report>${svg('alert', 'sm')} Report</button><button class="ib" data-v="activity" aria-label="Activity">${svg('heart')}</button><button class="ib dmb" data-dm aria-label="Messages">${svg('send')}<i class="cnt" hidden></i></button></header><div id="scopes" class="scopes" role="tablist" hidden></div><div id="stories" class="stories"></div><div id="fchips" class="chips" role="tablist"></div><div id="feed"></div></div>
       <div id="sv-activity" class="pane"></div><div id="sv-profile" class="pane"></div></div><aside class="side" id="sv-side"></aside>`;
     document.body.appendChild(v);
     v.querySelectorAll('[data-v]').forEach(b => b.onclick = () => setView(b.dataset.v));
@@ -308,8 +335,8 @@ const Social = (() => {
     $('#scopes').onclick = e => { const b = e.target.closest('[data-scope]'); if (b) { bump(b); setScope(b.dataset.scope); } };
     $('#fchips').onclick = e => { const b = e.target.closest('[data-f]'); if (!b) return; const f = b.dataset.f; if (f === 'near' && !S.here && navigator.geolocation) navigator.geolocation.getCurrentPosition(p => { S.here = { lng: p.coords.longitude, lat: p.coords.latitude }; renderFeed(); }, () => {}, { timeout: 8000, maximumAge: 300000 }); S.filter = f; renderFeed(); $('#socialView').scrollTo({ top: 0, behavior: 'smooth' }); };
     pullToRefresh(v);
-    $('#feed').addEventListener('dblclick', e => { const m = e.target.closest('.media'); if (m) { const id = m.closest('.post').dataset.id; if (S.likes[id] || S.serverLikes[id]) { const h = m.querySelector('.burst'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go'); } else like(id, true, m); } });
-    let lastTap = 0; $('#feed').addEventListener('touchend', e => { const m = e.target.closest('.media'); if (!m) return; const n = Date.now(); if (n - lastTap < 300) { const id = m.closest('.post').dataset.id; if (!(S.likes[id] || S.serverLikes[id])) like(id, true, m); else { const h = m.querySelector('.burst'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go'); } e.preventDefault(); } lastTap = n; });
+    $('#feed').addEventListener('dblclick', e => { const m = e.target.closest('.media'); if (m && !e.target.closest('.snd,.vplay')) { const id = m.closest('.post').dataset.id; if (S.likes[id] || S.serverLikes[id]) { const h = m.querySelector('.burst'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go'); } else like(id, true, m); } });
+    let lastTap = 0; $('#feed').addEventListener('touchend', e => { const m = e.target.closest('.media'); if (!m || e.target.closest('.snd,.vplay')) return; const n = Date.now(); if (n - lastTap < 300) { const id = m.closest('.post').dataset.id; if (!(S.likes[id] || S.serverLikes[id])) like(id, true, m); else { const h = m.querySelector('.burst'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go'); } e.preventDefault(); } lastTap = n; });
   }
   function pullToRefresh(sv) {
     const ind = sv.querySelector('.ptr'); let y0 = null, dy = 0, busy = false;
@@ -425,6 +452,8 @@ const Social = (() => {
     if (act === 'map') showOnMap(p);
     if (act === 'comment') openComments(p);
     if (act === 'more') openMore(p);
+    if (act === 'sound') Vid.toggle();
+    if (act === 'vplay') { const v = b.parentNode.querySelector('video'); if (v) { v.dataset.go = 1; v.paused ? Vid.play(v) : v.pause(); } }
   }
   function bump(el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
   async function vote(p, v) {
@@ -499,12 +528,12 @@ const Social = (() => {
   }
   function openMore(p) {
     const mine = !!p.mine;
-    sheet(`<div class="menu">${p.place ? '<button data-m="map">See on map</button>' : ''}<button data-m="share">Share</button>${p.link ? `<a href="${esc(p.link)}" target="_blank" rel="noopener">Open original</a>` : ''}${mine ? '<button data-m="del" class="danger">Delete post</button>' : '<button data-m="report" class="danger">Report</button>'}<button data-x>Cancel</button></div>`, s => {
+    sheet(`<div class="menu">${p.place ? '<button data-m="map">See on map</button>' : ''}<button data-m="share">Share</button>${p.link ? `<a href="${esc(p.link)}" target="_blank" rel="noopener">Open original</a>` : ''}${!mine && p.ref && p.ref.remote && Cloud.on ? `<button data-m="dm">Message @${esc(p.ref.h || 'them')}</button>` : ''}${mine ? '<button data-m="del" class="danger">Delete post</button>' : '<button data-m="report" class="danger">Report</button>'}<button data-x>Cancel</button></div>`, s => {
       s.querySelectorAll('[data-m]').forEach(b => b.onclick = async () => {
         const m = b.dataset.m; closeSheet();
-        if (m === 'map') showOnMap(p); if (m === 'share') share(p);
+        if (m === 'map') showOnMap(p); if (m === 'share') share(p); if (m === 'dm') messageUser(p.ref.uid);
         if (m === 'del') {
-          if (p.ref.remote) { const { error } = await Cloud.sb.from('posts').delete().eq('id', p.ref.sid); if (error) return showToast('Could not delete'); if (p.ref.img && p.ref.img.startsWith('gp:')) Cloud.sb.storage.from('group-photos').remove([p.ref.img.slice(3)]); else if (p.ref.img && p.ref.img.includes('/photos/')) Cloud.sb.storage.from('photos').remove([p.ref.img.split('/photos/')[1]]); await Cloud.loadFeed(); }
+          if (p.ref.remote) { const { error } = await Cloud.sb.from('posts').delete().eq('id', p.ref.sid); if (error) return showToast('Could not delete'); Cloud.dropFiles([p.ref.img, p.ref.vid]); await Cloud.loadFeed(); }
           else { S.posts = S.posts.filter(x => x.id !== p.ref.id); await persist('posts'); }
           refresh(); showToast('Post deleted');
         }
@@ -544,8 +573,10 @@ const Social = (() => {
     const v = $('#createView'), R = draft.mode === 'report';
     v.querySelector('.seg').dataset.on = draft.mode;
     v.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-selected', b.dataset.mode === draft.mode));
-    const photo = draft.img ? `<label class="pick has"><input type="file" accept="image/*" hidden><img class="prev" src="${draft.img}" alt=""><span class="chg">${svg('camera', 'sm')} Change</span></label>`
-      : `<label class="pick${R ? ' small' : ''}"><input type="file" accept="image/*" hidden><div class="ph">${svg('camera', 'big')}<span>${R ? 'Add a photo (optional)' : 'Add a photo'}</span>${R ? '' : '<small>Take one or choose from your library</small>'}</div></label>`;
+    const photo = draft.prep ? `<div class="pick vprep"><div class="ph">${svg('video', 'big')}<span>Getting your video ready <b>${Math.round(draft.prep.pct * 100)}%</b></span><div class="vbar"><i style="width:${Math.round(draft.prep.pct * 100)}%"></i></div><small>Making it light so it plays smoothly on phones</small></div></div>`
+      : draft.video ? `<label class="pick has vid"><input type="file" accept="image/*,video/*" hidden><video class="prev" src="${draft.video.url}" poster="${draft.img}" muted playsinline autoplay loop></video><span class="vlen">${svg('video', 'xs')} ${fmtDur(draft.video.dur)}</span><span class="chg">${svg('camera', 'sm')} Change</span></label>`
+      : draft.img ? `<label class="pick has"><input type="file" accept="image/*,video/*" hidden><img class="prev" src="${draft.img}" alt=""><span class="chg">${svg('camera', 'sm')} Change</span></label>`
+      : `<label class="pick${R ? ' small' : ''}"><input type="file" accept="image/*,video/*" hidden><div class="ph">${svg('camera', 'big')}<span>${R ? 'Add a photo or video (optional)' : 'Add a photo or video'}</span>${R ? '' : '<small>Videos can be up to a minute long</small>'}</div></label>`;
     v.querySelector('.cbody').innerHTML = (R ? `<div class="rgrid">${Object.entries(RC).map(([k, [l, e, c]]) => `<button data-cat="${k}" style="--c:${c}" class="${draft.cat === k ? 'on' : ''}"><span>${e}</span>${l}</button>`).join('')}</div>` : '') + photo +
       `<div class="fields"><textarea maxlength="800" placeholder="${R ? 'Add details: which lane, how bad, what to watch for (optional)' : 'Write a caption…'}" rows="3">${esc(draft.caption)}</textarea>
       ${R ? '' : `<div class="tags">${TAGS.map(t => `<button data-t="${t}" class="${draft.tag === t ? 'on' : ''}">${t}</button>`).join('')}</div>`}
@@ -553,7 +584,20 @@ const Social = (() => {
       <button class="where${draft.placeSet ? ' set' : ''}" data-where>${svg('pin')}<div><b id="crPlace">${esc(draft.place.name)}</b><small>${R ? 'Where is it? Tap to search or move the pin.' : 'Tap to search for a place or set it on the map'}</small></div><span class="link" data-gps>${svg('locate', 'sm')} Here</span></button>
       <p class="fine">${R ? 'Reports show on everyone\'s map and feed and come down on their own after a few hours unless people say it\'s still there. For emergencies, call 911 first.' : Store.shared ? (signedIn() ? 'Your post is public and appears on everyone\'s map. Keep it kind and safe: no faces of strangers, no exact locations of wildlife dens or nests.' : 'You will be asked to sign in when you share.') : 'For now your posts are saved on this device and shown on your map.'}</p></div>`;
     const inp = v.querySelector('input[type=file]');
-    inp.onchange = async () => { const f = inp.files[0]; if (!f) return; draft.img = await shrink(f); drawCreate(); };
+    const lab = v.querySelector('label.pick'); if (lab) lab.addEventListener('click', primeAudio);
+    if (inp) inp.onchange = async () => {
+      const f = inp.files[0]; if (!f) return;
+      const isVid = /^video\//.test(f.type) || /\.(mov|mp4|m4v|webm)$/i.test(f.name);
+      clearVideo();
+      if (!isVid) { draft.img = await shrink(f); return drawCreate(); }
+      const d = draft, ctl = { stop: false }; d.img = null; d.prep = { pct: 0, ctl }; drawCreate();
+      try {
+        const r = await prepVideo(f, pct => { if (d.prep) d.prep.pct = pct; const bar = $('#createView .vbar i'), t = $('#createView .vprep b'); if (bar) bar.style.width = Math.round(pct * 100) + '%'; if (t) t.textContent = Math.round(pct * 100) + '%'; }, ctl);
+        if (draft !== d || ctl.stop) return URL.revokeObjectURL(r.url);
+        d.video = r; d.img = r.poster; d.prep = null; drawCreate();
+        if (r.trimmed) showToast('Videos can be up to a minute, so it keeps the first 60 seconds');
+      } catch (e) { if (draft !== d || ctl.stop) return; d.prep = null; drawCreate(); showToast(String(e.message || e)); }
+    };
     v.querySelector('textarea').oninput = e => { draft.caption = e.target.value; ready(); };
     v.querySelectorAll('.tags button').forEach(b => b.onclick = () => { draft.tag = draft.tag === b.dataset.t ? null : b.dataset.t; v.querySelectorAll('.tags button').forEach(x => x.classList.toggle('on', x.dataset.t === draft.tag)); });
     const fine = () => { const el = v.querySelector('.fields > .fine'); if (el && draft.group) el.textContent = `Only members of ${groupOf(draft.group).name} can see this post and its photo. It stays off the public map and feed.`; };
@@ -567,7 +611,7 @@ const Social = (() => {
     };
     ready();
   }
-  function ready() { const b = $('#createView [data-share]'); if (!b) return; b.textContent = draft.mode === 'report' ? 'Send' : 'Share'; b.disabled = draft.mode === 'report' ? !draft.cat : !(draft.img || draft.caption.trim()); }
+  function ready() { const b = $('#createView [data-share]'); if (!b) return; b.textContent = draft.mode === 'report' ? 'Send' : 'Share'; b.disabled = !!draft.prep || (draft.mode === 'report' ? !draft.cat : !(draft.img || draft.caption.trim())); }
 
   /* ---------- places: search the gazetteer and set a spot with a pin ---------- */
   let PLACES = null;
@@ -624,7 +668,8 @@ const Social = (() => {
       label(); placesReady();
     });
   }
-  function closeCreate() { const v = $('#createView'); v.classList.add('out'); setTimeout(() => { v.hidden = true; v.innerHTML = ''; }, 280); }
+  function clearVideo() { if (!draft) return; if (draft.prep) draft.prep.ctl.stop = true; if (draft.video) URL.revokeObjectURL(draft.video.url); draft.prep = null; draft.video = null; }
+  function closeCreate() { clearVideo(); const v = $('#createView'); v.classList.add('out'); setTimeout(() => { v.hidden = true; v.innerHTML = ''; }, 280); }
   function shrink(file) { // phone photos are huge: keep 1080 px on the long side
     return new Promise((res, rej) => { const img = new Image(); img.onload = () => { const k = Math.min(1, 1080 / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(img.src); res(c.toDataURL('image/jpeg', 0.84)); }; img.onerror = rej; img.src = URL.createObjectURL(file); });
   }
@@ -644,6 +689,93 @@ const Social = (() => {
     if (peak && kd < 2.5) return 'Near ' + peak[0];
     return `${ll.lat.toFixed(4)}°N ${Math.abs(ll.lng).toFixed(4)}°W`;
   }
+  /* ---------- video: shrink on the phone, then play light in the feed ---------- */
+  // Clips stay short (up to 60 s), 720p and about 2 Mbit/s, so a minute is ~15 MB: fast on phones,
+  // kind to free storage, and the same shape a full-screen swipeable reels feed will use later.
+  const VMAX = 60, VBYTES = 25 * 1048576;
+  const fmtDur = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+  let actx = null;
+  function primeAudio() { // a tap is needed before the phone lets us keep the sound while shrinking
+    try { const A = window.AudioContext || window.webkitAudioContext; if (!A) return; actx = actx || new A(); if (actx.resume) actx.resume(); } catch (e) { /* no sound track then */ }
+  }
+  const once = (el, ev) => new Promise((res, rej) => {
+    const ok = () => { off(); res(); }, bad = () => { off(); rej(new Error('That video could not be opened here. Try one recorded with your phone camera.')); };
+    const off = () => { el.removeEventListener(ev, ok); el.removeEventListener('error', bad); };
+    el.addEventListener(ev, ok); el.addEventListener('error', bad);
+  });
+  async function prepVideo(file, prog, ctl) {
+    const url = URL.createObjectURL(file), v = document.createElement('video');
+    v.playsInline = true; v.setAttribute('playsinline', ''); v.muted = true; v.preload = 'auto';
+    v.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none;z-index:-1';
+    document.body.appendChild(v);
+    try {
+      v.src = url; await once(v, 'loadedmetadata');
+      if (!v.videoWidth) await once(v, 'loadeddata');
+      if (!v.videoWidth) throw new Error('That video could not be opened here. Try one recorded with your phone camera.');
+      const dur = isFinite(v.duration) ? v.duration : VMAX, until = Math.min(dur, VMAX);
+      const k = Math.min(1, 1280 / Math.max(v.videoWidth, v.videoHeight)), w = Math.round(v.videoWidth * k / 2) * 2, h = Math.round(v.videoHeight * k / 2) * 2;
+      // a cover frame: shown before the video loads, in the profile grid and on the map pin
+      v.currentTime = Math.min(0.4, dur / 3); await once(v, 'seeked');
+      const pk = Math.min(1, 1080 / Math.max(v.videoWidth, v.videoHeight)), pc = document.createElement('canvas');
+      pc.width = Math.round(v.videoWidth * pk); pc.height = Math.round(v.videoHeight * pk); pc.getContext('2d').drawImage(v, 0, 0, pc.width, pc.height);
+      const poster = pc.toDataURL('image/jpeg', 0.8);
+      const fits = file.size <= VBYTES && dur <= VMAX + 0.5;
+      const canShrink = !!(window.MediaRecorder && HTMLCanvasElement.prototype.captureStream);
+      let blob = null;
+      if (fits && file.size < 12 * 1048576 && (/mp4|webm/.test(file.type) || !canShrink)) blob = file; // already light
+      else if (canShrink) { try { blob = await reencode(v, w, h, until, prog, ctl); } catch (e) { if (ctl.stop) throw e; blob = null; } }
+      if (!blob && fits) blob = file;
+      if (!blob) throw new Error('That video is too big to share. Try one under a minute long.');
+      if (blob.size > VBYTES) throw new Error('That video is still too big after shrinking. Try a shorter one.');
+      prog(1);
+      return { blob, url: URL.createObjectURL(blob), poster, dur: blob === file ? dur : until, trimmed: blob !== file && dur > VMAX + 0.5, w: blob === file ? v.videoWidth : w, h: blob === file ? v.videoHeight : h };
+    } finally { v.removeAttribute('src'); v.load(); v.remove(); URL.revokeObjectURL(url); }
+  }
+  function reencode(v, w, h, until, prog, ctl) { // play it once into a small canvas and record that
+    return new Promise(async (res, rej) => {
+      const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+      const stream = c.captureStream(30); let audio = false;
+      try { if (actx) { await actx.resume(); const src = actx.createMediaElementSource(v), dst = actx.createMediaStreamDestination(); src.connect(dst); dst.stream.getAudioTracks().forEach(t => stream.addTrack(t)); audio = true; } } catch (e) { /* silent copy */ }
+      const mime = ['video/mp4;codecs=avc1.42E01F,mp4a.40.2', 'video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t));
+      if (!mime) return rej(new Error('no recorder'));
+      let rec; try { rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 1800000, audioBitsPerSecond: 96000 }); } catch (e) { return rej(e); }
+      const parts = []; rec.ondataavailable = e => { if (e.data && e.data.size) parts.push(e.data); };
+      let done = false;
+      const vis = () => { if (!document.hidden && !done && v.paused) v.play().catch(() => {}); };
+      const finish = () => { if (done) return; done = true; v.pause(); document.removeEventListener('visibilitychange', vis); try { rec.stop(); } catch (e) { rej(e); } };
+      rec.onstop = () => ctl.stop ? rej(new Error('cancelled')) : res(new Blob(parts, { type: mime.split(';')[0] }));
+      document.addEventListener('visibilitychange', vis);
+      const tick = () => { if (done) return; if (ctl.stop || v.ended || v.currentTime >= until) return finish(); g.drawImage(v, 0, 0, w, h); prog(Math.min(0.99, v.currentTime / until)); v.requestVideoFrameCallback ? v.requestVideoFrameCallback(tick) : requestAnimationFrame(tick); };
+      v.onended = finish;
+      v.muted = !audio; v.currentTime = 0; await once(v, 'seeked').catch(() => {});
+      g.drawImage(v, 0, 0, w, h); rec.start(1000);
+      const fail = e => { done = true; document.removeEventListener('visibilitychange', vis); try { rec.stop(); } catch (_) { /* never started */ } rej(e); };
+      try { await v.play(); } catch (e) { if (v.muted) return fail(e); v.muted = true; try { await v.play(); } catch (e2) { return fail(e2); } }
+      tick();
+    });
+  }
+  const Vid = { // feed videos load near the screen, only the one you're looking at plays, muted until you ask for sound
+    sound: false, cur: null, lite: !!(navigator.connection && navigator.connection.saveData),
+    init() {
+      if (!('IntersectionObserver' in window) || !('MutationObserver' in window)) return;
+      const near = new IntersectionObserver(es => es.forEach(e => { const v = e.target; if (e.isIntersecting && !v.getAttribute('src') && v.dataset.src) { v.preload = 'metadata'; v.src = v.dataset.src; } }), { rootMargin: '700px 0px' });
+      const seen = new IntersectionObserver(es => es.forEach(e => { const v = e.target; if (e.intersectionRatio >= 0.6 && !document.hidden) { if (!this.lite || v.dataset.go) this.play(v); } else if (!v.paused) v.pause(); }), { threshold: [0, 0.6] });
+      const add = v => { if (v.dataset.w) return; v.dataset.w = 1; near.observe(v); seen.observe(v); const m = v.parentNode; v.onplaying = () => m.classList.add('playing'); v.onpause = () => m.classList.remove('playing'); v.onerror = () => m.classList.add('broken'); };
+      const drop = v => { near.unobserve(v); seen.unobserve(v); if (this.cur === v) this.cur = null; v.pause(); v.removeAttribute('src'); v.load(); }; // free the phone's video decoder
+      const each = (n, f) => { if (n.nodeType !== 1) return; if (n.matches('video.fv')) f(n); else n.querySelectorAll('video.fv').forEach(f); };
+      new MutationObserver(ms => ms.forEach(m => { m.addedNodes.forEach(n => each(n, add)); m.removedNodes.forEach(n => each(n, drop)); })).observe(document.body, { childList: true, subtree: true });
+      document.querySelectorAll('video.fv').forEach(add);
+      document.addEventListener('visibilitychange', () => { if (document.hidden) this.stop(); });
+    },
+    play(v) {
+      if (this.cur && this.cur !== v) this.cur.pause();
+      this.cur = v; if (!v.getAttribute('src')) v.src = v.dataset.src; v.muted = !this.sound;
+      const p = v.play(); if (p) p.catch(() => { if (!v.muted) { v.muted = true; this.sound = false; this.icons(); v.play().catch(() => {}); } });
+    },
+    toggle() { this.sound = !this.sound; if (this.cur) { this.cur.muted = !this.sound; if (this.sound && this.cur.paused) this.play(this.cur); } this.icons(); },
+    icons() { document.querySelectorAll('.snd').forEach(b => { b.innerHTML = svg(this.sound ? 'sound' : 'mute', 'sm'); }); },
+    stop() { if (this.cur) this.cur.pause(); },
+  };
   const postTag = () => draft.mode === 'report' ? 'R:' + draft.cat : draft.tag;
   async function publish() {
     if (Cloud.on) {
@@ -653,15 +785,19 @@ const Social = (() => {
         const id = (crypto.randomUUID && crypto.randomUUID()) || Date.now().toString(36);
         const gid = draft.group || null;
         const image_url = draft.img ? (gid ? await Cloud.uploadGroup(draft.img, gid, id) : await Cloud.upload(draft.img, id)) : null;
+        if (draft.video) b.textContent = 'Uploading video…';
+        const video_url = draft.video ? await Cloud.uploadVideo(draft.video.blob, gid, id).catch(e => { Cloud.dropFiles([image_url]); throw e; }) : null;
         const row = { caption: draft.caption.trim().slice(0, 800), tag: postTag(), image_url, place_name: draft.place.name.slice(0, 120), lng: draft.place.lng, lat: draft.place.lat };
         if (gid) row.group_id = gid;
+        if (video_url) { row.video_url = video_url; row.video_meta = { dur: Math.round(draft.video.dur * 10) / 10, w: draft.video.w, h: draft.video.h }; }
         const { error } = await Cloud.sb.from('posts').insert(row);
-        if (error) throw error;
+        if (error) { Cloud.dropFiles([image_url, video_url]); throw error; }
         await Cloud.loadFeed(); closeCreate(); S.filter = 'all'; setView('feed'); drawUserPins(); showToast(draft.mode === 'report' ? 'Report sent. Thanks for looking out.' : gid ? 'Shared with ' + groupOf(gid).name : 'Posted');
         requestAnimationFrame(() => { const el = document.querySelector('#feed .post'); if (el) el.classList.add('fresh'); });
-      } catch (e) { b.disabled = false; ready(); showToast('Could not post: ' + String(e.message || e).slice(0, 60)); }
+      } catch (e) { b.disabled = false; ready(); const m = String(e.message || e); showToast(/video_url|mime|not supported|exceeded|too large/i.test(m) && draft.video ? 'Video posts are not switched on yet. Try again soon.' : 'Could not post: ' + m.slice(0, 60)); }
       return;
     }
+    if (draft.video) return showToast('Videos are shared online. Connect to the internet and sign in to post one.');
     const p = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), t: new Date().toISOString(), img: draft.img, caption: draft.caption.trim().slice(0, 800), tag: postTag(), place: draft.place };
     S.posts.unshift(p); await persist('posts');
     closeCreate(); drawUserPins(); S.filter = 'all'; setView('feed'); showToast(draft.mode === 'report' ? 'Report sent' : 'Posted');
@@ -687,9 +823,133 @@ const Social = (() => {
   function openPost(fid) { S.filter = 'all'; setView('feed'); requestAnimationFrame(() => { const el = document.querySelector(`.post[data-id="${CSS.escape(fid)}"]`); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.remove('fresh'); void el.offsetWidth; el.classList.add('fresh'); } }); }
   function focusPin(id) { const el = document.querySelector(`.ppin[data-id="${id}"]`); if (el) { el.classList.remove('focus'); void el.offsetWidth; el.classList.add('focus'); } }
 
+  /* ---------- messages and notifications ---------- */
+  // Private one-to-one messages and a list of what people did with your posts. The database
+  // decides who can read what (see supabase/05_videos_messages.sql); this is just the screens.
+  const Inbox = {
+    notes: [], threads: [], open: null, msgs: [], off: false, ch: null,
+    async load() {
+      if (!signedIn()) { this.notes = []; this.threads = []; return this.badge(); }
+      const me = Cloud.user.id;
+      const [n, t] = await Promise.all([
+        Cloud.sb.from('notifications').select('*,who:profiles!notifications_actor_fkey(handle,name,avatar_url)').order('created_at', { ascending: false }).limit(60),
+        Cloud.sb.from('dm_threads').select('*,pa:profiles!dm_threads_a_fkey(id,handle,name,avatar_url),pb:profiles!dm_threads_b_fkey(id,handle,name,avatar_url)').order('last_at', { ascending: false }).limit(80),
+      ]);
+      if (n.error || t.error) { this.off = true; return this.badge(); }
+      this.off = false; this.notes = n.data || [];
+      this.threads = (t.data || []).map(x => { const mine = x.a === me; return { ...x, other: (mine ? x.pb : x.pa) || {}, unread: !!x.last_from && x.last_from !== me && new Date(x.last_at) > new Date(mine ? x.a_read : x.b_read) }; });
+      this.badge();
+    },
+    listen() {
+      if (this.ch || !signedIn() || this.off) return;
+      const me = Cloud.user.id;
+      this.ch = Cloud.sb.channel('inbox-' + me)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: 'user_id=eq.' + me }, ({ new: n }) => this.load().then(() => { if (n.kind !== 'dm') { const full = this.notes.find(x => x.id === n.id) || n; showToast(noteLine(full, true)); } if (S.view === 'activity') renderActivity(); }))
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dm_messages' }, ({ new: m }) => this.incoming(m))
+        .subscribe();
+    },
+    incoming(m) {
+      const here = this.open && this.open.id === m.thread_id;
+      if (here) { if (!this.msgs.some(x => x.id === m.id)) { this.msgs.push(m); drawChat(true); } if (m.sender !== Cloud.user.id) Cloud.sb.rpc('read_dm', { tid: m.thread_id }); }
+      this.load().then(() => {
+        if ($('#dmView') && !$('#dmView').hidden && !this.open) drawInbox();
+        if (m.sender !== Cloud.user.id && !here) { const t = this.threads.find(x => x.id === m.thread_id); showToast(`${t ? t.other.name || t.other.handle : 'New message'}: ${m.body.slice(0, 70)}`); }
+      });
+    },
+    unread() { return this.notes.filter(n => !n.read_at && n.kind !== 'dm').length; },
+    badge() {
+      const d = this.threads.filter(t => t.unread).length;
+      document.querySelectorAll('[data-dm] .cnt').forEach(b => { b.textContent = d > 9 ? '9+' : d; b.hidden = !d; });
+      const dot = $('#tabbar .dot'); if (dot && this.unread() && S.view !== 'activity') dot.hidden = false;
+    },
+  };
+  function noteLine(n, plain) {
+    const e = plain ? (x => String(x || '')) : esc, B = x => plain ? x : `<b>${x}</b>`;
+    const w = B(e((n.who && (n.who.name || n.who.handle)) || 'Someone')), g = n.group_id ? groupOf(n.group_id) : null, gn = B(e(g ? `${g.emoji} ${g.name}` : 'your group'));
+    if (n.kind === 'like') return `${w}${n.n > 1 ? ` and ${n.n - 1} other${n.n > 2 ? 's' : ''}` : ''} liked your post`;
+    if (n.kind === 'comment') return `${w} commented: ${e(n.text)}`;
+    if (n.kind === 'dm') return `${w} sent you ${n.n > 1 ? n.n + ' messages' : 'a message'}: ${e(n.text)}`;
+    if (n.kind === 'group_post') return `${w} posted in ${gn}${n.text ? ': ' + e(n.text) : ''}`;
+    return `${w} joined ${gn}`;
+  }
+  function openMessages(tid) {
+    if (!Cloud.on) return showToast('Messages need an internet connection');
+    if (!signedIn()) return needSignIn('Sign in to send and get private messages.');
+    let v = $('#dmView'); if (!v) { v = document.createElement('div'); v.id = 'dmView'; document.body.appendChild(v); }
+    v.hidden = false; v.classList.remove('out'); Vid.stop();
+    if (tid) return openThread(tid);
+    Inbox.open = null; drawInbox(); Inbox.load().then(() => { if (!Inbox.open && !v.hidden) drawInbox(); });
+  }
+  function closeMessages() { const v = $('#dmView'); if (!v) return; Inbox.open = null; v.classList.add('out'); setTimeout(() => { v.hidden = true; v.innerHTML = ''; }, 260); }
+  function drawInbox() {
+    const v = $('#dmView'); if (!v) return; const me = Cloud.user && Cloud.user.id;
+    v.innerHTML = `<header class="dmtop"><button class="ib" data-x aria-label="Back">${svg('back')}</button><b>Messages</b><button class="ib" data-new aria-label="New message">${svg('plus')}</button></header>
+      <div class="dmlist">${Inbox.off ? '<p class="fine">Messages are not switched on yet. They will be soon.</p>' : Inbox.threads.length ? Inbox.threads.map((t, i) => `<button class="dmrow${t.unread ? ' unread' : ''}" data-t="${t.id}" style="animation-delay:${Math.min(i, 8) * 40}ms">${avatar(authorOf(t.other), 52)}<div><b>${esc(t.other.name || t.other.handle || 'someone')}</b><span>${t.last_from === me ? 'You: ' : ''}${esc(t.last_text || 'Say hi 👋')}</span></div><small>${ago(t.last_at)}</small>${t.unread ? '<i class="udot"></i>' : ''}</button>`).join('')
+        : `<div class="dmempty">${svg('send', 'big')}<b>Your messages</b><p>Send a private message to a neighbor, a friend or family. Only the two of you can read it.</p><button class="btn primary" data-new>Start a conversation</button></div>`}</div>`;
+    v.querySelector('[data-x]').onclick = closeMessages;
+    v.querySelectorAll('[data-new]').forEach(b => b.onclick = newMessage);
+    v.querySelectorAll('[data-t]').forEach(b => b.onclick = () => openThread(b.dataset.t));
+  }
+  function newMessage() { // find someone by name or handle
+    sheet(`<h4>New message</h4><label class="pk-search dmfind">${svg('search', 'sm')}<input type="search" placeholder="Search people by name or @handle" autocomplete="off" aria-label="Search people"></label><div class="dmfound"></div>`, s => {
+      const inp = s.querySelector('input'), out = s.querySelector('.dmfound'); let tm = 0;
+      setTimeout(() => inp.focus(), 250);
+      inp.oninput = () => { clearTimeout(tm); tm = setTimeout(async () => {
+        const q = inp.value.trim().replace(/^@/, '').replace(/[%,()*\\]/g, ''); if (q.length < 2) { out.innerHTML = ''; return; }
+        const { data } = await Cloud.sb.from('profiles').select('id,handle,name,avatar_url').or(`handle.ilike.%${q}%,name.ilike.%${q}%`).neq('id', Cloud.user.id).limit(12);
+        out.innerHTML = (data || []).length ? data.map(p => `<button data-u="${p.id}">${avatar(authorOf(p), 40)}<div><b>${esc(p.name || p.handle)}</b><small>@${esc(p.handle)}</small></div></button>`).join('') : '<p class="fine">Nobody by that name yet.</p>';
+        out.querySelectorAll('[data-u]').forEach(b => b.onclick = () => { closeSheet(); messageUser(b.dataset.u); });
+      }, 220); };
+    });
+  }
+  async function messageUser(uid) {
+    if (!signedIn()) return needSignIn('Sign in to send private messages.');
+    const { data, error } = await Cloud.sb.rpc('start_dm', { other: uid });
+    if (error) return showToast(/function|schema|exist/i.test(error.message) ? 'Messages are not switched on yet' : error.message);
+    await Inbox.load(); openMessages(data);
+  }
+  async function openThread(tid) {
+    let t = Inbox.threads.find(x => x.id === tid);
+    if (!t) { await Inbox.load(); t = Inbox.threads.find(x => x.id === tid); if (!t) { drawInbox(); return showToast('That conversation is not available'); } }
+    Inbox.open = t; Inbox.msgs = []; drawChat();
+    const { data } = await Cloud.sb.from('dm_messages').select('*').eq('thread_id', tid).order('created_at', { ascending: false }).limit(200);
+    if (Inbox.open !== t) return;
+    Inbox.msgs = (data || []).reverse(); drawChat(true);
+    Cloud.sb.rpc('read_dm', { tid }).then(() => Inbox.load());
+  }
+  const emptyChat = t => `<div class="dmempty">${avatar(authorOf(t.other), 72)}<b>${esc(t.other.name || t.other.handle || 'someone')}</b><p>Only the two of you can read this conversation.</p></div>`;
+  function drawChat(onlyList) {
+    const v = $('#dmView'), t = Inbox.open; if (!v || !t) return;
+    const me = Cloud.user.id;
+    const list = Inbox.msgs.map((m, i) => { const prev = Inbox.msgs[i - 1], gap = !prev || new Date(m.created_at) - new Date(prev.created_at) > 30 * 60e3, mine = m.sender === me, next = Inbox.msgs[i + 1];
+      return `${gap ? `<div class="dmtime">${new Date(m.created_at).toLocaleString('en-US', { timeZone: TZ, weekday: 'short', hour: 'numeric', minute: '2-digit' })}</div>` : ''}<div class="bub${mine ? ' me' : ''}${m.pending ? ' pending' : ''}${!next || next.sender !== m.sender ? ' tail' : ''}">${esc(m.body).replace(/\n/g, '<br>')}</div>`; }).join('');
+    const box0 = v.querySelector('.dmmsgs');
+    if (onlyList && box0) { box0.innerHTML = list || emptyChat(t); box0.scrollTop = box0.scrollHeight; return; }
+    v.innerHTML = `<header class="dmtop"><button class="ib" data-back aria-label="Back">${svg('back')}</button>${avatar(authorOf(t.other), 32)}<b class="dmwho">${esc(t.other.name || t.other.handle || 'someone')}<small>@${esc(t.other.handle || '')}</small></b><button class="ib" data-more aria-label="More">${svg('more')}</button></header>
+      <div class="dmmsgs">${list || emptyChat(t)}</div>
+      <form class="dmsend"><textarea rows="1" maxlength="2000" placeholder="Message…" enterkeyhint="send" aria-label="Message"></textarea><button class="ib" aria-label="Send">${svg('send')}</button></form>`;
+    const box = v.querySelector('.dmmsgs'); box.scrollTop = box.scrollHeight;
+    v.querySelector('[data-back]').onclick = () => { Inbox.open = null; drawInbox(); };
+    v.querySelector('[data-more]').onclick = () => sheet(`<div class="menu"><button data-m="block" class="danger">Block @${esc(t.other.handle || 'this person')}</button><button data-x>Cancel</button></div>`, s => { s.querySelector('[data-m]').onclick = async () => { closeSheet(); const { error } = await Cloud.sb.from('blocks').insert({ blocked: t.other.id }); showToast(error && !/duplicate/i.test(error.message) ? 'Could not block' : 'Blocked. They can\'t message you now.'); }; });
+    const f = v.querySelector('form'), ta = f.querySelector('textarea');
+    const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; };
+    ta.oninput = fit;
+    ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); f.requestSubmit(); } };
+    f.onsubmit = async e => {
+      e.preventDefault(); const body = ta.value.trim(); if (!body) return; ta.value = ''; fit(); ta.focus();
+      const tmp = { id: 'tmp' + Date.now(), sender: me, body, created_at: new Date().toISOString(), pending: true }; Inbox.msgs.push(tmp); drawChat(true);
+      const { data, error } = await Cloud.sb.from('dm_messages').insert({ thread_id: t.id, body }).select().single();
+      Inbox.msgs = Inbox.msgs.filter(x => x !== tmp);
+      if (error) { showToast(/row-level/.test(error.message) ? 'You can\'t message this person' : /slow down/i.test(error.message) ? 'Slow down a little' : 'Could not send'); ta.value = body; fit(); }
+      else if (!Inbox.msgs.some(x => x.id === data.id)) Inbox.msgs.push(data);
+      drawChat(true);
+    };
+  }
+
   /* ---------- activity and profile ---------- */
   function renderActivity() {
     const L = Live.st; const since = S.seen || 0; const rows = [];
+    Inbox.notes.forEach(n => rows.push({ t: n.created_at, a: authorOf(n.who || {}), html: noteLine(n), unread: !n.read_at, ...(n.kind === 'dm' ? { tid: n.thread_id } : n.post_id ? { fid: 's' + n.post_id } : n.group_id ? { gid: n.group_id } : {}) }));
     L.alerts.forEach((a, i) => rows.push({ t: a.sent, a: acct('Weather'), html: `<b>${esc(a.event)}</b> ${esc((a.headline || '').slice(0, 120))}`, k: 'alert', i }));
     feedItems().filter(x => x.kind === 'report').forEach(x => rows.push({ t: x.t, a: x.a, html: `reported <b>${x.rs.emo} ${esc(x.rs.label)}</b>${x.place ? ' at ' + esc(x.place.name) : ''}`, fid: x.id }));
     L.traffic.incidents.forEach((n, i) => rows.push({ t: n.start, a: acct(n.source), html: `<b>${esc(n.title)}</b> ${esc((n.desc || '').slice(0, 100))}`, k: 'traffic', i }));
@@ -697,10 +957,14 @@ const Social = (() => {
     Object.keys(S.likes).length && rows.push({ t: new Date(Math.max(...Object.values(S.likes))).toISOString(), a: meAcct(), html: `You liked ${Object.keys(S.likes).length} post${Object.keys(S.likes).length > 1 ? 's' : ''}` });
     rows.sort((x, y) => new Date(y.t || 0) - new Date(x.t || 0));
     const newer = rows.filter(r => new Date(r.t || 0) > since), older = rows.filter(r => !(new Date(r.t || 0) > since));
-    const row = r => `<button class="arow" ${r.k ? `data-k="${r.k}" data-i="${r.i}"` : r.fid ? `data-fid="${esc(r.fid)}"` : ''}>${avatar(r.a, 40)}<div>${r.html}<small>${ago(r.t)}</small></div>${r.img ? `<img src="${esc(r.img)}" alt="" onerror="this.remove()">` : ''}</button>`;
-    $('#sv-activity').innerHTML = `<header class="top"><b class="title">Activity</b></header>${newer.length ? '<div class="sideHead">New</div>' + newer.map(row).join('') : ''}<div class="sideHead">Earlier</div>${older.map(row).join('') || '<p class="fine">Nothing yet.</p>'}`;
+    const row = r => `<button class="arow${r.unread ? ' unread' : ''}" ${r.k ? `data-k="${r.k}" data-i="${r.i}"` : r.fid ? `data-fid="${esc(r.fid)}"` : r.tid ? `data-tid="${r.tid}"` : r.gid ? `data-gid="${r.gid}"` : ''}>${avatar(r.a, 40)}<div>${r.html}<small>${ago(r.t)}</small></div>${r.img ? `<img src="${esc(r.img)}" alt="" onerror="this.remove()">` : ''}</button>`;
+    $('#sv-activity').innerHTML = `<header class="top"><b class="title">Activity</b><button class="ib dmb" data-dm aria-label="Messages">${svg('send')}<i class="cnt" hidden></i></button></header>${newer.length ? '<div class="sideHead">New</div>' + newer.map(row).join('') : ''}<div class="sideHead">Earlier</div>${older.map(row).join('') || '<p class="fine">Nothing yet.</p>'}`;
     $('#sv-activity').querySelectorAll('.arow[data-k]').forEach(b => b.onclick = () => { setView('map'); Live.focus(b.dataset.k, +b.dataset.i); });
     $('#sv-activity').querySelectorAll('.arow[data-fid]').forEach(b => b.onclick = () => openPost(b.dataset.fid));
+    $('#sv-activity').querySelectorAll('.arow[data-tid]').forEach(b => b.onclick = () => openMessages(b.dataset.tid));
+    $('#sv-activity').querySelectorAll('.arow[data-gid]').forEach(b => b.onclick = () => { setView('feed'); setScope(b.dataset.gid); });
+    Inbox.badge();
+    if (Inbox.unread()) { Cloud.sb.from('notifications').update({ read_at: new Date().toISOString() }).is('read_at', null).neq('kind', 'dm').then(() => Inbox.notes.forEach(n => { if (n.kind !== 'dm') n.read_at = n.read_at || new Date().toISOString(); })); }
     S.seen = Date.now(); persist('seen'); $('#tabbar .dot').hidden = true;
   }
   function renderProfile() {
@@ -847,17 +1111,21 @@ const Social = (() => {
   /* ---------- start ---------- */
   async function init() {
     await loadLocal(); S.scope = await Store.get('scope', 'public');
-    shell(); document.body.dataset.view = 'map'; registerSW();
+    shell(); document.body.dataset.view = 'map'; registerSW(); Vid.init();
     if (standalone()) document.body.classList.add('app');
     drawUserPins();
-    Cloud.init().then(() => { if (Cloud.on) { refresh(); pendingJoin(); } });
+    Cloud.init().then(() => { if (Cloud.on) { refresh(); pendingJoin(); Inbox.load().then(() => Inbox.listen()); } });
+    document.addEventListener('click', e => { const b = e.target.closest('[data-dm]'); if (b) { e.preventDefault(); openMessages(); } });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && signedIn()) Inbox.load(); });
     // the place index is big; fetch it once, after the map has settled
     setTimeout(() => placesReady().then(j => { window.__placeIndex = j.filter(p => p[4] === 1 || p[4] === 0 || /park|trail|waterfall|historic|campground|attraction|amusement/.test(p[3])); }), 8000);
     // new activity dot once feeds arrive
-    setInterval(() => { const L = Live.st; const latest = Math.max(0, ...L.news.map(n => +new Date(n.published || 0)), ...L.alerts.map(a => +new Date(a.sent || 0))); $('#tabbar .dot').hidden = !(latest > (S.seen || 0)) || S.view === 'activity'; if (S.view === 'feed' && !document.querySelector('#feed .post')) renderFeed(); }, 5000);
+    setInterval(() => { const L = Live.st; const latest = Math.max(0, ...L.news.map(n => +new Date(n.published || 0)), ...L.alerts.map(a => +new Date(a.sent || 0))); $('#tabbar .dot').hidden = !(latest > (S.seen || 0) || Inbox.unread()) || S.view === 'activity'; if (S.view === 'feed' && !document.querySelector('#feed .post')) renderFeed(); }, 5000);
     const h = decodeURIComponent(location.hash || '');
     if (h.startsWith('#post=')) setTimeout(() => { setView('feed'); const el = document.querySelector(`.post[data-id="${CSS.escape(h.slice(6))}"]`); if (el) el.scrollIntoView({ block: 'center' }); }, 4000);
     if (h === '#feed') setView('feed');
+    if (h === '#activity') setTimeout(() => setView('activity'), 1500);
+    if (h.startsWith('#dm=')) { history.replaceState(null, '', location.pathname + location.search); setTimeout(() => openMessages(h.slice(4)), 3500); }
     if (h === '#report') setTimeout(() => openCreate('report'), 1500);
     document.addEventListener('visibilitychange', async () => { // phones pause the live connection in the background; catch up on return
       if (document.hidden || !Cloud.on || Cloud.newsOff) return;
@@ -868,5 +1136,5 @@ const Social = (() => {
     if (h.startsWith('#join=')) { const code = h.slice(6).replace(/[^A-Za-z0-9]/g, '').toUpperCase(); Store.set('joinCode', code); history.replaceState(null, '', location.pathname + location.search); setTimeout(() => { setView('feed'); Cloud.on ? joinGroup(code) : showToast('Open the full site to join this group'); }, 3500); }
     setInterval(() => { if (S.view !== 'map' || !document.hidden) drawUserPins(); }, 5 * 60e3); // reports expire on their own
   }
-  return { init, S, setView, openCreate, Store, Cloud, pickPlace, searchPlaces, placesReady, refresh, newStory };
+  return { init, S, setView, openCreate, Store, Cloud, pickPlace, searchPlaces, placesReady, refresh, newStory, openMessages, messageUser, Inbox, Vid };
 })();
