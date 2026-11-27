@@ -43,7 +43,8 @@ const Social = (() => {
   /* ---------- storage: device-only for now (IndexedDB, falls back to memory) ---------- */
   const Store = (() => {
     let dbp = null; const mem = {};
-    const open = () => dbp || (dbp = new Promise((res, rej) => { try { const r = indexedDB.open('smokies-social', 1); r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('kv'); }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } }));
+    // if IndexedDB never answers (seen in some embedded and headless browsers), fall back to memory after 2.5 s
+    const open = () => dbp || (dbp = Promise.race([new Promise((_, rej) => setTimeout(() => rej(new Error('idb timeout')), 2500)), new Promise((res, rej) => { try { const r = indexedDB.open('smokies-social', 1); r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('kv'); }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } })]));
     const tx = async (mode, fn) => { const d = await open(); return new Promise((res, rej) => { const t = d.transaction('kv', mode); const st = t.objectStore('kv'); const q = fn(st); t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); }); };
     return {
       async get(k, dflt) { try { const v = await tx('readonly', s => s.get(k)); return v === undefined ? dflt : v; } catch (e) { return k in mem ? mem[k] : dflt; } },
@@ -272,7 +273,7 @@ const Social = (() => {
   /* ---------- views ---------- */
   function shell() {
     const nav = document.createElement('nav'); nav.id = 'tabbar'; nav.setAttribute('aria-label', 'Main');
-    nav.innerHTML = `<div class="logo">${'<svg width="26" height="26" viewBox="0 0 30 30" aria-hidden="true"><path d="M2 24 L10 13 L14 18 L20 8 L28 24 Z" fill="#f2a65a"/><path d="M2 24 L8 19 L13 22 L19 16 L28 24 Z" fill="#9cc0e0" opacity=".85"/></svg>'}<span>Smokies <em>Live</em></span></div>` +
+    nav.innerHTML = `<div class="logo">${window.Brand ? Brand.mark(30) : ''}<span>Smokies <em>Live</em></span></div>` +
       [['feed', 'home', 'Home'], ['map', 'map', 'Map'], ['create', 'plus', 'Post'], ['activity', 'heart', 'Activity'], ['profile', 'user', 'Profile']].map(([k, ic, l]) => `<button data-v="${k}" aria-label="${l}"${k === 'map' ? ' aria-current="page"' : ''}>${k === 'profile' ? `<span class="me">${svg(ic)}</span>` : svg(ic)}<span>${l}</span>${k === 'activity' ? '<i class="dot" hidden></i>' : ''}</button>`).join('');
     document.body.appendChild(nav);
     nav.querySelectorAll('button').forEach(b => b.onclick = () => { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); b.dataset.v === 'create' ? openCreate() : setView(b.dataset.v); });
@@ -806,7 +807,8 @@ const Social = (() => {
     if (standalone()) document.body.classList.add('app');
     drawUserPins();
     Cloud.init().then(() => { if (Cloud.on) { refresh(); pendingJoin(); } });
-    fetch(BASE + 'search.json').then(r => r.json()).then(j => { window.__placeIndex = j.filter(p => p[4] === 1 || p[4] === 0 || /park|trail|waterfall|historic|campground|attraction|amusement/.test(p[3])); }).catch(() => {});
+    // the place index is big; fetch it once, after the map has settled
+    setTimeout(() => placesReady().then(j => { window.__placeIndex = j.filter(p => p[4] === 1 || p[4] === 0 || /park|trail|waterfall|historic|campground|attraction|amusement/.test(p[3])); }), 8000);
     // new activity dot once feeds arrive
     setInterval(() => { const L = Live.st; const latest = Math.max(0, ...L.news.map(n => +new Date(n.published || 0)), ...L.alerts.map(a => +new Date(a.sent || 0))); $('#tabbar .dot').hidden = !(latest > (S.seen || 0)) || S.view === 'activity'; if (S.view === 'feed' && !document.querySelector('#feed .post')) renderFeed(); }, 5000);
     const h = decodeURIComponent(location.hash || '');
@@ -815,7 +817,6 @@ const Social = (() => {
     if (h === '#report') setTimeout(() => openCreate('report'), 1500);
     if (h.startsWith('#join=')) { const code = h.slice(6).replace(/[^A-Za-z0-9]/g, '').toUpperCase(); Store.set('joinCode', code); history.replaceState(null, '', location.pathname + location.search); setTimeout(() => { setView('feed'); Cloud.on ? joinGroup(code) : showToast('Open the full site to join this group'); }, 3500); }
     setInterval(() => { if (S.view !== 'map' || !document.hidden) drawUserPins(); }, 5 * 60e3); // reports expire on their own
-    setTimeout(placesReady, 8000);
   }
   return { init, S, setView, openCreate, Store, Cloud, pickPlace, searchPlaces, placesReady, refresh };
 })();

@@ -33,6 +33,11 @@ jobs:
           NPS_API_KEY: ${{ secrets.NPS_API_KEY }}
           PROBE: ${{ inputs.probe && '1' || '0' }}
         run: python3 scripts/fetch_feeds.py feeds/live
+      - name: Fetch local road speeds
+        continue-on-error: true
+        env:
+          TOMTOM_KEY: ${{ secrets.TOMTOM_KEY }}
+        run: python3 scripts/fetch_locals.py feeds/live
       - name: Publish
         working-directory: feeds
         run: |
