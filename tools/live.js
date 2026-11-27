@@ -218,6 +218,7 @@ const Live = (() => {
     if (kind === 'news') return st.news[i]; if (kind === 'event') return st.events[i]; if (kind === 'traffic') return st.traffic.incidents[i];
     if (kind === 'cam') return st.traffic.cameras[i]; if (kind === 'gauge') return st.gauges[i]; if (kind === 'fire') return st.fires[i]; if (kind === 'alert') return st.alerts[i];
   }
+  function fireWhen(o) { const t = String(o.time || '0000').padStart(4, '0'); const d = new Date(`${o.date}T${t.slice(0, 2)}:${t.slice(2)}:00Z`); return isNaN(d) ? `${o.date} ${o.time} UTC` : d.toLocaleString('en-US', { timeZone: TZ, weekday: 'short', hour: 'numeric', minute: '2-digit' }); }
   function focus(kind, i) {
     const o = lookup(kind, i); if (!o) return;
     const ll = o.place ? [o.place.lng, o.place.lat] : o.lng != null ? [o.lng, o.lat] : o.center || null;
@@ -226,16 +227,18 @@ const Live = (() => {
     if (kind === 'cam') body = o.img ? `<div class="camwrap"><img src="${esc(camSrc(o))}" alt="">${camTag(o)}</div>` : '';
     else if (o.img) body = `<div class="camwrap"><img src="${esc(o.img)}" alt="" onerror="this.parentNode.remove()"></div>`;
     const title = o.title || o.event || o.name && (kind === 'gauge' ? niceGauge(o.name) : o.name) || (kind === 'fire' ? 'Heat detected by ' + o.sat : '');
-    const text = o.summary || o.desc || o.description || (kind === 'gauge' ? `${o.cfs != null ? Math.round(o.cfs).toLocaleString() + ' cubic feet per second' : ''}${o.ft != null ? ', gauge height ' + o.ft.toFixed(2) + ' ft' : ''}. ${trend(o.cfs24)}.` : '') || (kind === 'fire' ? `Detected ${o.date} at ${o.time} UTC. Confidence ${o.conf}. Satellite heat detections can include controlled burns and industrial heat.` : '');
+    const text = o.summary || o.desc || o.description || (kind === 'gauge' ? `${o.cfs != null ? Math.round(o.cfs).toLocaleString() + ' cubic feet per second' : ''}${o.ft != null ? ', gauge height ' + o.ft.toFixed(2) + ' ft' : ''}. ${trend(o.cfs24)}.` : '') || (kind === 'fire' ? `Spotted ${fireWhen(o)}. Satellite confidence: ${({ l: 'low', n: 'medium', h: 'high' }[String(o.conf).toLowerCase()] || o.conf)}. Heat detections can include controlled burns and industrial heat.` : '');
     const where = o.place ? `<span class="pin-chip">${esc(o.place.name)}</span>` : '';
     const link = o.link || o.page || (kind === 'gauge' ? `https://waterdata.usgs.gov/monitoring-location/${o.id}/` : null);
     c.innerHTML = `<button class="close" aria-label="Close">✕</button><div class="eyebrow c-${kind}">${label}${o.source ? ' · ' + esc(o.source) : ''}</div><h3>${esc(title)}</h3>${body}${text ? `<p>${esc(String(text).slice(0, 600))}</p>` : ''}<div class="mt">${where}${o.published ? `<span>${ago(o.published)}</span>` : ''}</div>
+      ${kind === 'fire' ? '<button class="btn hzgo" id="lcHz">🧭 Wind and possible spread</button>' : kind === 'alert' && window.Hazards && Hazards.isFlood(o) ? '<button class="btn hzgo" id="lcHz">🌊 What this means near you</button>' : ''}
       <div class="acts">${ll ? '<button class="btn" id="lcFly">Fly here</button>' : ''}${link ? `<a class="btn primary" href="${esc(link)}" target="_blank" rel="noopener">${kind === 'news' ? 'Read story' : kind === 'cam' && o.live ? 'Watch live' : 'Open source'}</a>` : ''}</div>
       ${o.place && o.place.kind !== 'nps' ? '<div class="mt" style="margin-top:8px">Location matched from place names in the story, so it can be approximate.</div>' : ''}`;
     c.hidden = false;
     c.querySelector('.close').onclick = () => c.hidden = true;
     const fly = () => { if (!ll) return; stopOrbit(); map.flyTo({ center: ll, zoom: Math.max(map.getZoom(), kind === 'gauge' || kind === 'fire' ? 13.2 : 15), pitch: 62, duration: 2600, curve: 1.4, easing: easeInOut, essential: true }); bounce(kind, i); };
     const fb = $('#lcFly'); if (fb) fb.onclick = fly;
+    const hz = $('#lcHz'); if (hz) hz.onclick = () => { c.hidden = true; kind === 'fire' ? Hazards.fire(o) : Hazards.flood(o); };
     if (innerWidth <= 760) setOpen(false);
     fly();
   }
@@ -255,7 +258,7 @@ const Live = (() => {
     const gridURL = base + `latitude=${pts.map(p => p[1].toFixed(3)).join(',')}&longitude=${pts.map(p => p[0].toFixed(3)).join(',')}&current=temperature_2m,dew_point_2m,relative_humidity_2m,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation,rain,showers,snowfall,weather_code,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph`;
     const ptURL = base + `latitude=${home.lat.toFixed(3)}&longitude=${home.lng.toFixed(3)}&` + 'current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,visibility,precipitation&hourly=temperature_2m,weather_code,precipitation_probability,is_day&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FNew_York&forecast_days=2';
     const [g, w] = await Promise.allSettled([jget(gridURL), jget(ptURL)]);
-    if (w.status === 'fulfilled') { st.wx = w.value; st.updated.wx = new Date().toISOString(); chip(); applyLiveWind(); }
+    if (w.status === 'fulfilled') { st.wx = w.value; st.updated.wx = new Date().toISOString(); chip(); }
     if (g.status === 'fulfilled') {
       const arr = g.value; const cells = arr.slice(0, GRID.length).map(r => ({ ...r.current, elev: r.elevation }));
       const mean = k => cells.reduce((s, c) => s + (c[k] || 0), 0) / cells.length;
@@ -274,10 +277,6 @@ const Live = (() => {
     $('#liveChip').querySelector('svg').outerHTML = icon(c.weather_code, c.is_day);
     $('#wxTemp').textContent = Math.round(c.temperature_2m) + '°';
     $('#wxDesc').innerHTML = `<b>${WMO[c.weather_code] || ''}</b> in ${esc(home.n)} · wind ${Math.round(c.wind_speed_10m)} mph ${compass(c.wind_direction_10m)}${st.grid && st.grid.summit ? `<br><span>Le Conte summit ${Math.round(st.grid.summit.temperature_2m)}°</span>` : ''}`;
-  }
-  function applyLiveWind() { // the wildfire tool starts from today's real wind
-    if (!st.wx || toolState.fire) return; const c = st.wx.current;
-    fire.wind = Math.round(c.wind_direction_10m); fire.speed = Math.max(2, Math.round(c.wind_speed_10m));
   }
   let fogAuto = false;
   function autoFog() { // turn on valley fog when the valleys are saturated and calm
