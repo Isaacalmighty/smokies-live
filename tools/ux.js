@@ -121,11 +121,9 @@ const UX = (() => {
     const s = sheet('show', `<header class="uxh"><div><b>Show on map</b><small>Pick what you want to see. Everything else stays out of the way.</small></div><button class="uxx" data-x aria-label="Close">✕</button></header>
       <div class="uxpresets">${PRESETS.map(([id, ic, n]) => `<button data-preset="${id}" aria-pressed="false"><span>${ic}</span>${esc(n)}</button>`).join('')}</div>
       ${GROUPS.map(([g, items], gi) => `<div class="uxgroup${g === 'Map' ? ' fold' : ''}" style="--i:${gi}"><div class="uxeyebrow">${esc(g)}</div>${items.map(row).join('')}</div>`).join('')}
-      <div class="uxgroup" style="--i:6"><div class="uxeyebrow">What if?</div><div class="uxtools"><button data-tool="flood"><span>🌊</span><b>Flood simulator</b><small>Raise the rivers and see what floods</small></button><button data-tool="fire"><span>🔥</span><b>Wildfire simulator</b><small>Start a fire, set the wind</small></button></div></div>
       <p class="uxfine">Wildfires, road closures and weather warnings always show, even on a clean map.</p>`);
     s.querySelectorAll('[data-k]').forEach(r => r.onclick = () => { const k = r.dataset.k; setLayer(k, !BY[k][4].get()); press(r); });
     s.querySelectorAll('[data-preset]').forEach(c => c.onclick = () => { press(c); preset(c.dataset.preset); });
-    s.querySelectorAll('[data-tool]').forEach(t => t.onclick = () => { closeSheet(); toView('map'); setTimeout(() => btn('tool-' + t.dataset.tool).click(), 200); });
     sync();
   }
   function press(el) { el.classList.remove('uxpress'); void el.offsetWidth; el.classList.add('uxpress'); }
@@ -180,8 +178,8 @@ const UX = (() => {
   function urgent() {
     const L = window.Live && Live.st; if (!L) return '';
     const out = [];
-    (L.alerts || []).forEach((a, i) => out.push(`<button class="uxalert" data-alert="${i}"><span>⚠️</span><div><b>${esc(a.event)}</b><small>${esc((a.description || a.headline || '').replace(/^\*\s*/, '').replace(/\s*\*\s*/g, ' · '))}</small></div></button>`));
-    if ((L.fires || []).length) out.push(`<button class="uxalert fire" data-fly="fire"><span>🔥</span><div><b>${L.fires.length} fire${L.fires.length > 1 ? 's' : ''} spotted by satellite</b><small>Heat detections in the last 24 hours. Tap to see where.</small></div></button>`);
+    (L.alerts || []).forEach((a, i) => out.push(`<button class="uxalert" data-alert="${i}"><span>⚠️</span><div><b>${esc(a.event)}</b><small>${esc((a.description || a.headline || '').replace(/^\*\s*/, '').replace(/\s*\*\s*/g, ' · '))}</small></div></button>${window.Hazards && Hazards.isFlood(a) ? `<button class="uxhz" data-hz="flood" data-i="${i}">🌊 What this means near you<i>›</i></button>` : ''}`));
+    if ((L.fires || []).length) out.push(`<button class="uxalert fire" data-fly="fire"><span>🔥</span><div><b>${L.fires.length} fire${L.fires.length > 1 ? 's' : ''} spotted by satellite</b><small>Heat detections in the last 24 hours. Tap to see where.</small></div></button><button class="uxhz" data-hz="fire">🧭 Wind and possible spread<i>›</i></button>`);
     const closed = (L.traffic.incidents || []).filter(n => /clos/i.test(n.title + ' ' + (n.desc || '')));
     if (closed.length) out.push(`<button class="uxalert road" data-fly="closed"><span>🚧</span><div><b>${closed.length === 1 ? esc(closed[0].title) : closed.length + ' roads closed'}</b><small>${closed.slice(closed.length === 1 ? 0 : 0, 3).map(n => esc(closed.length === 1 ? (n.desc || '').slice(0, 120) : n.title)).join(' · ')}</small></div></button>`);
     return out.length ? `<div class="uxsec"><div class="uxeyebrow hot">Heads up</div>${out.join('')}</div>` : '';
@@ -261,7 +259,6 @@ const UX = (() => {
       <div class="uxsec"><div class="uxeyebrow">This app is for</div><div class="uxseg">${WHO.map(([k, ic, n]) => `<button data-setwho="${k}" aria-pressed="${k === w}">${ic} ${esc(n)}</button>`).join('')}</div><p class="uxfine" style="margin:8px 2px 0">Changes what Today shows first. ${w === 'local' ? 'Local\'s mode is on: tourist stuff is tucked away.' : ''}</p></div>
       <div class="uxsec"><div class="uxeyebrow">Plan</div>${item('data-hub="go"', '🎯', 'Is it worth going?', 'A 0 to 10 score for each spot right now')}${item('data-hub="sky"', '🌄', 'Sunrise and fog forecast', 'Sea of clouds, best overlook')}${item('data-hub="roads"', '🚗', 'Roads and the Parkway clock', 'Drive times and back roads')}${item('data-tour', '🎬', 'Grand tour', 'A flyover of the whole park')}<div class="uxstops">${stops}</div></div>
       <div class="uxsec"><div class="uxeyebrow">Neighbors</div>${item('data-hub="alerts"', '📍', 'Alerts for my places', 'Creeks, fire, ice, outages near home')}${item('data-hub="outages"', '⚡', 'Outages')}${item('data-hub="pets"', '🐾', 'Lost and found pets')}${item('data-hub="board"', '🏪', 'Local business board', 'Deals, open now, jobs, music')}${item('data-hub="events"', '🏈', 'Local events', 'Games, church, community')}${item('data-hub="memory"', '🕰️', 'Old photos and stories')}</div>
-      <div class="uxsec"><div class="uxeyebrow">What if?</div>${item('data-tool="flood"', '🌊', 'Flood simulator', 'Raise the rivers and see what floods')}${item('data-tool="fire"', '🔥', 'Wildfire simulator', 'Start a fire, set the wind, watch it spread')}</div>
       <div class="uxsec"><div class="uxeyebrow">App</div>${Social.standalone && Social.standalone() ? '' : item('data-install', '📲', 'Get the app', 'Add Smokies Live to your home screen')}${item('data-about', 'ℹ️', 'About the data', 'Where everything comes from')}</div>
       <p class="uxfine">Smokies Live · made in Sevier County</p></div>`;
   }
@@ -275,7 +272,7 @@ const UX = (() => {
     if (d.hub) { if (window.Locals) { toView('map'); setTimeout(() => Locals.openHub(d.hub), 120); } return; }
     if (d.v) { toView(d.v); if (d.groups != null) setTimeout(() => { const g = document.querySelector('.pgroups'); if (g) g.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 250); return; }
     if (d.presetGo) { toView('map'); preset(d.presetGo); return; }
-    if (d.tool) { toView('map'); setTimeout(() => btn('tool-' + d.tool).click(), 250); return; }
+    if (d.hz) { const L = Live.st; if (d.hz === 'flood') Hazards.flood(L.alerts[+d.i]); else if (L.fires.length === 1) Hazards.fire(L.fires[0]); else { toView('map'); const m = window.__smokies.map, xs = L.fires.map(p => p.lng), ys = L.fires.map(p => p.lat); setTimeout(() => { m.fitBounds([[Math.min(...xs) - .03, Math.min(...ys) - .03], [Math.max(...xs) + .03, Math.max(...ys) + .03]], { padding: 80, pitch: 55, duration: 2200, maxZoom: 13 }); window.__smokies.showToast('Tap a fire to see the wind there and where it could spread'); }, 250); } return; }
     if (d.stop != null) { toView('map'); setTimeout(() => document.querySelectorAll('#tourList .stop')[+d.stop].click(), 200); return; }
     if (d.tour != null) { toView('map'); setTimeout(() => $('#grand').click(), 200); return; }
     if (d.install != null) { Social.install(); return; }
