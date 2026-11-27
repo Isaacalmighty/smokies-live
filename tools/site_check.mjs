@@ -11,12 +11,13 @@ for (const [tag, vp] of [['desktop', { width: 1440, height: 900 }], ['phone', { 
   page.on('pageerror', e => log.push(`${tag} pageerror ${e.message}`));
   page.on('console', m => { if (m.type() === 'error' || /\[live\]/.test(m.text())) log.push(`${tag} console ${m.type()} ${m.text().slice(0, 300)}`); });
   page.on('requestfailed', r => log.push(`${tag} failed ${r.url().slice(0, 160)} ${r.failure() && r.failure().errorText}`));
+  const tt = {}; page.on('response', r => { if (r.url().includes('api.tomtom.com')) { const k = r.status(); tt[k] = (tt[k] || 0) + 1; } });
   await page.addInitScript(() => { window.__noIntro = true; });
   await page.goto(URL, { waitUntil: 'load', timeout: 90000 });
   try { await page.waitForFunction(() => window.__smokies && window.__smokies.sky && window.__smokies.sky.sun, null, { timeout: 90000 }); } catch (e) { log.push(tag + ' sky never ready'); }
   await page.waitForTimeout(20000);
   const state = await page.evaluate(() => { const L = window.Live && window.Live.st; return L ? { blocked: L.blocked, wx: !!L.wx, puffs: window.Live.Clouds.n, alerts: L.alerts.map(a => a.event), news: L.news.length, events: L.events.length, incidents: L.traffic.incidents.length, cams: L.traffic.cameras.length, gauges: L.gauges.length, fires: L.fires.length, sky: document.getElementById('skyTime').textContent, chip: document.getElementById('wxDesc').textContent } : 'no Live'; });
-  log.push(tag + ' state ' + JSON.stringify(state));
+  log.push(tag + ' state ' + JSON.stringify(state)); log.push(tag + ' tomtom ' + JSON.stringify(tt));
   await page.screenshot({ path: `${out}/${tag}-1.jpg`, quality: 70, timeout: 120000 });
   await page.evaluate(() => document.getElementById('liveChip').click());
   await page.waitForTimeout(2500);

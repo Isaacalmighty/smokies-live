@@ -8,7 +8,7 @@ const Live = (() => {
   const FEEDS = 'https://raw.githubusercontent.com/Isaacalmighty/smokies-live/feeds/live/';
   const SITE = 'https://isaacalmighty.github.io/smokies-live/';
   // TomTom key for real traffic speeds (free plan; a browser key, like a map key). Empty = modeled traffic.
-  const TOMTOM = '';
+  const TOMTOM = 'j81wnoR8SajwacDSKgn20e1SNEzZzf1r';
   const st = { blocked: false, wx: null, grid: null, alerts: [], news: [], events: [], traffic: { incidents: [], cameras: [] }, gauges: [], fires: [], radar: null, iss: null, tab: 'now', markers: {}, on: { clouds: true, radar: false, traffic: true, cams: true, news: true, rivers: true }, updated: {} };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ago = iso => { if (!iso) return ''; const s = (Date.now() - new Date(iso)) / 1000; if (s < 0) return new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }); if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' hr ago'; return Math.round(s / 86400) + ' d ago'; };
