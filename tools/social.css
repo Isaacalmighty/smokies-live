@@ -405,3 +405,17 @@ body.ingroup #stories,body.ingroup #fchips{display:none}
 .otpf input{flex:1;min-width:0;text-align:center;font:600 22px var(--font-data);letter-spacing:.3em}
 .otpf.shake{animation:shake .4s var(--ease-io)}
 @keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+
+/* ---------- live news in the feed ---------- */
+#newPill{position:sticky;top:calc(env(safe-area-inset-top,0px) + 62px);left:50%;z-index:4;align-self:flex-start;margin-left:auto;margin-right:auto;transform:translateX(-50%);display:flex;align-items:center;gap:8px;height:38px;padding:0 14px 0 10px;border-radius:999px;border:0;background:var(--ember,#f2a65a);color:#1b130b;font-weight:700;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.45);cursor:pointer;animation:pillin .5s var(--ease-out)}
+#socialView>#newPill{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px)}
+@media (min-width:761px){#socialView>#newPill{left:calc(50% + 38px)}}
+#newPill .av.sm{width:22px;height:22px}#newPill .av.sm b{font-size:9px}
+#newPill .ic.up{transform:rotate(90deg);width:15px;height:15px;stroke-width:2.6}
+#newPill.bounce{animation:pillbump .5s var(--ease-out)}
+#newPill.out{animation:pillout .3s var(--ease-io) forwards}
+@keyframes pillin{from{opacity:0;transform:translate(-50%,-24px) scale(.8)}}
+@keyframes pillbump{40%{transform:translate(-50%,-4px) scale(1.08,.94)}70%{transform:translate(-50%,1px) scale(.97,1.03)}}
+@keyframes pillout{to{opacity:0;transform:translate(-50%,-20px) scale(.9)}}
+.newtag{position:absolute;right:12px;top:12px;padding:3px 8px;border-radius:5px;background:#ffcf5a;color:#2a1d05;font:700 11px var(--font-display);letter-spacing:.1em;animation:ppop .6s var(--ease-out)}
+.more-sentinel{height:1px}

@@ -131,7 +131,7 @@ export async function run(dry = false) {
   let known = new Map<string, { img: string | null }>();
   if (!dry && rows.length) { const have = await db(`news_items?select=id,img&id=in.(${rows.map(r => `"${String(r.id).replace(/"/g, '')}"`).join(',')})`) as { id: string; img: string | null }[]; known = new Map(have.map(h => [h.id, h])); }
   // photos: only for stories we don't have yet (or that came without one), a few at a time
-  const need = rows.filter(r => !r.img && !(known.get(String(r.id))?.img)).slice(0, 24);
+  const need = rows.filter(r => !r.img && !/news\.google\.com/.test(String(r.link)) && !(known.get(String(r.id))?.img)).slice(0, 30);
   await Promise.all(need.map(async r => { r.img = await ogImage(String(r.link)); }));
   rows.forEach(r => { if (!r.img && known.get(String(r.id))?.img) r.img = known.get(String(r.id))!.img; });
   const fresh = rows.filter(r => !known.has(String(r.id)));

@@ -710,6 +710,20 @@ body.ingroup #stories,body.ingroup #fchips{display:none}
 .otpf input{flex:1;min-width:0;text-align:center;font:600 22px var(--font-data);letter-spacing:.3em}
 .otpf.shake{animation:shake .4s var(--ease-io)}
 @keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+
+/* ---------- live news in the feed ---------- */
+#newPill{position:sticky;top:calc(env(safe-area-inset-top,0px) + 62px);left:50%;z-index:4;align-self:flex-start;margin-left:auto;margin-right:auto;transform:translateX(-50%);display:flex;align-items:center;gap:8px;height:38px;padding:0 14px 0 10px;border-radius:999px;border:0;background:var(--ember,#f2a65a);color:#1b130b;font-weight:700;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.45);cursor:pointer;animation:pillin .5s var(--ease-out)}
+#socialView>#newPill{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px)}
+@media (min-width:761px){#socialView>#newPill{left:calc(50% + 38px)}}
+#newPill .av.sm{width:22px;height:22px}#newPill .av.sm b{font-size:9px}
+#newPill .ic.up{transform:rotate(90deg);width:15px;height:15px;stroke-width:2.6}
+#newPill.bounce{animation:pillbump .5s var(--ease-out)}
+#newPill.out{animation:pillout .3s var(--ease-io) forwards}
+@keyframes pillin{from{opacity:0;transform:translate(-50%,-24px) scale(.8)}}
+@keyframes pillbump{40%{transform:translate(-50%,-4px) scale(1.08,.94)}70%{transform:translate(-50%,1px) scale(.97,1.03)}}
+@keyframes pillout{to{opacity:0;transform:translate(-50%,-20px) scale(.9)}}
+.newtag{position:absolute;right:12px;top:12px;padding:3px 8px;border-radius:5px;background:#ffcf5a;color:#2a1d05;font:700 11px var(--font-display);letter-spacing:.1em;animation:ppop .6s var(--ease-out)}
+.more-sentinel{height:1px}
 /* SOCIAL-CSS-END */
 /* BRAND-CSS-BEGIN */
 /* ---------- brand: Misty Ridges (outdoors theme) ---------- */
@@ -2540,7 +2554,7 @@ const Social = (() => {
   // Supabase project (public URL and anon key; data is protected by row-level security). Empty = device-only mode.
   const SUPA = { url: 'https://uamuqhkpbszogmdusfqr.supabase.co', key: 'sb_publishable_Y0fiNms2M0TI1Ph_ITWk0Q_hk2TS848' };
   const SUPA_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.79.0/dist/umd/supabase.js';
-  const S = { view: 'map', posts: [], likes: {}, saved: {}, comments: {}, me: null, stories: [], storyAt: 0, pins: [], seen: 0, votes: {}, rvotes: {}, filter: 'all', here: null, groups: [], scope: 'public', signed: {} };
+  const S = { view: 'map', posts: [], likes: {}, saved: {}, comments: {}, me: null, stories: [], storyAt: 0, pins: [], seen: 0, news: [], freshNews: new Set(), votes: {}, rvotes: {}, filter: 'all', here: null, groups: [], scope: 'public', signed: {} };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ago = iso => { if (!iso) return ''; const s = (Date.now() - new Date(iso)) / 1000; if (s < 0) return 'upcoming'; if (s < 60) return 'now'; if (s < 3600) return Math.round(s / 60) + 'm'; if (s < 86400) return Math.round(s / 3600) + 'h'; if (s < 7 * 86400) return Math.round(s / 86400) + 'd'; return new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }); };
   const I = { // 24px line icons
@@ -2597,6 +2611,8 @@ const Social = (() => {
         this.sb.auth.onAuthStateChange(async (ev, ses) => { const was = this.user && this.user.id; this.user = ses ? ses.user : null; if ((this.user && this.user.id) !== was) { await this.loadMe(); await this.loadGroups(); await this.loadFeed(); refresh(); if (ev === 'SIGNED_IN') { showToast('Signed in'); pendingJoin(); } } });
         await this.loadMe(); await this.loadGroups(); await this.loadFeed();
         this.sb.channel('posts').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, () => this.loadFeed().then(refresh)).subscribe();
+        await this.loadNews();
+        if (!this.newsOff) this.sb.channel('news').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'news_items' }, ({ new: n }) => newStory(n)).subscribe();
         if (!this.votesOff) this.sb.channel('votes').on('postgres_changes', { event: '*', schema: 'public', table: 'report_votes' }, () => this.loadVotes().then(refresh)).subscribe();
         if (location.search.includes('code=')) history.replaceState(null, '', location.pathname + location.hash);
       } catch (e) { console.info('[social] backend unavailable', e && e.message); this.on = false; Store.shared = false; }
@@ -2609,6 +2625,12 @@ const Social = (() => {
       S.serverLikes = Object.fromEntries((lk || []).map(r => ['s' + r.post_id, 1]));
     },
     async loadFeed() { const { data, error } = await this.sb.from('post_feed').select('*').order('created_at', { ascending: false }).limit(150); if (!error) S.remote = data || []; await Promise.all([this.loadVotes(), this.signPhotos()]); },
+    newsOff: false,
+    async loadNews() {
+      const { data, error } = await this.sb.from('news_items').select('id,source,title,summary,link,img,published,place').order('published', { ascending: false }).limit(150);
+      if (error) { this.newsOff = true; return; }
+      S.news = data || [];
+    },
     groupsOff: false,
     async loadGroups() { // the private groups you belong to
       if (!this.user) { S.groups = []; return; }
@@ -2686,6 +2708,13 @@ const Social = (() => {
   const fmtLeft = ms => ms > 36e5 * 24 ? Math.round(ms / 864e5) + 'd' : ms > 36e5 ? Math.round(ms / 36e5) + 'h' : Math.max(1, Math.round(ms / 6e4)) + 'm';
   const color = h => { let x = 0; for (const ch of h || '') x = (x * 31 + ch.charCodeAt(0)) >>> 0; return `hsl(${x % 360} 45% 42%)`; };
   const authorOf = r => ({ name: r.name || r.handle, h: r.handle || 'someone', c: color(r.handle), i: (r.name || r.handle || '?').slice(0, 1).toUpperCase(), photo: r.avatar_url });
+  const nkey = t => String(t || '').toLowerCase().replace(/\W+/g, '').slice(0, 60);
+  function allNews() { // stories from the 5-minute collector, plus the backup feed, one post per story
+    const out = new Map();
+    (S.news || []).forEach(n => out.set(nkey(n.title), { ...n }));
+    Live.st.news.forEach((n, i) => { const k = nkey(n.title); const have = out.get(k); if (have) { have.li = i; if (!have.img && n.img) have.img = n.img; if (!have.place && n.place) have.place = n.place; } else out.set(k, { ...n, id: k, li: i }); });
+    return [...out.values()];
+  }
   const imgOf = u => u && u.startsWith('gp:') ? S.signed[u.slice(3)] || '' : u;
   const groupOf = id => id ? S.groups.find(g => g.id === id) || { id, name: 'Private group', emoji: '🔒', color: '#555' } : null;
   const remoteItem = r => ({ id: 's' + r.id, kind: 'user', group: groupOf(r.group_id), a: authorOf(r), t: r.created_at, img: imgOf(r.image_url), text: r.caption, tag: r.tag, place: r.lng != null ? { name: r.place_name || 'Pinned spot', lng: r.lng, lat: r.lat } : null, likes: r.like_count, ncom: r.comment_count, mine: !!(Cloud.user && r.user_id === Cloud.user.id), ref: { id: 's' + r.id, sid: r.id, remote: true, img: r.image_url, gid: r.group_id } });
@@ -2702,7 +2731,8 @@ const Social = (() => {
   /* ---------- accounts for the live sources, so the feed reads like people you follow ---------- */
   const ACCTS = {
     'The Mountain Press': { h: 'mountainpress', c: '#c0392b', i: 'MP' }, 'WBIR 10News': { h: 'wbir', c: '#1f5fbf', i: '10' }, WVLT: { h: 'wvlt', c: '#e0731f', i: '8' },
-    'WATE 6 On Your Side': { h: 'wate6', c: '#2a7de1', i: '6' }, 'National Park Service': { h: 'greatsmokynps', c: '#3b5d2a', i: 'NP' }, Gatlinburg: { h: 'gatlinburg', c: '#7a4fbf', i: 'G' },
+    'WATE 6 On Your Side': { h: 'wate6', c: '#2a7de1', i: '6' }, 'Knox News': { h: 'knoxnews', c: '#0b5aa2', i: 'KN' }, 'The Daily Times': { h: 'thedailytimes', c: '#8a2b2b', i: 'DT' },
+    WLOS: { h: 'wlos', c: '#1d4f91', i: '13' }, 'Citizen Times': { h: 'citizentimes', c: '#00609c', i: 'CT' }, 'Smoky Mountain News': { h: 'smokymtnnews', c: '#4f6f2f', i: 'SM' }, 'Smoky Mountain Times': { h: 'smokymtntimes', c: '#6a5a2f', i: 'ST' }, 'National Park Service': { h: 'greatsmokynps', c: '#3b5d2a', i: 'NP' }, Gatlinburg: { h: 'gatlinburg', c: '#7a4fbf', i: 'G' },
     'TDOT SmartWay': { h: 'tdot', c: '#e8892b', i: 'TD' }, NCDOT: { h: 'ncdot', c: '#e8892b', i: 'NC' }, Weather: { h: 'smokies.weather', c: '#2f8fe0', i: '☁' }, Rivers: { h: 'smokies.rivers', c: '#2f8fe0', i: '≈' },
   };
   function acct(src) { const a = ACCTS[src]; if (a) return { name: src, ...a }; const h = String(src || 'local').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 18) || 'local'; let x = 0; for (const ch of h) x = (x * 31 + ch.charCodeAt(0)) >>> 0; return { name: src, h, c: `hsl(${x % 360} 45% 42%)`, i: (src || '?').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() }; }
@@ -2718,12 +2748,13 @@ const Social = (() => {
     for (let i = out.length - 1; i >= 0; i--) if (out[i].kind === 'report' && out[i].rs.gone) out.splice(i, 1);
     L.alerts.forEach((a, i) => out.push({ id: 'al' + i + (a.event || ''), kind: 'alert', a: acct('Weather'), t: a.sent || a.effective, card: 'alert', title: a.event, text: (a.description || a.headline || '').replace(/\s*\*\s*/g, ' ').slice(0, 400), place: null, refK: 'alert', refI: i }));
     L.traffic.cameras.forEach((c, i) => out.push({ id: 'cam' + c.id, kind: 'cam', a: acct(c.source), t: new Date().toISOString(), img: c.img ? (c.still ? c.img + '?r=' + Math.floor(Date.now() / 300000) : c.img) : null, card: c.img ? null : 'cam', title: c.name, spot: c.spot, live: c.still || c.live, text: c.img ? c.name + (c.still ? ' · new image every few minutes' : '') : '', link: c.img ? null : c.page, place: c.lng != null ? { name: (c.spot || c.name).replace(/ Webcam$/, ''), lng: c.lng, lat: c.lat } : null, refK: 'cam', refI: i }));
-    L.news.forEach((n, i) => out.push({ id: 'n' + n.id, kind: 'news', a: acct(n.source), t: n.published, img: n.img, card: n.img ? null : 'headline', title: n.title, text: n.summary && n.summary !== n.title ? n.summary : '', place: n.place, link: n.link, refK: 'news', refI: i }));
+    allNews().forEach(n => out.push({ id: 'n' + n.id, kind: 'news', fresh: S.freshNews.has(n.id), a: acct(n.source), t: n.published, img: n.img, card: n.img ? null : 'headline', title: n.title, text: n.summary && n.summary !== n.title ? n.summary : '', place: n.place, link: n.link, ...(n.li != null ? { refK: 'news', refI: n.li } : {}) }));
     L.events.forEach((n, i) => out.push({ id: 'e' + n.id, kind: 'event', a: acct(n.source), t: n.published || n.start, img: n.img, card: n.img ? null : 'event', title: n.title, text: n.summary, start: n.start, place: n.place, link: n.link, refK: 'event', refI: i }));
     L.traffic.incidents.forEach((n, i) => out.push({ id: 'r' + n.id, kind: 'road', a: acct(n.source), t: n.start, card: 'road', title: n.title, text: n.desc, place: n.place || (n.lng != null ? { name: n.road || 'Road', lng: n.lng, lat: n.lat } : null), link: n.link, refK: 'traffic', refI: i }));
     // mix it like a real feed: your posts and alerts first, then news with webcams and events woven in
     const by = k => out.filter(x => x.kind === k).sort((x, y) => new Date(y.t || 0) - new Date(x.t || 0));
-    const head = [...by('alert'), ...by('report'), ...by('user')], news = by('news'), cams = by('cam'), roads = by('road');
+    const head = [...by('alert'), ...by('report'), ...by('user')], cams = by('cam'), roads = by('road');
+    const news = (() => { const all = by('news'), lead = [], seenSrc = new Set(); all.forEach(x => { if (!seenSrc.has(x.a.name) && Date.now() - new Date(x.t || 0) < 3 * 864e5) { seenSrc.add(x.a.name); lead.push(x); } }); return [...lead, ...all.filter(x => !lead.includes(x))]; })();
     const evs = out.filter(x => x.kind === 'event').sort((x, y) => Math.abs(new Date(x.start || x.t || 0) - Date.now()) - Math.abs(new Date(y.start || y.t || 0) - Date.now()));
     const mixed = [...head]; let n = 0;
     while (news.length || cams.length || evs.length || roads.length) {
@@ -2748,6 +2779,7 @@ const Social = (() => {
     else if (p.card === 'road') media = `<div class="media txt road"><div><small>Roads</small><h3>${esc(p.title)}</h3><p>${esc((p.text || '').slice(0, 200))}</p></div><i class="burst">${svg('heart')}</i></div>`;
     else if (p.card === 'cam') media = `<a class="media txt camlink" href="${esc(p.link || '#')}" target="_blank" rel="noopener"><span class="badge">LIVE</span><div><small>Live webcam</small><h3>${esc(p.title)}</h3>${p.spot ? `<p>${svg('pin', 'sm')} ${esc(p.spot)}</p>` : ''}<span class="watch">${svg('eye', 'sm')} Watch live</span></div></a>`;
     else if (p.card === 'headline') media = `<div class="media txt headline" style="--c:${p.a.c}"><div><small>${esc(p.a.name)}</small><h3>${esc(p.title)}</h3></div><i class="burst">${svg('heart')}</i></div>`;
+    if (p.fresh && p.kind === 'news') media = media.replace('<i class="burst">', '<span class="newtag">NEW</span><i class="burst">');
     const cap = p.kind === 'news' || p.kind === 'event' ? (p.img ? `<b>${esc(p.title)}</b> ` : '') + esc((p.text || '').slice(0, 240)) : esc(p.text || '');
     const nC = p.ncom != null ? p.ncom : (S.comments[p.id] || []).length;
     const likeLine = p.likes != null ? (p.likes ? `<div class="likes">${p.likes.toLocaleString()} like${p.likes > 1 ? 's' : ''}</div>` : '') : liked ? '<div class="likes">You liked this</div>' : '';
@@ -2832,7 +2864,7 @@ const Social = (() => {
       if (y0 == null) return; y0 = null;
       if (dy <= 90) { ind.classList.remove('show', 'arm'); return; }
       busy = true; ind.classList.add('spin');
-      await Promise.race([Promise.all([Live.refresh ? Live.refresh() : null, Cloud.on ? Cloud.loadFeed() : null]), new Promise(r => setTimeout(r, 12000))]);
+      await Promise.race([Promise.all([Live.refresh ? Live.refresh() : null, Cloud.on ? Cloud.loadFeed() : null, Cloud.on ? Cloud.loadNews() : null]), new Promise(r => setTimeout(r, 12000))]);
       renderFeed(); drawUserPins(); ind.classList.remove('spin', 'show', 'arm'); busy = false;
     });
   }
@@ -2887,7 +2919,33 @@ const Social = (() => {
   function renderFeed() { renderScopes(); const g = S.scope !== 'public' && S.groups.find(x => x.id === S.scope); document.body.classList.toggle('ingroup', !!g); if (g) return renderGroupFeed(g);
     buildStories(); renderStories(); const all = feedItems(); renderChips(all); feedCache = filtered(all); const f = $('#feed');
     if (!feedCache.length && all.length) { f.innerHTML = `<div class="empty">${svg(S.filter === 'report' ? 'alert' : 'search', 'big')}<b>${S.filter === 'report' ? 'All quiet right now' : 'Nothing here yet'}</b><span>${S.filter === 'report' ? 'No open community reports. See something on the road or trail? Let people know.' : S.filter === 'near' ? 'Nothing posted within 25 km of you.' : 'Try another filter.'}</span>${S.filter === 'report' || S.filter === 'near' ? '<button class="btn primary" data-newrep>Report something</button>' : ''}</div>`; const nb = f.querySelector('[data-newrep]'); if (nb) nb.onclick = () => openCreate('report'); return; }
+    if (feedCache.length) return pageFeed(f);
     f.innerHTML = feedCache.length ? feedCache.map(card).join('') : `<div class="empty">${Live.st.blocked ? `The feed needs live data, which this preview blocks. Open <a href="${SITE}" target="_blank" rel="noopener">the full site</a>.` : 'Loading the latest from the mountains…'}</div>`; }
+  // the feed draws a page at a time as you scroll, so phones stay smooth
+  const PAGE = 10; let shown = 0, pager = null;
+  function pageFeed(f) {
+    shown = Math.min(feedCache.length, PAGE + 2); f.innerHTML = feedCache.slice(0, shown).map(card).join('') + '<div class="more-sentinel" aria-hidden="true"></div>';
+    if (pager) pager.disconnect();
+    if (!('IntersectionObserver' in window)) { f.insertAdjacentHTML('beforeend', feedCache.slice(shown).map(card).join('')); shown = feedCache.length; return; }
+    pager = new IntersectionObserver(es => { if (!es[0].isIntersecting || shown >= feedCache.length) return; const sen = f.querySelector('.more-sentinel'); const next = feedCache.slice(shown, shown + PAGE); shown += next.length; sen.insertAdjacentHTML('beforebegin', next.map((p, j) => card(p, j)).join('')); if (shown >= feedCache.length) pager.disconnect(); }, { root: null, rootMargin: '1200px 0px' });
+    pager.observe(f.querySelector('.more-sentinel'));
+  }
+  function newStory(n) { // a story just landed from the collector
+    if (!n || S.news.some(x => x.id === n.id)) return;
+    S.news.unshift(n); S.freshNews.add(n.id);
+    if (S.view !== 'feed' || S.scope !== 'public') return;
+    const sv = $('#socialView');
+    if (sv.scrollTop < 120 && S.filter === 'all') return renderFeed();
+    let pill = $('#newPill');
+    if (!pill) { pill = document.createElement('button'); pill.id = 'newPill'; pill.onclick = () => { pill.classList.add('out'); sv.scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => { pill.remove(); S.filter = 'all'; renderFeed(); }, 350); }; sv.appendChild(pill); pill.dataset.n = 0; const onS = () => { if (sv.scrollTop < 60 && pill.isConnected) { sv.removeEventListener('scroll', onS); pill.click(); } }; sv.addEventListener('scroll', onS, { passive: true }); }
+    pill.dataset.n = +pill.dataset.n + 1; const a = acct(n.source);
+    pill.innerHTML = `${svg('back', 'sm up')}<span class="av sm" style="--c:${a.c}"><b>${esc(a.i)}</b></span>${+pill.dataset.n} new ${+pill.dataset.n === 1 ? 'story' : 'stories'}`;
+    pill.classList.remove('bounce'); void pill.offsetWidth; pill.classList.add('bounce');
+    // stories that land while you scroll join the part of the feed you haven't reached yet
+    const item = feedItems().find(x => x.id === 'n' + n.id);
+    if (item && shown < feedCache.length) { feedCache.splice(shown, 0, item); }
+    else if (item) { const f = $('#feed'), sen = f.querySelector('.more-sentinel'); feedCache.push(item); if (sen) { sen.insertAdjacentHTML('beforebegin', card(item, 0)); shown++; } }
+  }
   function renderSide() {
     const L = Live.st; const el = $('#sv-side'); if (!el) return;
     const me = meAcct();
@@ -3346,10 +3404,16 @@ const Social = (() => {
     if (h.startsWith('#post=')) setTimeout(() => { setView('feed'); const el = document.querySelector(`.post[data-id="${CSS.escape(h.slice(6))}"]`); if (el) el.scrollIntoView({ block: 'center' }); }, 4000);
     if (h === '#feed') setView('feed');
     if (h === '#report') setTimeout(() => openCreate('report'), 1500);
+    document.addEventListener('visibilitychange', async () => { // phones pause the live connection in the background; catch up on return
+      if (document.hidden || !Cloud.on || Cloud.newsOff) return;
+      const before = new Set(S.news.map(n => n.id)); await Cloud.loadNews();
+      S.news.filter(n => !before.has(n.id)).forEach(n => S.freshNews.add(n.id));
+      if (S.view === 'feed' && $('#socialView').scrollTop < 120) renderFeed();
+    });
     if (h.startsWith('#join=')) { const code = h.slice(6).replace(/[^A-Za-z0-9]/g, '').toUpperCase(); Store.set('joinCode', code); history.replaceState(null, '', location.pathname + location.search); setTimeout(() => { setView('feed'); Cloud.on ? joinGroup(code) : showToast('Open the full site to join this group'); }, 3500); }
     setInterval(() => { if (S.view !== 'map' || !document.hidden) drawUserPins(); }, 5 * 60e3); // reports expire on their own
   }
-  return { init, S, setView, openCreate, Store, Cloud, pickPlace, searchPlaces, placesReady, refresh };
+  return { init, S, setView, openCreate, Store, Cloud, pickPlace, searchPlaces, placesReady, refresh, newStory };
 })();
 /* SOCIAL-END */
 window.Social = Social;
