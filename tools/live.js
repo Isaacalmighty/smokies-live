@@ -218,6 +218,7 @@ const Live = (() => {
     if (kind === 'news') return st.news[i]; if (kind === 'event') return st.events[i]; if (kind === 'traffic') return st.traffic.incidents[i];
     if (kind === 'cam') return st.traffic.cameras[i]; if (kind === 'gauge') return st.gauges[i]; if (kind === 'fire') return st.fires[i]; if (kind === 'alert') return st.alerts[i];
   }
+  function fireWhen(o) { const t = String(o.time || '0000').padStart(4, '0'); const d = new Date(`${o.date}T${t.slice(0, 2)}:${t.slice(2)}:00Z`); return isNaN(d) ? `${o.date} ${o.time} UTC` : d.toLocaleString('en-US', { timeZone: TZ, weekday: 'short', hour: 'numeric', minute: '2-digit' }); }
   function focus(kind, i) {
     const o = lookup(kind, i); if (!o) return;
     const ll = o.place ? [o.place.lng, o.place.lat] : o.lng != null ? [o.lng, o.lat] : o.center || null;
@@ -226,7 +227,7 @@ const Live = (() => {
     if (kind === 'cam') body = o.img ? `<div class="camwrap"><img src="${esc(camSrc(o))}" alt="">${camTag(o)}</div>` : '';
     else if (o.img) body = `<div class="camwrap"><img src="${esc(o.img)}" alt="" onerror="this.parentNode.remove()"></div>`;
     const title = o.title || o.event || o.name && (kind === 'gauge' ? niceGauge(o.name) : o.name) || (kind === 'fire' ? 'Heat detected by ' + o.sat : '');
-    const text = o.summary || o.desc || o.description || (kind === 'gauge' ? `${o.cfs != null ? Math.round(o.cfs).toLocaleString() + ' cubic feet per second' : ''}${o.ft != null ? ', gauge height ' + o.ft.toFixed(2) + ' ft' : ''}. ${trend(o.cfs24)}.` : '') || (kind === 'fire' ? `Detected ${o.date} at ${o.time} UTC. Confidence ${o.conf}. Satellite heat detections can include controlled burns and industrial heat.` : '');
+    const text = o.summary || o.desc || o.description || (kind === 'gauge' ? `${o.cfs != null ? Math.round(o.cfs).toLocaleString() + ' cubic feet per second' : ''}${o.ft != null ? ', gauge height ' + o.ft.toFixed(2) + ' ft' : ''}. ${trend(o.cfs24)}.` : '') || (kind === 'fire' ? `Spotted ${fireWhen(o)}. Satellite confidence: ${({ l: 'low', n: 'medium', h: 'high' }[String(o.conf).toLowerCase()] || o.conf)}. Heat detections can include controlled burns and industrial heat.` : '');
     const where = o.place ? `<span class="pin-chip">${esc(o.place.name)}</span>` : '';
     const link = o.link || o.page || (kind === 'gauge' ? `https://waterdata.usgs.gov/monitoring-location/${o.id}/` : null);
     c.innerHTML = `<button class="close" aria-label="Close">✕</button><div class="eyebrow c-${kind}">${label}${o.source ? ' · ' + esc(o.source) : ''}</div><h3>${esc(title)}</h3>${body}${text ? `<p>${esc(String(text).slice(0, 600))}</p>` : ''}<div class="mt">${where}${o.published ? `<span>${ago(o.published)}</span>` : ''}</div>

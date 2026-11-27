@@ -21,7 +21,7 @@
   /* ---------- styles (only exist while this file is loaded) ---------- */
   const css = document.createElement('style');
   css.textContent = `
-#hzSheet{position:fixed;z-index:15;left:0;right:0;bottom:0;max-height:min(56vh,620px);overflow:auto;overscroll-behavior:contain;border-radius:22px 22px 0 0;padding:4px 16px calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateY(105%);transition:transform .5s cubic-bezier(.34,1.32,.64,1);background:var(--glass-strong,rgba(10,17,15,.92));-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);color:var(--ink,#eef2ec)}
+#hzSheet{position:fixed;z-index:31;left:0;right:0;bottom:0;max-height:min(50vh,560px);overflow:auto;overscroll-behavior:contain;border-radius:22px 22px 0 0;padding:4px 16px calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateY(105%);transition:transform .5s cubic-bezier(.34,1.32,.64,1);background:#0f1713;box-shadow:0 -10px 40px rgba(0,0,0,.45);color:var(--ink,#eef2ec)}
 #hzSheet.in{transform:none}
 #hzSheet.out{transition:transform .32s cubic-bezier(.55,0,.75,.2)}
 @media (min-width:761px){#hzSheet{left:auto;right:24px;bottom:24px;width:400px;border-radius:20px;max-height:calc(100vh - 140px)}}
@@ -33,7 +33,7 @@
 .hzx{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.06);color:inherit;font-size:15px;cursor:pointer}
 .hzlead{padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
 .hzlead p{margin:0;font-size:14px;line-height:1.42;color:var(--ink-dim,#a9b7ad)}
-.hzlead p.big{font-size:16.5px;line-height:1.35;color:var(--ink,#eef2ec);font-weight:600;margin-bottom:6px}
+.hzlead p.hzbig{font:600 16.5px/1.35 var(--font-body,sans-serif);color:var(--ink,#eef2ec);margin-bottom:6px}
 .hzk{margin:14px 2px 7px;font:600 11.5px var(--font-body,sans-serif);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint,#75857a)}
 .hzchips{display:flex;gap:6px}
 .hzchips button{flex:1;min-width:0;padding:9px 6px 8px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink);cursor:pointer;text-align:center;transition:transform .35s cubic-bezier(.34,1.56,.64,1),background .25s,border-color .25s}
@@ -56,7 +56,7 @@
 #hzSheet .body>*{animation:hzin .5s cubic-bezier(.22,1.2,.36,1) both}
 #hzSheet .body>*:nth-child(2){animation-delay:.05s}#hzSheet .body>*:nth-child(3){animation-delay:.1s}#hzSheet .body>*:nth-child(4){animation-delay:.15s}#hzSheet .body>*:nth-child(5){animation-delay:.2s}#hzSheet .body>*:nth-child(n+6){animation-delay:.25s}
 @keyframes hzin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.hzwind{width:150px;height:150px;pointer-events:none}
+.hzwind{width:120px;height:120px;pointer-events:none}
 .hzwind svg{width:100%;height:100%;overflow:visible}
 .hzwind .chev{animation:hzdrift 2.4s cubic-bezier(.45,0,.55,1) infinite;opacity:0;will-change:transform,opacity}
 .hzwind .chev:nth-of-type(2){animation-delay:.8s}.hzwind .chev:nth-of-type(3){animation-delay:1.6s}
@@ -67,7 +67,7 @@
   document.head.appendChild(css);
 
   /* ---------- shared sheet ---------- */
-  let active = null, token = 0;
+  let active = null, token = 0, cloudsWas = false;
   const markers = [];
   function sheet() {
     let s = $('#hzSheet'); if (s) return s;
@@ -88,9 +88,10 @@
     s.querySelector('.hzx').onclick = close;
     return s;
   }
-  const sheetH = () => innerWidth <= 760 ? Math.min(innerHeight * 0.56, 620) : 0;
+  const sheetH = () => innerWidth <= 760 ? Math.min(innerHeight * 0.5, 560) : 0;
   // keep the spot in the clear part of the screen, above the sheet
-  const camera = (center, zoom, extra = {}) => map.flyTo({ center, zoom, pitch: 52, offset: [0, -sheetH() / 2.2], duration: 2600, curve: 1.3, easing: ease, essential: true, ...extra });
+  const topUI = () => { let b = 0; ['#live', '#mmBrief'].forEach(q => { const el = $(q); if (el && el.offsetParent !== null) b = Math.max(b, el.getBoundingClientRect().bottom); }); return Math.min(b, innerHeight * 0.3); };
+  const camera = (center, zoom, extra = {}) => { const h = sheetH(), t = innerWidth <= 760 ? topUI() : 0; return map.flyTo({ center, zoom, pitch: 50, offset: [innerWidth > 760 ? -212 : 0, (t - h) / 2], duration: 2600, curve: 1.3, easing: ease, essential: true, ...extra }); };
 
   function prep(kind) {
     close(true); token++; active = kind;
@@ -99,6 +100,8 @@
     const lc = $('#lcard'); if (lc) lc.hidden = true;
     if (window.Social && document.body.dataset.view && document.body.dataset.view !== 'map') Social.setView('map');
     S.stopOrbit();
+    // the 3D cloud deck would hide the ground right when it matters; it comes back when the view closes
+    if (window.Live && Live.st.on.clouds) { cloudsWas = true; Live.setOn('clouds', false); }
     return token;
   }
   function close(silent) {
@@ -109,6 +112,7 @@
     ['hz-hand', 'hz-fire'].forEach(id => { if (map.getSource(id)) map.removeSource(id); });
     if (was === 'flood') S.setFloodTint(0);
     fireRun = null;
+    if (cloudsWas && window.Live) { cloudsWas = false; Live.setOn('clouds', true); }
     const s = $('#hzSheet');
     if (s && !s.hidden) { if (silent) { s.hidden = true; s.classList.remove('in'); } else { s.classList.add('out'); s.classList.remove('in'); setTimeout(() => { if (!active) s.hidden = true; }, 340); } }
   }
@@ -210,7 +214,7 @@
     const official = nwsRain(a);
     const place = o.live ? 'your area' : esc(o.n);
     const s = showSheet(`<header class="hzh"><div><small>🌊 ${esc(a.event)}${a.ends || a.expires ? ' · until ' + esc(when(a.ends || a.expires)) : ''}</small><b>What this means near ${o.live ? 'you' : esc(o.n)}</b></div><button class="hzx" aria-label="Close">✕</button></header>
-      <div class="hzlead"><p class="big" id="hzRain">${official ? `The National Weather Service expects ${esc(official)} of rain.` : '<span class="hzwait"></span>Checking how much rain is coming…'}</p><p id="hzRain2">${official ? '' : ''}Flooding is possible along creeks, rivers and low roads. Homes on higher ground usually stay dry, but roads can still be cut off.</p></div>
+      <div class="hzlead"><p class="hzbig" id="hzRain">${official ? `The National Weather Service expects ${esc(official)} of rain.` : '<span class="hzwait"></span>Checking how much rain is coming…'}</p><p id="hzRain2">${official ? '' : ''}Flooding is possible along creeks, rivers and low roads. Homes on higher ground usually stay dry, but roads can still be cut off.</p></div>
       <div class="hzk">How high water could reach</div>
       <div class="hzchips" role="group" aria-label="Water level">${LEVELS.map((l, i) => `<button data-lv="${i}" aria-pressed="${i === floodLevel}"><b>${l.ft} ft</b><small>${l.n}</small></button>`).join('')}</div>
       <div style="margin-top:6px">
@@ -358,7 +362,7 @@
     fireH = 0; fireRun = null;
     const who = o.live ? 'you' : esc(o.n);
     const s = showSheet(`<header class="hzh"><div><small>🔥 Fire reported by satellite${seenAt(f) ? ' · ' + esc(seenAt(f)) : ''}</small><b>Wind and possible spread</b></div><button class="hzx" aria-label="Close">✕</button></header>
-      <div class="hzlead"><p class="big">Wind from the ${compass(w.dir)} at ${Math.round(w.spd)} mph${w.gust ? `, gusts ${Math.round(w.gust)}` : ''}.</p><p>If this fire is not contained, it would mostly move toward the ${compass(to)}, faster uphill. ${w.rh != null ? `Humidity is ${Math.round(w.rh)}%${w.rh < 30 ? ', which helps fires spread' : w.rh > 70 ? ', which slows fires down' : ''}.` : ''}${w.live ? '' : ' Live wind is not available right now, so this uses a typical wind.'}</p></div>
+      <div class="hzlead"><p class="hzbig">Wind from the ${compass(w.dir)} at ${Math.round(w.spd)} mph${w.gust ? `, gusts ${Math.round(w.gust)}` : ''}.</p><p>If this fire is not contained, it would mostly move toward the ${compass(to)}, faster uphill. ${w.rh != null ? `Humidity is ${Math.round(w.rh)}%${w.rh < 30 ? ', which helps fires spread' : w.rh > 70 ? ', which slows fires down' : ''}.` : ''}${w.live ? '' : ' Live wind is not available right now, so this uses a typical wind.'}</p></div>
       <div class="hzk">Rough estimate if not contained</div>
       <div class="hzchips fire" role="group" aria-label="Time">${HOURS.map((h, i) => `<button data-h="${h}" aria-pressed="${i === 0}"><b>${h} hr</b><small>${i === 0 ? 'Next few hours' : i === 1 ? 'This afternoon or night' : 'Half a day'}</small></button>`).join('')}</div>
       <div style="margin-top:6px">
@@ -369,14 +373,14 @@
       <p class="hzfine">This is an estimate from slope, today's wind and the vegetation in satellite imagery, not an official fire forecast. Official instructions come first: Sevier County Emergency Management, the National Park Service, and 911 to report a fire or in an emergency. If you are told to leave, leave.</p>
       <div class="hzacts"><button class="btn" data-center>Show the fire</button><button class="btn primary" data-me>${o.live ? 'Show me too' : 'Show ' + esc(o.n)}</button></div>`);
     s.querySelectorAll('[data-h]').forEach(b => b.onclick = () => { s.querySelectorAll('[data-h]').forEach(x => x.setAttribute('aria-pressed', x === b)); growTo(+b.dataset.h); fireStats(+b.dataset.h); });
-    s.querySelector('[data-center]').onclick = () => camera([ll.lng, ll.lat], 12.6);
-    s.querySelector('[data-me]').onclick = () => { const pad = 60; map.fitBounds([[Math.min(ll.lng, o.ll.lng), Math.min(ll.lat, o.ll.lat)], [Math.max(ll.lng, o.ll.lng), Math.max(ll.lat, o.ll.lat)]], { padding: { top: pad + 60, left: pad, right: pad, bottom: pad + sheetH() }, maxZoom: 13.5, pitch: 45, duration: 2200, easing: ease }); };
+    s.querySelector('[data-center]').onclick = () => camera([ll.lng, ll.lat], 12.1, { pitch: 38 });
+    s.querySelector('[data-me]').onclick = () => { const pad = 60; map.fitBounds([[Math.min(ll.lng, o.ll.lng), Math.min(ll.lat, o.ll.lat)], [Math.max(ll.lng, o.ll.lng), Math.max(ll.lat, o.ll.lat)]], { padding: { top: pad + topUI(), left: pad, right: pad + (innerWidth > 760 ? 424 : 0), bottom: pad + sheetH() }, maxZoom: 13.5, pitch: 45, duration: 2200, easing: ease }); };
     // wind arrow sits on the fire, pointing where the wind is going
     const el = document.createElement('div'); el.className = 'hzwind'; el.setAttribute('aria-hidden', 'true');
     el.innerHTML = `<svg viewBox="-75 -75 150 150"><circle r="70" fill="rgba(10,16,14,.18)" stroke="rgba(255,255,255,.35)" stroke-width="1.5" stroke-dasharray="3 5"/><line x1="0" y1="40" x2="0" y2="-52" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".92"/><path d="M-14 -42 L0 -64 L14 -42 Z" fill="#fff"/>${[0, 1, 2].map(() => '<path class="chev" d="M-10 6 L0 -4 L10 6" fill="none" stroke="#9cd2ff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>').join('')}</svg>`;
     markers.push(new maplibregl.Marker({ element: el, rotationAlignment: 'map', pitchAlignment: 'map', rotation: to }).setLngLat(ll).addTo(map));
     meMarker(o);
-    camera([ll.lng, ll.lat], 12.6);
+    camera([ll.lng, ll.lat], 12.1, { pitch: 38 });
     // the estimate is worked out once, then drawn as a still picture (no frame-by-frame animation)
     const run = await spread(ll, w).catch(e => { console.warn('[hazards] spread', e); return null; });
     if (my !== token) return;
