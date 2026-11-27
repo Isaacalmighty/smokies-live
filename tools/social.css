@@ -28,7 +28,7 @@
   #tabbar button>span:not(.me){position:absolute;left:62px;padding:5px 9px;border-radius:7px;background:#000;color:#fff;font-size:12.5px;white-space:nowrap;opacity:0;pointer-events:none;transform:translateX(-6px);transition:opacity .2s,transform .3s var(--ease-out)}
   #tabbar button:hover>span:not(.me){opacity:1;transform:none}
   #tabbar .dot{top:10px;right:10px}
-  #tabbar button[data-v="profile"]{margin-top:auto}
+  #tabbar button[data-v="more"]{margin-top:auto}
   #brand,#live,#tours{left:calc(76px + 16px)!important}
   #season{margin-left:38px}
 }

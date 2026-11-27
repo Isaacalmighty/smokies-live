@@ -9,7 +9,7 @@ const Live = (() => {
   const SITE = 'https://isaacalmighty.github.io/smokies-live/';
   // TomTom key for real traffic speeds (free plan; a browser key, like a map key). Empty = modeled traffic.
   const TOMTOM = 'j81wnoR8SajwacDSKgn20e1SNEzZzf1r';
-  const st = { blocked: false, wx: null, grid: null, alerts: [], news: [], events: [], traffic: { incidents: [], cameras: [] }, gauges: [], fires: [], radar: null, iss: null, tab: 'now', markers: {}, on: { clouds: true, radar: false, traffic: true, cams: true, news: true, rivers: true }, updated: {} };
+  const st = { blocked: false, wx: null, grid: null, alerts: [], news: [], events: [], traffic: { incidents: [], cameras: [] }, gauges: [], fires: [], radar: null, iss: null, tab: 'now', markers: {}, on: { clouds: true, radar: false, traffic: false, cams: false, news: false, rivers: false }, updated: {} };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ago = iso => { if (!iso) return ''; const s = (Date.now() - new Date(iso)) / 1000; if (s < 0) return new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }); if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' hr ago'; return Math.round(s / 86400) + ' d ago'; };
   async function jget(url, ms = 15000) {
@@ -187,10 +187,13 @@ const Live = (() => {
         st.markers.news.push(m);
       });
     }
-    if (st.on.traffic) st.traffic.incidents.forEach((n, i) => st.markers.traffic.push(pin('traffic', n.lng, n.lat, i, /clos/i.test(n.title + n.desc))));
+    // urgent things stay on the map even when their layer is off: road closures and active fires
+    const closed = n => /clos/i.test(n.title + ' ' + (n.desc || ''));
+    st.traffic.incidents.forEach((n, i) => { if (st.on.traffic || closed(n)) st.markers.traffic.push(pin('traffic', n.lng, n.lat, i, closed(n))); });
     if (st.on.cams) st.traffic.cameras.forEach((c, i) => st.markers.cams.push(pin('cam', c.lng, c.lat, i, c.live || c.still)));
     requestAnimationFrame(declutter);
-    if (st.on.rivers) { st.gauges.forEach((g, i) => st.markers.rivers.push(pin('gauge', g.lng, g.lat, i, trend(g.cfs24).includes('rising')))); st.fires.forEach((f, i) => st.markers.rivers.push(pin('fire', f.lng, f.lat, i, true))); }
+    if (st.on.rivers) st.gauges.forEach((g, i) => st.markers.rivers.push(pin('gauge', g.lng, g.lat, i, trend(g.cfs24).includes('rising'))));
+    st.fires.forEach((f, i) => st.markers.rivers.push(pin('fire', f.lng, f.lat, i, true)));
   }
   function showPlace(g) { // tapping a busy town lists everything there
     st.filter = g.place.name; st.tab = 'news';
@@ -238,6 +241,9 @@ const Live = (() => {
     const grp = { news: 'news', event: 'news', traffic: 'traffic', cam: 'cams', gauge: 'rivers', fire: 'rivers' }[kind]; const ms = st.markers[grp] || [];
     ms.forEach(m => { if (!m) return; const el = m.getElement().firstChild; if (el.classList.contains(kind) && +el.dataset.i === i) { el.classList.remove('focus'); void el.offsetWidth; el.classList.add('focus'); } });
   }
+
+  // animated layers only redraw while the map is what you are looking at
+  const mapOnScreen = () => !document.hidden && (!document.body.dataset.view || document.body.dataset.view === 'map' || document.body.classList.contains('picking'));
 
   /* ---------- weather and the 3D cloud field ---------- */
   const GRID = (() => { const pts = []; for (let j = 0; j < 6; j++) for (let i = 0; i < 7; i++) pts.push([-84.10 + i * (1.22 / 6), 35.33 + j * (0.70 / 5)]); return pts; })();
@@ -401,7 +407,8 @@ const Live = (() => {
       gl.disable(gl.CULL_FACE);
       gl.drawArrays(gl.TRIANGLES, 0, this.n * 6);
       gl.disableVertexAttribArray(this.loc.a_c); gl.disableVertexAttribArray(this.loc.a_q); gl.disableVertexAttribArray(this.loc.a_p);
-      if (!this._rq && !document.hidden) this._rq = setTimeout(() => { this._rq = 0; map.triggerRepaint(); }, innerWidth < 760 ? 120 : 66); // gentle drift without burning the battery
+      // gentle drift without burning the battery; no drift at all while the feed or another screen covers the map
+      if (!this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, innerWidth < 760 ? 200 : 66);
     },
     sort(Mm, t) {
       const P = this.puffs, dx = this.dom[0], dy = this.dom[1];
@@ -501,7 +508,7 @@ const Live = (() => {
       const count = Math.round(this.n * Math.min(1, 0.42 + this.rate / 4));
       if (this.snow) gl.drawArrays(gl.POINTS, 0, count * 2); else gl.drawArrays(gl.LINES, 0, count * 2);
       gl.disableVertexAttribArray(this.loc.a_s); gl.disableVertexAttribArray(this.loc.a_e);
-      if (!this._rq && !document.hidden) this._rq = setTimeout(() => { this._rq = 0; map.triggerRepaint(); }, 33);
+      if (!this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, innerWidth < 760 ? 66 : 33);
     },
   };
 
@@ -680,5 +687,11 @@ const Live = (() => {
     setInterval(() => { if (st.tab === 'cams' && $('#live').classList.contains('open')) document.querySelectorAll('#lview .li[data-k="cam"]').forEach(el => { const c = st.traffic.cameras[+el.dataset.i]; const im = el.querySelector('img'); if (c && c.still && im) im.src = camSrc(c); }); }, 300e3);
   }
   const refresh = () => Promise.all([refreshFast(), refreshSlow()]);
-  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render, refresh, liveTraffic: () => !!TOMTOM };
+  // the simple "Show on map" sheet drives layers through this, and the old rail toggles stay in step
+  function setOn(k, on) {
+    if (!(k in st.on) || st.on[k] === on) return; st.on[k] = on; if (k === 'radar') st.radarTouched = true;
+    const b = document.querySelector(`[data-live="${k}"]`); if (b) b.setAttribute('aria-pressed', on);
+    if (map) applyToggles(k);
+  }
+  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render, refresh, setOn, setOpen: on => setOpen(on), icon, WMO, liveTraffic: () => !!TOMTOM };
 })();

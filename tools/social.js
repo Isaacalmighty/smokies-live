@@ -9,11 +9,13 @@ const Social = (() => {
   // Supabase project (public URL and anon key; data is protected by row-level security). Empty = device-only mode.
   const SUPA = { url: 'https://uamuqhkpbszogmdusfqr.supabase.co', key: 'sb_publishable_Y0fiNms2M0TI1Ph_ITWk0Q_hk2TS848' };
   const SUPA_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.79.0/dist/umd/supabase.js';
-  const S = { view: 'map', posts: [], likes: {}, saved: {}, comments: {}, me: null, stories: [], storyAt: 0, pins: [], seen: 0, news: [], freshNews: new Set(), votes: {}, rvotes: {}, filter: 'all', here: null, groups: [], scope: 'public', signed: {} };
+  const S = { showPins: (() => { try { return localStorage.getItem('sl-userpins') === '1'; } catch (e) { return false; } })(), view: 'map', posts: [], likes: {}, saved: {}, comments: {}, me: null, stories: [], storyAt: 0, pins: [], seen: 0, news: [], freshNews: new Set(), votes: {}, rvotes: {}, filter: 'all', here: null, groups: [], scope: 'public', signed: {} };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ago = iso => { if (!iso) return ''; const s = (Date.now() - new Date(iso)) / 1000; if (s < 0) return 'upcoming'; if (s < 60) return 'now'; if (s < 3600) return Math.round(s / 60) + 'm'; if (s < 86400) return Math.round(s / 3600) + 'h'; if (s < 7 * 86400) return Math.round(s / 86400) + 'd'; return new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }); };
   const I = { // 24px line icons
     home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
+    sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     map: '<path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5zM9 4v13.5M15 6.5V20"/>',
     plus: '<rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8v8M8 12h8"/>',
     heart: '<path d="M12 20s-7-4.4-9.2-9A5 5 0 0 1 12 6a5 5 0 0 1 9.2 5c-2.2 4.6-9.2 9-9.2 9z"/>',
@@ -319,12 +321,12 @@ const Social = (() => {
   function shell() {
     const nav = document.createElement('nav'); nav.id = 'tabbar'; nav.setAttribute('aria-label', 'Main');
     nav.innerHTML = `<div class="logo">${window.Brand ? Brand.mark(30) : ''}<span>Smokies <em>Live</em></span></div>` +
-      [['feed', 'home', 'Home'], ['map', 'map', 'Map'], ['create', 'plus', 'Post'], ['activity', 'heart', 'Activity'], ['profile', 'user', 'Profile']].map(([k, ic, l]) => `<button data-v="${k}" aria-label="${l}"${k === 'map' ? ' aria-current="page"' : ''}>${k === 'profile' ? `<span class="me">${svg(ic)}</span>` : svg(ic)}<span>${l}</span>${k === 'activity' ? '<i class="dot" hidden></i>' : ''}</button>`).join('');
+      [['map', 'map', 'Map'], ['today', 'sun', 'Today'], ['create', 'plus', 'Share'], ['feed', 'home', 'Feed'], ['more', 'menu', 'More']].map(([k, ic, l]) => `<button data-v="${k}" aria-label="${l}"${k === 'map' ? ' aria-current="page"' : ''}>${k === 'profile' ? `<span class="me">${svg(ic)}</span>` : svg(ic)}<span>${l}</span>${k === 'feed' ? '<i class="dot" hidden></i>' : ''}</button>`).join('');
     document.body.appendChild(nav);
-    nav.querySelectorAll('button').forEach(b => b.onclick = () => { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); b.dataset.v === 'create' ? openCreate() : setView(b.dataset.v); });
+    nav.querySelectorAll('button').forEach(b => b.onclick = () => { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); b.dataset.v === 'create' ? (window.UX ? UX.share() : openCreate()) : setView(b.dataset.v); });
     const v = document.createElement('div'); v.id = 'socialView'; v.hidden = true;
     v.innerHTML = `<div class="col"><div id="sv-feed" class="pane"><div class="ptr" aria-hidden="true"><i></i></div><header class="top"><div class="logo"><span>Smokies <em>Live</em></span></div><button class="rbtn" data-report>${svg('alert', 'sm')} Report</button><button class="ib" data-v="activity" aria-label="Activity">${svg('heart')}</button><button class="ib dmb" data-dm aria-label="Messages">${svg('send')}<i class="cnt" hidden></i></button></header><div id="scopes" class="scopes" role="tablist" hidden></div><div id="stories" class="stories"></div><div id="fchips" class="chips" role="tablist"></div><div id="feed"></div></div>
-      <div id="sv-activity" class="pane"></div><div id="sv-profile" class="pane"></div></div><aside class="side" id="sv-side"></aside>`;
+      <div id="sv-activity" class="pane"></div><div id="sv-profile" class="pane"></div><div id="sv-today" class="pane"></div><div id="sv-more" class="pane"></div></div><aside class="side" id="sv-side"></aside>`;
     document.body.appendChild(v);
     v.querySelectorAll('[data-v]').forEach(b => b.onclick = () => setView(b.dataset.v));
     const st = document.createElement('div'); st.id = 'storyView'; st.hidden = true; document.body.appendChild(st);
@@ -351,13 +353,15 @@ const Social = (() => {
     });
   }
   function setView(v) {
-    S.view = v; document.body.dataset.view = v;
+    S.view = v; document.body.dataset.view = v; if (window.UX) UX.closeSheet();
     document.querySelectorAll('#tabbar button').forEach(b => b.toggleAttribute('aria-current', b.dataset.v === v));
     const sv = $('#socialView');
     if (v === 'map') { sv.classList.add('out'); setTimeout(() => { if (S.view === 'map') { sv.hidden = true; sv.classList.remove('out'); } }, 300); return; }
     sv.hidden = false; sv.classList.remove('out');
-    ['feed', 'activity', 'profile'].forEach(k => $('#sv-' + k).hidden = k !== v);
+    ['feed', 'activity', 'profile', 'today', 'more'].forEach(k => $('#sv-' + k).hidden = k !== v);
     if (v === 'feed') renderFeed(); if (v === 'activity') renderActivity(); if (v === 'profile') renderProfile();
+    if ((v === 'today' || v === 'more') && window.UX) UX.render(v, $('#sv-' + v));
+    document.querySelectorAll('#tabbar button').forEach(b => b.toggleAttribute('aria-current', b.dataset.v === v || (b.dataset.v === 'more' && (v === 'activity' || v === 'profile'))));
     renderSide(); sv.scrollTop = 0;
     if (typeof closeMobile === 'function') closeMobile();
     if ($('#lcard')) $('#lcard').hidden = true;
@@ -813,8 +817,9 @@ const Social = (() => {
       const box = document.createElement('div'); box.dataset.id = p.id;
       if (isReport(p.tag)) {
         const R = rstate({ ...p, id: p.fid }); if (R.gone) return;
+        if (!S.showPins && !/^R:(closed|flood|smoke)$/.test(p.tag)) return; // urgent reports always show
         box.className = 'rpin' + (R.fresh ? ' hot' : ''); box.style.setProperty('--c', R.col); box.title = R.label; box.innerHTML = `<b>${R.emo}</b>`;
-      } else { box.className = 'ppin' + (p.grp ? ' grp' : ''); box.innerHTML = p.img ? `<img src="${p.img}" alt="">` : `<b>${esc((p.caption || '•').slice(0, 1))}</b>`; }
+      } else { if (!S.showPins) return; box.className = 'ppin' + (p.grp ? ' grp' : ''); box.innerHTML = p.img ? `<img src="${p.img}" alt="">` : `<b>${esc((p.caption || '•').slice(0, 1))}</b>`; }
       box.onclick = e => { e.stopPropagation(); openPost(p.fid); };
       const wrap = document.createElement('div'); wrap.className = 'mkbox'; wrap.appendChild(box); // MapLibre owns the wrapper's transform; the pin animates inside it
       S.pins.push(new maplibregl.Marker({ element: wrap, anchor: 'bottom' }).setLngLat([p.place.lng, p.place.lat]).addTo(map));
@@ -1128,7 +1133,7 @@ const Social = (() => {
     // the place index is big; fetch it once, after the map has settled
     setTimeout(() => placesReady().then(j => { window.__placeIndex = j.filter(p => p[4] === 1 || p[4] === 0 || /park|trail|waterfall|historic|campground|attraction|amusement/.test(p[3])); }), 8000);
     // new activity dot once feeds arrive
-    setInterval(() => { const L = Live.st; const latest = Math.max(0, ...L.news.map(n => +new Date(n.published || 0)), ...L.alerts.map(a => +new Date(a.sent || 0))); $('#tabbar .dot').hidden = !(latest > (S.seen || 0) || Inbox.unread()) || S.view === 'activity'; if (S.view === 'feed' && !document.querySelector('#feed .post')) renderFeed(); }, 5000);
+    setInterval(() => { const L = Live.st; const latest = Math.max(0, ...L.news.map(n => +new Date(n.published || 0)), ...L.alerts.map(a => +new Date(a.sent || 0))); $('#tabbar .dot').hidden = !(latest > (S.seen || 0) || Inbox.unread()) || S.view === 'feed'; if (S.view === 'feed' && !document.querySelector('#feed .post')) renderFeed(); }, 5000);
     const h = decodeURIComponent(location.hash || '');
     if (h.startsWith('#post=')) setTimeout(() => { setView('feed'); const el = document.querySelector(`.post[data-id="${CSS.escape(h.slice(6))}"]`); if (el) el.scrollIntoView({ block: 'center' }); }, 4000);
     if (h === '#feed') setView('feed');
@@ -1144,5 +1149,5 @@ const Social = (() => {
     if (h.startsWith('#join=')) { const code = h.slice(6).replace(/[^A-Za-z0-9]/g, '').toUpperCase(); Store.set('joinCode', code); history.replaceState(null, '', location.pathname + location.search); setTimeout(() => { setView('feed'); Cloud.on ? joinGroup(code) : showToast('Open the full site to join this group'); }, 3500); }
     setInterval(() => { if (S.view !== 'map' || !document.hidden) drawUserPins(); }, 5 * 60e3); // reports expire on their own
   }
-  return { init, S, setView, openCreate, Store, Cloud, pickPlace, searchPlaces, placesReady, refresh, newStory, openMessages, messageUser, Inbox, Vid };
+  return { init, S, setView, openCreate, Store, Cloud, pickPlace, searchPlaces, placesReady, refresh, newStory, openMessages, messageUser, Inbox, Vid, drawUserPins, install, standalone };
 })();

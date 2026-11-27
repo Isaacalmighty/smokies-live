@@ -38,7 +38,7 @@
   const ft = m => Math.round(m * 3.28084 / 10) * 10;
   const fmtFt = f => f.toLocaleString('en-US') + ' ft';
 
-  const S = { tab: pref.get('tab', 'today'), wx: null, flow: null, nps: [], fog: null, worth: null, localMode: pref.get('localMode', false), places: pref.get('places', []), hits: [], seen: pref.get('seen', {}), layers: { wild: true, trails: true, outages: true, pets: true, events: true, memory: true, board: true, ...pref.get('layers', {}) }, resident: pref.get('resident', null), clock: null, markers: [], flowMarkers: [], placeWx: null, open: false, sel: null };
+  const S = { tab: pref.get('tab', 'today'), wx: null, flow: null, nps: [], fog: null, worth: null, localMode: pref.get('localMode', false), places: pref.get('places', []), hits: [], seen: pref.get('seen', {}), layers: { wild: false, trails: false, outages: false, pets: false, events: false, memory: false, board: false, ...pref.get('layers2', {}) }, resident: pref.get('resident', null), clock: null, markers: [], flowMarkers: [], placeWx: null, open: false, sel: null };
 
   /* ---------- places we read the weather at ---------- */
   // v: valley floor, o: sunrise overlook, d: destination. Elevations come back from Open-Meteo's terrain model.
@@ -516,7 +516,7 @@
       await Social.Store.set('posts', Social.S.posts);
     }
     const v = q('#lcompose'); v.classList.add('out'); v._t = setTimeout(() => { v.hidden = true; v.innerHTML = ''; }, 260); draft = null;
-    S.layers[LK[d.K]] = true; pref.set('layers', S.layers);
+    S.layers[LK[d.K]] = true; pref.set('layers2', S.layers);
     if (window.Social && Social.refresh) Social.refresh();
     drawMarkers(); render(); toast(COPY[d.K][2]);
     fly([d.place.lng, d.place.lat], 14.5, 55);
@@ -544,7 +544,7 @@
     if (!rail && !mb) { const b = document.createElement('button'); b.id = 'lfab'; b.className = 'panel'; b.dataset.open = 'sky'; b.innerHTML = LOGO + '<span>Local</span><span class="lbadge" hidden></span>'; document.body.appendChild(b); } // the layout changed: still give people a way in
     document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', e => { squish(b); openHub(b.dataset.open); }));
     document.querySelectorAll('[data-lmode]').forEach(b => b.addEventListener('click', () => setLocalMode(!S.localMode)));
-    document.querySelectorAll('[data-allpins]').forEach(b => b.addEventListener('click', () => { const on = !Object.values(S.layers).some(Boolean); Object.keys(S.layers).forEach(k => S.layers[k] = on); b.setAttribute('aria-pressed', on); pref.set('layers', S.layers); drawMarkers(); render(); }));
+    document.querySelectorAll('[data-allpins]').forEach(b => b.addEventListener('click', () => { const on = !Object.values(S.layers).some(Boolean); Object.keys(S.layers).forEach(k => S.layers[k] = on); b.setAttribute('aria-pressed', on); pref.set('layers2', S.layers); drawMarkers(); render(); }));
     // the hub
     const h = document.createElement('section'); h.id = 'lhub'; h.className = 'panel'; h.hidden = true; h.setAttribute('aria-label', 'Local');
     h.innerHTML = `<div class="grab" aria-hidden="true"></div><header><span class="logo">${LOGO}</span><div><b>Smokies <em>Local</em></b><small id="lhubSub">For the people who live here</small></div>
@@ -655,10 +655,14 @@
   function render() {
     const el = q('#lbody'); if (!el || !S.open) return;
     const sub = q('#lhubSub'); if (sub) sub.textContent = S.localMode ? 'Local\'s mode is on' : 'For the people who live here';
+    el.innerHTML = tabHTML(S.tab); rings(el);
+  }
+  function rings(el) { el.querySelectorAll('.ring .fg').forEach(c => requestAnimationFrame(() => requestAnimationFrame(() => c.style.strokeDashoffset = c.style.getPropertyValue('--to')))); }
+  function tabHTML(tab) {
     let h = '';
     const loading = `<div class="lempty"><div class="lspin"></div>Reading the mountains…</div>`;
     const blocked = window.Live && Live.st.blocked;
-    if (S.tab === 'sky') {
+    if (tab === 'sky') {
       if (!S.fog) h = blocked ? `<div class="lempty">The forecast needs live weather, which this preview blocks. Open the full site.</div>` : loading;
       else {
         const f = S.fog[0], today = et().day;
@@ -670,15 +674,15 @@
           ${S.fog.length > 1 ? `<div class="lsub">Next mornings</div><div class="ldays">${S.fog.slice(1).map(x => `<div><small>${dayName(x.day, today)}</small><b>${pct(x.sea)}</b><span>sea of clouds</span><span>${pct(x.p)} fog · ${clock(x.sunrise)}</span></div>`).join('')}</div>` : ''}
           <p class="fine">Forecast from Open-Meteo weather models at ${SITES.length} spots from valley floor to Kuwohi. Fog forms after clear, calm, damp nights when cold air settles under warmer air. Best guess, not a promise.</p>`;
       }
-    } else if (S.tab === 'go') {
+    } else if (tab === 'go') {
       if (!S.worth) h = blocked ? `<div class="lempty">Needs live data, which this preview blocks.</div>` : loading;
       else h = `<div class="lgo">${S.worth.map((w, i) => { const [v, cls] = verdict(w.now.s); const why = w.now.shut ? [['closed', w.now.shut]] : w.now.why.slice(0, 3);
           return `<div class="lcardg ${cls}" style="animation-delay:${i * 70}ms" data-go="${i}">${ring(w.now.s, cls)}<div class="t"><b>${esc(w.D.n)}</b><small>${esc(w.D.sub)}</small><span class="v">${v}</span></div>
           <ul>${why.map(x => `<li class="w-${x[0]}">${esc(x[1])}</li>`).join('')}</ul>${w.best ? `<div class="better">Better ${w.best.t.day === et().day ? 'around' : 'tomorrow around'} ${hh(w.best.t.h)}: ${w.best.s.toFixed(1)}</div>` : ''}</div>`; }).join('')}</div>
           <p class="fine">${S.flow ? `Road speeds from TomTom, updated ${new Date(S.flow.updated).toLocaleTimeString('en-US', { timeZone: TZN, hour: 'numeric', minute: '2-digit' })}.` : 'Live road speeds load with the next feed refresh; until then traffic is estimated.'} Weather from Open-Meteo. Crowds and parking are estimated from season, holidays, day and hour. Closures from park alerts and seasonal schedules.</p>`;
-    } else if (S.tab === 'today') {
+    } else if (tab === 'today') {
       h = briefHTML();
-    } else if (S.tab === 'roads') {
+    } else if (tab === 'roads') {
       const R = roadsNow(); const bar = x => { const r = clamp(x.cur / x.free); return `<div class="lroad" style="--r:${r}"><span class="n">${esc(x.name)}</span><span class="b"><i class="${x.closed ? 'x' : r < 0.5 ? 'r' : r < 0.75 ? 'y' : 'g'}"></i></span><span class="s">${x.closed ? 'Closed' : Math.round(x.cur) + ' mph'}</span></div>`; };
       h = `${clockHTML()}
         <div class="lmodebox ${S.localMode ? 'on' : ''}"><div><b>Local's mode</b><small>Hides tourist tours and puts the roads, the crowds and your alerts first.</small></div><button class="lmode" data-lmode2 aria-pressed="${S.localMode}"><i></i></button></div>
@@ -686,7 +690,7 @@
         <div class="lstats"><div><b>${R.c > 0.75 ? 'Heavy' : R.c > 0.45 ? 'Busy' : 'Light'}</b><small>Parkway crowds now</small></div><div><b>${R.thin ? (R.thin.dh === 0 ? 'Now' : hh(R.thin.t.h)) : 'Late'}</b><small>${R.thin && R.thin.dh === 0 ? 'Crowds are thin' : 'Crowds thin out'}</small></div><div><b>${R.worst ? Math.round(R.worst.cur) + ' mph' : '—'}</b><small>${R.worst ? 'Slowest: ' + esc(R.worst.name.replace('Parkway, ', '')) : 'Slowest spot'}</small></div></div>
         ${R.live ? `<div class="lsub">The Parkway</div>${R.pk.map(bar).join('')}<div class="lsub">Back roads</div>${R.back.map(bar).join('')}${R.park.length ? `<div class="lsub">Park roads</div>${R.park.map(bar).join('')}` : ''}<p class="fine">Live speeds from TomTom, ${new Date(R.updated).toLocaleTimeString('en-US', { timeZone: TZN, hour: 'numeric', minute: '2-digit' })}. Bars show speed compared with a clear road.</p>`
           : `<p class="lsay">Live road speeds start with the next feed refresh (every 20 minutes). The traffic colors on the map are live now.</p>`}`;
-    } else if (S.tab === 'alerts') {
+    } else if (tab === 'alerts') {
       const perm = 'Notification' in window ? Notification.permission : 'unsupported';
       h = `${S.hits.length ? `<div class="lsub">Right now</div>${S.hits.map((x, i) => `<button class="lhit k-${x.k}" data-hit="${i}" style="animation-delay:${i * 50}ms"><span class="i">${(ALERT_KINDS.find(k => k[0] === x.k) || [])[2]}</span><span><b>${esc(x.title)}</b><small>${esc(x.body)}</small></span></button>`).join('')}` : S.places.length ? '<div class="lok">✓ All clear around your places</div>' : ''}
         <div class="lsub">Your places</div>
@@ -697,7 +701,7 @@
         ${S.places.length && perm === 'default' ? '<button class="btn wide" data-perm>Turn on notifications</button>' : ''}${perm === 'denied' ? '<p class="fine">Notifications are blocked for this site in your browser settings. Alerts still show here.</p>' : ''}
         <p class="fine">Watches creek gauges, satellite fire detections, the ice forecast for your exact spot, weather warnings, outages, lost pets and what neighbors report. Your places stay on this phone and are never uploaded. Alerts come in while Smokies Live is open; always-on push arrives with the app.</p>`;
     } else {
-      const K = LAYER[S.tab], items = itemsOf(K), kd = KIND[K], res = isResident();
+      const K = LAYER[tab], items = itemsOf(K), kd = KIND[K], res = isResident();
       const head = {
         W: ['Sightings', 'Bears, elk, fireflies, wildflowers and fall color, posted by people out there right now.', 'Post a sighting'],
         M: ['Memories', 'Old photos and stories pinned where they happened. Add your family\'s.', 'Pin a memory'],
@@ -720,7 +724,7 @@
       if (K === 'T') { const nps = S.nps.filter(a => /trail/i.test(a.title + ' ' + (a.desc || ''))); extra = nps.length ? `<div class="lsub">Park service notices</div>${nps.slice(0, 6).map(a => `<a class="lnps" href="${esc(a.link || 'https://www.nps.gov/grsm/planyourvisit/conditions.htm')}" target="_blank" rel="noopener">⛔ ${esc(a.title)}</a>`).join('')}` : ''; }
       if (K === 'E') { const fe = feedEvents(7); extra = fe.length ? `<div class="lsub">This week from town calendars</div><div class="litems">${fe.slice(0, 12).map((e, i) => `<a class="litem" href="${esc(e.link)}" target="_blank" rel="noopener" style="animation-delay:${i * 40}ms"><span class="e">${e.kind === 'church' ? '⛪' : e.kind === 'sports' ? '🏈' : '🎪'}</span><span class="t"><b>${esc(e.title)}</b><small>${esc(e.source || '')}${e.ongoing ? ' · ongoing' : ''}</small></span><span class="a">${e.today ? 'Today' : esc(e.when)}</span></a>`).join('')}</div>` : ''; }
       h = `<div class="lhead2"><div><b>${head[0]}</b><small>${head[1]}</small></div><button class="btn primary" data-new="${K}">${head[2]}</button></div>
-        <button class="toggle" data-layer2="${S.tab}" aria-pressed="${S.layers[S.tab]}"><span class="k">Show on the map</span><span class="sw"></span></button>
+        <button class="toggle" data-layer2="${tab}" aria-pressed="${S.layers[tab]}"><span class="k">Show on the map</span><span class="sw"></span></button>
         ${extra}
         <div class="lsub">${K === 'M' ? 'On the map' : K === 'E' ? 'Posted by neighbors' : 'Latest'}</div>
         ${list.length ? `<div class="litems">${list.slice(0, 40).map(row).join('')}</div>`
@@ -728,8 +732,7 @@
         ${K === 'B' ? '<p class="fine">Business owners post for free. Featured spots on the map are coming for sponsors. The locals check uses your location once, on this device; full verification comes with accounts.</p>' : ''}
         ${K === 'O' ? '<p class="fine">From neighbor reports. Sevier County Electric\'s own outage feed isn\'t connected yet.</p>' : ''}`;
     }
-    el.innerHTML = h;
-    el.querySelectorAll('.ring .fg').forEach(c => requestAnimationFrame(() => requestAnimationFrame(() => c.style.strokeDashoffset = c.style.getPropertyValue('--to'))));
+    return h;
   }
   const agoShort = iso => { const s = (Date.now() - new Date(iso)) / 1000; return s < 3600 ? Math.max(1, Math.round(s / 60)) + 'm' : s < 86400 ? Math.round(s / 3600) + 'h' : Math.round(s / 86400) + 'd'; };
   function onBody(e) {
@@ -746,7 +749,7 @@
     if (d.perm != null) { Notification.requestPermission().then(() => render()); return; }
     if (d.hit != null) { const x = S.hits[+d.hit]; if (x.ll) fly([x.ll.lng, x.ll.lat], 13.5, 55); return; }
     if (d.new) { compose(d.new); return; }
-    if (d.layer2) { const k = d.layer2; S.layers[k] = !S.layers[k]; pref.set('layers', S.layers); document.querySelectorAll('[data-allpins]').forEach(x => x.setAttribute('aria-pressed', Object.values(S.layers).some(Boolean))); b.setAttribute('aria-pressed', S.layers[k]); drawMarkers(); return; }
+    if (d.layer2) { const k = d.layer2; S.layers[k] = !S.layers[k]; pref.set('layers2', S.layers); document.querySelectorAll('[data-allpins]').forEach(x => x.setAttribute('aria-pressed', Object.values(S.layers).some(Boolean))); b.setAttribute('aria-pressed', S.layers[k]); drawMarkers(); return; }
     if (d.item) { const [K, i] = d.item.split(':'); const it = itemsOf(K)[+i]; if (it.K === 'B' && it.cat === 'local' && !isResident()) { verifyResident(); return; } showItem(it); fly([it.lng, it.lat], 14.5, 58); return; }
     if (d.memo) { const it = itemsOf('M').find(x => x.id === d.memo); if (it) { showItem(it); fly([it.lng, it.lat], 14, 60); } return; }
   }
@@ -832,6 +835,6 @@
       else setTimeout(() => { const t = et(); if (t.h >= 5 && t.h < 11 && pref.get('briefDay', '') !== t.day && S.wx) { pref.set('briefDay', t.day); const f = S.fog && S.fog[0], c = S.flow && S.flow.clock && S.flow.clock.sg && S.flow.clock.sg[0]; banner('☀️', 'Your morning brief is ready', [S.wx ? `${Math.round(S.wx.gat.h.temperature_2m[S.wx.gat.h.time.indexOf(t.key)])}° in Gatlinburg` : '', c ? `Parkway ${c.min} min` : '', f ? `${pct(f.p)} valley fog` : ''].filter(Boolean).join(' · '), 'today'); } }, 6000);
     }, 400);
   }
-  window.Locals = { S, openHub, closeHub, refresh, compose, setLocalMode, fogMorning, buildWorth };
+  window.Locals = { S, openHub, closeHub, refresh, compose, setLocalMode, fogMorning, buildWorth, drawMarkers, brief: () => briefHTML(), section: tabHTML, rings, onBody, itemsOf, roadsNow, clockHTML, feedEvents, setLayer(k, on) { S.layers[k] = on; pref.set('layers2', S.layers); drawMarkers(); } };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();

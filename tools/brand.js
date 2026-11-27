@@ -136,11 +136,78 @@ ${ring ? `<circle class="rim" cx="50" cy="50" r="44" fill="none" stroke="#2f4a46
         else if (med < 15 && pr < cap && moving) { if (++calm > 3) { pr = Math.min(cap, +(pr + 0.25).toFixed(2)); map.setPixelRatio(pr); calm = 0; } }
       });
       window.__smokies.quality = () => ({ pixelRatio: pr, cap });
+      // body.sl-moving pauses decorative loops during gestures
+      map.on('movestart', () => document.body.classList.add('sl-moving'));
+      map.on('moveend', () => document.body.classList.remove('sl-moving'));
+      // coming back to the map from the feed: redraw once so the animated layers resume
+      new MutationObserver(() => { if (document.body.dataset.view === 'map' || document.body.classList.contains('picking')) map.triggerRepaint(); }).observe(document.body, { attributes: true, attributeFilter: ['data-view', 'class'] });
     }, 500);
   }
 
-  window.Brand = { mark, wordmark };
+
+  // ---------- phone navigation: one clear row of labeled buttons under the search ----------
+  // The panels themselves belong to other modules; the dock drives their existing buttons so it never drifts out of sync.
+  const ICON = {
+    local: '<path d="M3 20h18M5 20l5-8 3 4 2-3 4 7"/><circle cx="17" cy="6" r="2.5"/>',
+    live: '<path d="M7 18h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.2 9.2 4.5 4.5 0 0 0 7 18z"/>',
+    tours: '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>',
+    layers: '<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>'
+  };
+  const DOCK = [['local', 'm-local', 'Local'], ['live', 'm-live', 'Weather'], ['tours', 'm-tours', 'Places'], ['layers', 'm-layers', 'Layers']];
+  const phone = () => matchMedia('(max-width:760px)').matches;
+  const pressed = id => { const b = document.getElementById(id); return !!b && b.getAttribute('aria-pressed') === 'true'; };
+  function closeAll(except) {
+    if (except !== 'm-local' && pressed('m-local')) { const x = document.querySelector('#lhub [data-close]'); if (x) x.click(); }
+    for (const id of ['m-live', 'm-tours', 'm-layers']) if (id !== except && pressed(id)) document.getElementById(id).click();
+  }
+  function dock() {
+    const mb = document.getElementById('mobileBar'); if (!mb || document.getElementById('sldock')) return;
+    const nav = document.createElement('nav'); nav.id = 'sldock'; nav.setAttribute('aria-label', 'Map menus');
+    nav.innerHTML = DOCK.map(([k, id, label]) => `<button data-proxy="${id}" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg><span>${label}</span></button>`).join('');
+    document.body.appendChild(nav);
+    const sync = () => nav.querySelectorAll('[data-proxy]').forEach(b => { const t = document.getElementById(b.dataset.proxy); b.hidden = !t; b.setAttribute('aria-pressed', pressed(b.dataset.proxy)); });
+    nav.addEventListener('click', e => {
+      const b = e.target.closest('[data-proxy]'); if (!b) return; const id = b.dataset.proxy, t = document.getElementById(id); if (!t) return;
+      const was = pressed(id); closeAll(id);
+      if (was && id === 'm-local') { const x = document.querySelector('#lhub [data-close]'); if (x) x.click(); } else t.click();
+      setTimeout(sync, 30);
+    });
+    new MutationObserver(sync).observe(mb, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-pressed'] });
+    sync();
+    // tapping the map itself puts any open menu away
+    const wait = setInterval(() => {
+      const map = window.__smokies && window.__smokies.map; if (!map) return; clearInterval(wait);
+      map.on('click', () => { if (phone()) closeAll(); });
+    }, 500);
+  }
+  // the logo moves into the search bar on phones, so the header row is gone and the map gets the space
+  function searchLogo() {
+    const box = document.querySelector('#search .box'); if (!box || box.querySelector('.slmark')) return;
+    box.insertAdjacentHTML('afterbegin', mark(26, { cls: 'insearch' }));
+  }
+
+  // ---------- desktop: the long side panel folds into sections you can open and close ----------
+  const FOLD_KEY = 'sl-fold', FOLD_DEFAULT = { 'Layers': true, 'Live': true };
+  let fold = FOLD_DEFAULT; try { fold = { ...FOLD_DEFAULT, ...JSON.parse(localStorage.getItem(FOLD_KEY) || '{}') }; } catch (e) {}
+  function folds() {
+    const rail = document.getElementById('rail'); if (!rail) return;
+    const apply = () => rail.querySelectorAll(':scope > .group').forEach(g => {
+      const h = g.querySelector(':scope > .eyebrow'); if (!h) return;
+      const k = h.textContent.trim(); if (!h.dataset.fold) { h.dataset.fold = k; h.setAttribute('role', 'button'); h.tabIndex = 0; }
+      g.classList.toggle('sl-folded', !!fold[k]); h.setAttribute('aria-expanded', !fold[k]);
+    });
+    rail.addEventListener('click', e => {
+      const h = e.target.closest('.group > .eyebrow[data-fold]'); if (!h) return;
+      const k = h.dataset.fold; fold[k] = !fold[k];
+      try { localStorage.setItem(FOLD_KEY, JSON.stringify(fold)); } catch (err) {}
+      apply();
+    });
+    new MutationObserver(apply).observe(rail, { childList: true });
+    apply();
+  }
+
+  window.Brand = { mark, wordmark, closeAll };
   favicon(); intro(); presses(); cascade();
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { header(); governor(); });
-  else { header(); governor(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { header(); governor(); searchLogo(); folds(); setTimeout(dock, 0); addEventListener('load', () => setTimeout(dock, 2500)); });
+  else { header(); governor(); searchLogo(); folds(); dock(); }
 })();
