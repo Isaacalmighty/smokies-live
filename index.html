@@ -828,6 +828,9 @@ body.sl-revealed :is(#brand,#search,#rail,#tours,#season,#mobileBar,#tabbar){ani
   .slmark.anim *,.slmark.anim,#loader::before,#loader::after{animation:none!important;opacity:1!important;translate:none!important;rotate:none!important;stroke-dashoffset:0!important}
   body.sl-revealed *{animation:none!important}
 }
+
+/* phones: the radar time chip sits just above the season panel so it never covers the header */
+@media (max-width:760px){#radarStamp{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 232px)}}
 /* BRAND-CSS-END */
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
