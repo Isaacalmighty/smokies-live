@@ -1,15 +1,7 @@
-desktop state {"blocked":false,"wx":true,"puffs":2600,"alerts":["High Wind Watch"],"news":71,"events":29,"incidents":4,"cams":17,"gauges":0,"fires":0,"sky":"2:52 PM · Daylight","chip":"Partly cloudy in Gatlinburg · wind 13 mph SW"}
+desktop state {"blocked":false,"wx":true,"puffs":2600,"alerts":["High Wind Watch"],"news":71,"events":29,"incidents":4,"cams":17,"gauges":11,"fires":0,"sky":"4:45 PM · Golden hour","chip":"Overcast in Gatlinburg · wind 11 mph SW"}
 desktop tomtom {}
-desktop failed https://wsrv.nl/?url=https%3A%2F%2Fwww.knoxnews.com%2Fgcdn%2Fauthoring%2Fauthoring-images%2F2026%2F11%2F18%2FPKNS%2F92845878007-1-color-variation-russula-by-cha net::ERR_BLOCKED_BY_ORB
-desktop failed https://www.knoxnews.com/gcdn/authoring/authoring-images/2026/11/18/PKNS/92845878007-1-color-variation-russula-by-chance-noffsinger.jpg?width=1200&disable=upsca net::ERR_BLOCKED_BY_ORB
-desktop failed https://api.open-meteo.com/v1/forecast?latitude=35.714,35.788,35.868,35.675,35.597,35.714,35.484,35.431,35.6363,35.6329,35.7046,35.6295,35.6108,35.6179,35.6533, net::ERR_ABORTED
-desktop failed https://wsrv.nl/?url=https%3A%2F%2Fwww.knoxnews.com%2Fgcdn%2Fauthoring%2Fauthoring-images%2F2026%2F11%2F18%2FPKNS%2F92845878007-1-color-variation-russula-by-cha net::ERR_BLOCKED_BY_ORB
-desktop failed https://www.knoxnews.com/gcdn/authoring/authoring-images/2026/11/18/PKNS/92845878007-1-color-variation-russula-by-chance-noffsinger.jpg?width=1200&disable=upsca net::ERR_BLOCKED_BY_ORB
-phone failed https://api.open-meteo.com/v1/forecast?latitude=35.330,35.330,35.330,35.330,35.330,35.330,35.330,35.470,35.470,35.470,35.470,35.470,35.470,35.470,35.610,35.610, net::ERR_ABORTED
-phone state {"blocked":false,"wx":true,"puffs":0,"alerts":[],"news":71,"events":29,"incidents":4,"cams":17,"gauges":0,"fires":0,"sky":"2:54 PM · Daylight","chip":"Partly cloudy in Gatlinburg · wind 13 mph SW"}
-phone tomtom {}
-phone failed https://wsrv.nl/?url=https%3A%2F%2Fwww.knoxnews.com%2Fgcdn%2Fauthoring%2Fauthoring-images%2F2026%2F11%2F18%2FPKNS%2F92845878007-1-color-variation-russula-by-cha net::ERR_BLOCKED_BY_ORB
+phone failed https://wsrv.nl/?url=http%3A%2F%2Fwww.seviervilletn.org%2FImageRepository%2FDocument%3FdocumentID%3D962&w=720&h=405&fit=cover&a=attention&output=webp&q=72 net::ERR_BLOCKED_BY_ORB
 phone failed https://wsrv.nl/?url=https%3A%2F%2Fwww.knoxnews.com%2Fgcdn%2Fauthoring%2Fauthoring-images%2F2026%2F11%2F18%2FPKNS%2F92845878007-1-color-variation-russula-by-cha net::ERR_BLOCKED_BY_ORB
 phone failed https://www.knoxnews.com/gcdn/authoring/authoring-images/2026/11/18/PKNS/92845878007-1-color-variation-russula-by-chance-noffsinger.jpg?width=1200&disable=upsca net::ERR_BLOCKED_BY_ORB
-phone failed https://wsrv.nl/?url=http%3A%2F%2Fwww.seviervilletn.org%2FImageRepository%2FDocument%3FdocumentID%3D962&w=720&h=405&fit=cover&a=attention&output=webp&q=72 net::ERR_BLOCKED_BY_ORB
-phone failed https://api.open-meteo.com/v1/forecast?latitude=35.714,35.788,35.868,35.675,35.597,35.714,35.484,35.431,35.6363,35.6329,35.7046,35.6295,35.6108,35.6179,35.6533, net::ERR_ABORTED
+phone state {"blocked":false,"wx":true,"puffs":832,"alerts":["High Wind Watch"],"news":71,"events":29,"incidents":4,"cams":17,"gauges":11,"fires":0,"sky":"4:47 PM · Golden hour","chip":"Overcast in Gatlinburg · wind 11 mph SW"}
+phone tomtom {}
