@@ -1746,6 +1746,12 @@ const M2FT = 3.28084;
 const BOUNDS = [-84.07, 35.40, -82.98, 35.96];
 // phones: the 3D ground uses one coarser terrain level (about 2.5x fewer triangles every frame); imagery, shading and labels stay full detail
 const PHONE = matchMedia('(pointer:coarse)').matches && Math.min(screen.width, screen.height) < 820;
+// Map pins are always drawn solid. MapLibre's own "fade pins behind mountains" check reads pixels back from the
+// GPU for every pin, ten times a second each. Each read makes the phone wait for the GPU to finish the whole frame,
+// so with twenty pins on screen the map stalls hundreds of times a second however fast the phone is. Skip it.
+if (maplibregl.Marker && maplibregl.Marker.prototype._updateOpacity) {
+  maplibregl.Marker.prototype._updateOpacity = function () { const o = this._opacity ?? '1'; if (this._element.style.opacity !== String(o)) this._element.style.opacity = o; };
+}
 
 /* ---------- pack loader: tiles are bundled into small binary packs ---------- */
 const packs = new Map();
@@ -4587,8 +4593,8 @@ window.__smokies = { get map() { return map; }, getTile, synthTerrain, packName,
 </script>
 
 <script src="locals.js?v=3" defer></script>
-<link rel="stylesheet" href="mapme.css?v=1">
-<script src="mapme.js?v=1" defer></script>
+<link rel="stylesheet" href="mapme.css?v=2">
+<script src="mapme.js?v=2" defer></script>
 <script>
 /* UX-BEGIN */
 /* ---------- UX: one calm shell over the map ----------
