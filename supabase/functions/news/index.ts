@@ -97,10 +97,11 @@ const meta = (h: string, ...names: string[]) => {
 export async function pageMeta(url: string) {
   if (!url || /news\.google\.com/.test(url) || NO_FETCH.test(url)) return null;
   try {
-    const h = (await get(url, 7000, 'text/html')).slice(0, 300000);
-    const img = meta(h, 'og:image:secure_url', 'og:image', 'twitter:image', 'twitter:image:src');
+    const h = (await get(url, 8000, 'text/html')).slice(0, 900000);
+    const ld = h.match(/"thumbnailUrl"\s*:\s*"([^"]+)"/) || h.match(/"image"\s*:\s*\{[^}]*?"url"\s*:\s*"([^"]+)"/) || h.match(/"image"\s*:\s*\[\s*"([^"]+)"/) || h.match(/<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)["']/i);
+    const img = meta(h, 'og:image:secure_url', 'og:image', 'twitter:image', 'twitter:image:src') || (ld ? ld[1].replace(/\\u002F/g, '/').replace(/\\\//g, '/') : '');
     let author = meta(h, 'author', 'article:author', 'parsely-author', 'byl', 'dc.creator').replace(/^by\s+/i, '');
-    if (/^https?:|@|\b(staff|news|wbir|wate|wvlt|press)\b/i.test(author) || author.length > 60) author = '';
+    if (/^https?:|@|^admin|\b(staff|news|wbir|wate|wvlt|press|reports?)\b/i.test(author) || author.length > 60) author = '';
     return { img: img ? new URL(img, url).href : null, desc: clean(meta(h, 'og:description', 'twitter:description', 'description'), 320), author: author || null, section: meta(h, 'article:section') || null };
   } catch { return null; }
 }
@@ -129,15 +130,17 @@ export async function gnResolve(link: string) {
 
 // what the story is about, for the section labels in the app
 const CATS: [string, RegExp][] = [
-  ['Safety', /\b(police|sheriff|deput|arrest|charged|indict|shoot|shot|stabb|murder|homicide|killed|dies|died|death|fatal|missing|rescue|search(ed)? for|court|jury|trial|sentenc|crime|suspect|investigat|911|firefighter|fire department|blaze|wildfire|burn ban|evacuat)/i],
-  ['Weather', /\b(weather|forecast|storm|snow|ice|icy|rain|flood|flash flood|wind|tornado|freeze|frost|heat|temperatures?|NWS|winter weather)\b/i],
-  ['Roads', /\b(road|crash|wreck|closure|closed|lane|traffic|I-40|I-75|interstate|highway|parkway|spur|TDOT|detour|construction|bridge|newfound gap road|US-?441)\b/i],
-  ['Outdoors', /\b(national park|Smokies|Great Smoky|NPS|trail|hik|bear|elk|wildlife|Cades Cove|ranger|Clingmans|Le ?Conte|campground|waterfall|fishing|mushroom|leaf|fall colou?r|backcountry)\b/i],
-  ['Things to do', /\b(festival|Dollywood|concert|parade|holiday|Christmas|lights|Winterfest|show|theat|museum|attraction|celebrat|fair|market|tickets?|music|art|craft|performance)\b/i],
-  ['Business', /\b(business|restaurant|opens?|opening|closing|close after|jobs?|hiring|hotel|resort|develop|economy|sales|tax revenue|tourism|retail|store|brewery|distillery|cabin rental|real estate|property)\b/i],
-  ['Government', /\b(mayor|commission|county commission|city council|alderm|board|school|vote|election|budget|ordinance|lawmakers|state law|governor|legislat)\b/i],
-  ['Sports', /\b(football|basketball|baseball|softball|soccer|playoff|semifinal|championship|coach|Vols|tournament)\b/i],
+  ['Sports', /\b(football|basketball|baseball|softball|soccer|volleyball|wrestling|playoffs?|semifinals?|quarterfinals?|championship|coach|Vols\b|tournament|Lady \w+s\b|Bulldogs|Bears\b|Cougars|Smoky Bears|season opener|scores?\b)/i],
+  ['Safety', /\b(police|sheriff|deput|arrest|charged|indict|shooting|stabb|murder|homicide|missing|rescued?|search(ed|ing)? for|jury|trial|sentenc|pleads?|guilty|convicted|crime|suspect|investigat|firefighters? (are|battl)|brush fire|house fire|structure fire|blaze|acres|contained|burn ban|evacuat|fatal|killed in|dies after|died after)/i],
+  ['Weather', /\b(weather|forecast|storms?\b|snow|icy|freezing rain|flood|tornado|freeze|frost|heat wave|wind (advisory|gusts)|NWS|winter storm)/i],
+  ['Roads', /\b(road|crash|wreck|closures?|lanes?\b|traffic|I-40|I-75|interstate|highway|parkway|spur\b|TDOT|detour|construction|bridge|US-?441|paving)/i],
+  ['Outdoors', /\b(national park|Smokies|Great Smoky|NPS\b|trails?\b|hik(e|ing|ers?)|bears?\b|elk\b|wildlife|Cades Cove|rangers?\b|Clingmans|campgrounds?|waterfalls?|fishing|mushrooms?|fall colou?rs?|backcountry|Appalachian Trail)/i],
+  ['Things to do', /\b(festival|Dollywood|concerts?|parades?|holiday|Christmas|lights?\b|Winterfest|shows?\b|theat(er|re)|museum|attractions?|celebrat|fair\b|market|tickets?|music|singles?\b|album|art\b|crafts?|performances?)/i],
+  ['Business', /\b(business|restaurants?|grand opening|now open|opens\b|to close|closing|jobs?\b|hiring|hotels?|resort|develop|economy|sales\b|shopping|Black Friday|revenue|tourism|retail|stores?\b|brewery|distillery|cabin rental|real estate|property|hospital|health)/i],
+  ['Government', /\b(mayor|commission|city council|alderm|board\b|schools?\b|vote|election|budget|ordinance|lawmakers|state law|governor|legislat|approves?|utility)/i],
 ];
+// "SEVIER COUNTY, Tenn. (WATE) — " at the start of a summary
+export const undateline = (t: string) => (t || '').replace(/^[A-Z][A-Z .,'’-]{2,40},\s*(Tenn|Tennessee|N\.?C|North Carolina|TN|NC|Ga|Va)\.?\s*(\([^)]{1,30}\))?\s*[—–-]+\s*/, '').replace(/^\([^)]{1,20}\)\s*[—–-]+\s*/, '');
 export const catOf = (text: string) => { for (const [c, rx] of CATS) if (rx.test(text)) return c; return 'Community'; };
 
 export async function collect(log: (s: string) => void = () => {}) {
@@ -157,6 +160,7 @@ export async function collect(log: (s: string) => void = () => {}) {
       const source = outletOf(src);
       if (it.published && Date.now() - +new Date(it.published) > 7 * 864e5) continue;
       // Google News "summaries" are just the headline and outlet again; drop those
+      it.summary = undateline(it.summary);
       const sum = it.summary && !it.summary.toLowerCase().startsWith(title.toLowerCase().slice(0, 40)) && it.summary !== title ? it.summary : '';
       rows.push({ id, source, title, summary: sum, link: it.link, img: it.img, published: it.published || new Date().toISOString(), place: geotag(gaz, title + ' ' + sum), cat: catOf(title + ' ' + sum), author: null });
       n++; per[source] = (per[source] || 0) + 1;
@@ -195,6 +199,7 @@ async function tidy(log: (s: string) => void | number) {
 }
 
 type Row = Record<string, unknown>;
+const JUNK = /holiday-marketplace|things-to-do\/events|local-events|\/events\/?\?|_evDiscovery|\/obituar/i;
 type Known = { id: string; link?: string | null; img?: string | null; summary?: string | null; cat?: string | null; author?: string | null; enriched?: boolean };
 // fill in what each story's feed left out: the real article address, its photo, the newsroom's summary, byline.
 // Stories we already know keep what we found before, so each run only visits the handful that are new.
@@ -214,6 +219,7 @@ export async function enrich(rows: Row[], known: Map<string, Known>, budget = 30
     const m = await pageMeta(String(r.link));
     if (m) {
       if (!r.img && m.img) { r.img = m.img; photos++; }
+      m.desc = undateline(m.desc);
       if (m.desc && m.desc.length > String(r.summary || '').length && !m.desc.toLowerCase().startsWith(String(r.title).toLowerCase().slice(0, 40))) r.summary = m.desc;
       if (m.author) r.author = m.author;
       r.cat = catOf(`${r.title} ${r.summary || ''} ${m.section || ''}`);
@@ -221,6 +227,10 @@ export async function enrich(rows: Row[], known: Map<string, Known>, budget = 30
     r.enriched = true;
   };
   for (let i = 0; i < need.length; i += 5) await Promise.all(need.slice(i, i + 5).map(one)); // a few at a time, politely
+  // event listings and calendar pages that ride along in search results are not news
+  const seenLink = new Set<string>();
+  for (let i = rows.length - 1; i >= 0; i--) if (JUNK.test(String(rows[i].link))) rows.splice(i, 1);
+  for (let i = 0; i < rows.length; i++) { const l = String(rows[i].link).split(/[?#]/)[0]; if (seenLink.has(l)) { rows.splice(i, 1); i--; } else seenLink.add(l); }
   log(`enrich: ${need.length} visited, ${resolved} links resolved, ${photos} photos found`);
   return need.length;
 }
@@ -242,13 +252,13 @@ export async function run(dry = false) {
 }
 
 // The backup file the app reads when the database isn't set up: GitHub Actions runs
-//   deno run -A supabase/functions/news/index.ts --json feeds/live/news.json
+//   deno run -A supabase/functions/news/index.ts --json feeds/live/news.json --prev last-run.json
 // every 10 minutes. It keeps what earlier runs found (photos, real links) and a week of stories.
-export async function writeJson(path: string) {
+export async function writeJson(path: string, prevPath = path) {
   const lines: string[] = [];
   const { rows } = await collect(s => lines.push(s));
   let prev: Row[] = [];
-  try { prev = JSON.parse(await Deno.readTextFile(path)).items || []; } catch { /* first run */ }
+  try { prev = JSON.parse(await Deno.readTextFile(prevPath)).items || []; } catch { /* first run */ }
   const known = new Map<string, Known>(prev.map(p => [String(p.id), { ...(p as Known), enriched: !!p.enriched }]));
   await enrich(rows, known, 30, s => lines.push(s));
   const ids = new Set(rows.map(r => String(r.id))), week = Date.now() - 7 * 864e5;
@@ -261,7 +271,8 @@ export async function writeJson(path: string) {
 }
 
 if (import.meta.main && Deno.args.includes('--json')) {
-  await writeJson(Deno.args[Deno.args.indexOf('--json') + 1] || 'news.json');
+  const out = Deno.args[Deno.args.indexOf('--json') + 1] || 'news.json', pi = Deno.args.indexOf('--prev');
+  await writeJson(out, pi > -1 ? Deno.args[pi + 1] : out);
 } else if (import.meta.main && typeof Deno.serve === 'function' && !Deno.args.includes('--dry')) {
   Deno.serve(async () => {
     try { return Response.json(await run(false)); }
