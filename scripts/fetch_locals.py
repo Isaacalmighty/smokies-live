@@ -71,9 +71,11 @@ def clock():
             r = route(SEV, GAT, None if k == 0 else now + timedelta(minutes=k))
             r['in'] = k
             out['sg'].append(r)
+            time.sleep(0.3)  # the free plan allows only a few calls a second
         except Exception as e:
             print('route sev->gat +%d failed:' % k, e)
     try:
+        time.sleep(0.3)
         out['gs'] = route(GAT, SEV)
     except Exception as e:
         print('route gat->sev failed:', e)
@@ -94,6 +96,7 @@ def main():
     items, errors = [], 0
     for rid, name, lat, lng, grp in ROADS:
         try:
+            time.sleep(0.15)
             f = flow(lat, lng)
             items.append({'id': rid, 'name': name, 'group': grp, 'lat': lat, 'lng': lng,
                           'cur': f.get('currentSpeed'), 'free': f.get('freeFlowSpeed'),
