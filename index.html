@@ -1307,6 +1307,7 @@ body:not([data-view="map"]) #uxshow,body.picking #uxshow{opacity:0;pointer-event
 .uxmore{border:0;background:none;color:var(--ember);font:600 13px var(--font-body);letter-spacing:0;text-transform:none;cursor:pointer;padding:0}
 .uxlink{border:0;background:none;color:var(--ember);font:600 13px var(--font-body);cursor:pointer;padding:0}
 .uxalert{display:flex;gap:12px;align-items:flex-start;width:100%;padding:12px 14px;margin-bottom:8px;border-radius:14px;border:1px solid rgba(255,106,77,.45);background:linear-gradient(90deg,rgba(255,106,77,.2),rgba(255,106,77,.06));color:var(--ink);text-align:left;cursor:pointer}
+.uxhz{display:flex;align-items:center;gap:8px;width:100%;margin:-4px 0 10px;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);font:600 14px var(--font-body);text-align:left;cursor:pointer;transition:transform .3s var(--ease-out)}.uxhz i{margin-left:auto;font-style:normal;color:var(--ink-faint)}.uxhz:active{transform:scale(.97)}
 .uxalert.open small{-webkit-line-clamp:unset;display:block}
 .uxalert>span{font-size:20px}
 .uxalert b{display:block;font-size:15px}
@@ -1401,6 +1402,7 @@ body.ux .lpin{width:36px;height:36px;border:2.5px solid #fff;box-shadow:0 3px 0 
 body.ux .lpin svg{width:18px;height:18px}
 body.ux .lpinbox{width:42px;height:48px}
 body.ux .lmk-in>span{border-width:2.5px;box-shadow:0 3px 0 rgba(0,0,0,.2),0 6px 16px rgba(0,0,0,.55)}
+#lcard .hzgo{display:block;width:100%;margin-top:10px;padding:11px 12px;text-align:left;border-color:rgba(242,166,90,.45);background:rgba(242,166,90,.12)}
 /* UX-CSS-END */
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
@@ -1670,13 +1672,6 @@ ${ring ? `<circle class="rim" cx="50" cy="50" r="44" fill="none" stroke="#2f4a46
     <button class="toggle" id="t-lidar" aria-pressed="true"><span class="k">LiDAR relief</span><span class="sw"></span></button>
     <button class="toggle" id="t-fog" aria-pressed="false"><span class="k">Valley fog</span><span class="sw"></span></button>
   </div>
-  <div class="group">
-    <div class="eyebrow">Hazard tools</div>
-    <div class="tools">
-      <button class="tool" id="tool-flood" aria-pressed="false"><b>Flood</b><span>Raise the rivers and see what floods</span></button>
-      <button class="tool" id="tool-fire" aria-pressed="false"><b>Wildfire</b><span>Start a fire, set the wind, watch it spread</span></button>
-    </div>
-  </div>
 </aside>
 
 <section id="tours" class="panel" aria-label="Flyover tours">
@@ -1719,8 +1714,8 @@ ${ring ? `<circle class="rim" cx="50" cy="50" r="44" fill="none" stroke="#2f4a46
       <li><b>LiDAR relief:</b> a 1 m surface model of Gatlinburg from 3DEP point clouds, so roofs, trees and roads show real shape.</li>
       <li><b>Roads, trails, rivers, peaks, places:</b> Overture Maps release 2026-11-18.</li>
     </ul>
-    <h4>Hazard tools are illustrations</h4>
-    <p>The flood tool raises water above the nearest river or named creek using a height-above-nearest-drainage model on the terrain. The wildfire tool spreads fire with a minimum-travel-time model driven by slope, wind and fuel read from the imagery. Neither is a forecast. For real emergencies follow the National Weather Service and Sevier County Emergency Management.</p>
+    <h4>Flood and fire views appear only during a real alert</h4>
+    <p>When the National Weather Service issues a flood alert, you can see how high water could reach near you, using a height-above-nearest-drainage model on the terrain. When a satellite reports a fire, you can see the live wind there and a rough estimate of where it could spread if it is not contained, from a minimum-travel-time model driven by slope, wind and fuel read from the imagery. Both are estimates, not forecasts. For real emergencies follow the National Weather Service and Sevier County Emergency Management.</p>
     <h4>Live layers</h4>
     <ul>
       <li><b>Sky and light:</b> sun and moon positions computed for your local time, so the map shows real daylight, golden hour, dusk and night.</li>
@@ -1855,7 +1850,6 @@ const style = {
     demShade: { type: 'raster-dem', tiles: ['pk://terrain/{z}/{x}/{y}'], tileSize: 256, encoding: 'terrarium', maxzoom: 13 },
     world: { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]]] } } },
     fogSrc: { type: 'raster-dem', tiles: ['pk://fog/{z}/{x}/{y}'], tileSize: 256, encoding: 'terrarium', minzoom: 10, maxzoom: 13, bounds: BOUNDS },
-    hand: { type: 'raster-dem', tiles: ['pk://hand/{z}/{x}/{y}'], tileSize: 256, encoding: 'terrarium', minzoom: 10, maxzoom: 14, bounds: BOUNDS },
     lidar: { type: 'raster', tiles: ['pk://lidar/{z}/{x}/{y}'], tileSize: 256, minzoom: 15, maxzoom: 16, bounds: [-83.536, 35.694, -83.489, 35.736] },
     vec: { type: 'vector', tiles: ['pk://vector/{z}/{x}/{y}'], minzoom: 5, maxzoom: 13 },
     // low-res Sentinel-2 season mosaics for the whole region, so real imagery runs to the horizon
@@ -1877,7 +1871,6 @@ const style = {
     { id: 'lidar', type: 'raster', source: 'lidar', minzoom: 14.5, paint: { 'raster-opacity': ['interpolate', ['linear'], ['zoom'], 14.5, 0, 15.3, 0.9], 'raster-fade-duration': 0 } },
     { id: 'tint', type: 'fill', source: 'world', paint: { 'fill-color': '#000', 'fill-opacity': 0, 'fill-antialias': false } },
     { id: 'fog', type: 'color-relief', source: 'fogSrc', layout: { visibility: 'none' }, paint: { 'color-relief-opacity': 0.92, 'color-relief-color': 'rgba(0,0,0,0)' } },
-    { id: 'flood', type: 'color-relief', source: 'hand', layout: { visibility: 'none' }, paint: { 'color-relief-opacity': 0.88, 'color-relief-color': 'rgba(0,0,0,0)' } },
     { id: 'landuse', type: 'fill', source: 'vec', 'source-layer': 'landuse', minzoom: 13, filter: ['==', ['get', 'c'], 'golf'], paint: { 'fill-color': '#7da35a', 'fill-opacity': 0.0 } },
     { id: 'park-glow', type: 'line', source: 'vec', 'source-layer': 'park', paint: { 'line-color': '#f2c46a', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 2, 12, 6], 'line-opacity': 0.18, 'line-blur': 3 } },
     { id: 'park', type: 'line', source: 'vec', 'source-layer': 'park', paint: { 'line-color': '#f6cf7c', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.8, 12, 1.6], 'line-dasharray': [3, 2], 'line-opacity': 0.85 } },
@@ -1891,7 +1884,6 @@ const style = {
       'fill-extrusion-color': ['match', ['get', 'k'], 0, PAL[0], 1, PAL[1], 2, PAL[2], 3, PAL[3], 4, PAL[4], 5, PAL[5], 6, PAL[6], PAL[7]],
       'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 13.6, ['*', ['get', 'h'], EXAG]],
       'fill-extrusion-opacity': 0.96, 'fill-extrusion-vertical-gradient': true } },
-    { id: 'fire', type: 'raster', source: 'fireSrc', paint: { 'raster-opacity': 1, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } },
     { id: 'lbl-water', type: 'symbol', source: 'vec', 'source-layer': 'waterway', filter: ['all', ['has', 'n'], ['==', ['get', 'c'], 'river']], minzoom: 11, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 12, 'text-letter-spacing': 0.08, 'symbol-spacing': 400 }, paint: { 'text-color': '#cfe8ff', 'text-halo-color': 'rgba(10,30,50,0.92)', 'text-halo-width': 2.0, 'text-halo-blur': 0.3 } },
     { id: 'lbl-road', type: 'symbol', source: 'vec', 'source-layer': 'roads', filter: ['all', ['has', 'n'], ['in', ['get', 'c'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor']]]], minzoom: 13.5, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 11.5, 'symbol-spacing': 350 }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(0,0,0,0.75)', 'text-halo-width': 2.0, 'text-halo-blur': 0.3 } },
     { id: 'lbl-trail', type: 'symbol', source: 'vec', 'source-layer': 'roads', filter: ['all', ['has', 'n'], ['in', ['get', 'c'], ['literal', ['path', 'track']]]], minzoom: 13, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-size': 11, 'symbol-spacing': 300 }, paint: { 'text-color': '#ffe7bd', 'text-halo-color': 'rgba(40,25,10,0.92)', 'text-halo-width': 1.9, 'text-halo-blur': 0.3 } },
@@ -1901,8 +1893,7 @@ const style = {
     { id: 'lbl-place', type: 'symbol', source: 'vec', 'source-layer': 'place', layout: { 'text-field': ['get', 'n'], 'text-font': ['Noto'], 'text-transform': ['match', ['get', 'c'], ['city', 'town'], 'uppercase', 'none'], 'text-letter-spacing': ['match', ['get', 'c'], ['city', 'town'], 0.18, 0.04], 'text-size': ['match', ['get', 'c'], 'city', 17, 'town', 15, 'village', 13, 11.5], 'symbol-sort-key': ['match', ['get', 'c'], 'city', 0, 'town', 1, 'village', 2, 3] }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(10,14,12,0.92)', 'text-halo-width': 2.4, 'text-halo-blur': 0.3 } },
   ]
 };
-// fire source is a canvas, attached after load
-style.sources.fireSrc = { type: 'canvas', canvas: document.createElement('canvas'), coordinates: [[-83.6, 35.7], [-83.5, 35.7], [-83.5, 35.6], [-83.6, 35.6]], animate: true };
+// flood and fire layers are not part of the everyday map: hazards.js adds them only while an alert view is open
 
 /* ---------- map ---------- */
 let map;
@@ -1913,9 +1904,6 @@ setTimeout(() => $('#loader').classList.add('done'), 14000);
 fetch(BASE + 'manifest.json').then(r => r.json()).catch(() => ({})).then(m => { manifest = m; init(); });
 
 function init() {
-  // fire canvas
-  fire.canvas = document.createElement('canvas'); fire.canvas.width = fire.canvas.height = fire.N; fire.ctx = fire.canvas.getContext('2d');
-  style.sources.fireSrc.canvas = fire.canvas;
   // only today's season imagery downloads at start
   const today = SEASONS[seasonForDate()].id;
   style.layers.forEach(l => { const m = /^(img|reg)-(.+)$/.exec(l.id); if (m) { l.layout.visibility = m[1] === 'img' && m[2] === today ? 'visible' : 'none'; l.paint['raster-opacity'] = m[2] === today ? 1 : 0; } });
@@ -1927,7 +1915,6 @@ function init() {
   map.on('error', e => { if (e && e.error && /no tile|AbortError/.test(String(e.error.message || e.error))) return; });
   map.on('load', () => {
     map.setTerrain({ source: 'dem', exaggeration: EXAG });
-    map.setLayoutProperty('fire', 'visibility', 'none');
     setSeason(seasonForDate(), false); $('#seasonRange').value = seasonVal;
     goLive(false);
     Live.init();
@@ -2203,218 +2190,38 @@ function drawSkyCanvas() {
   if (window.skyExtras) { g.globalAlpha = 1; window.skyExtras(g, project); }
   g.restore();
 }
-/* ---------- flood ---------- */
-let floodFt = 0, floodHist = null;
+/* ---------- hazard views ----------
+   No flood or wildfire simulation runs on the everyday map. They appear only for a real alert:
+   an NWS flood alert, or a fire reported by satellite. The code (hazards.js) and its map layers
+   load the first time one of those views is opened, so the normal map never pays for them. */
+let hazardTint = 0; // meters above the nearest creek that the flood view is showing; 0 = off
 function buildingColor() {
   const base = ['match', ['get', 'k'], 0, PAL[0], 1, PAL[1], 2, PAL[2], 3, PAL[3], 4, PAL[4], 5, PAL[5], 6, PAL[6], PAL[7]];
-  if (!toolState.flood || floodFt <= 0) return base;
-  const m = floodFt / M2FT;
-  return ['case', ['all', ['has', 'f'], ['<', ['get', 'f'], m]], '#ff5a3c', base];
+  if (hazardTint <= 0) return base;
+  return ['case', ['all', ['has', 'f'], ['<', ['get', 'f'], hazardTint]], '#f0a04b', base];
 }
-function setFlood(ft) {
-  floodFt = ft; const m = ft / M2FT;
-  if (m < 0.15) map.setPaintProperty('flood', 'color-relief-color', 'rgba(0,0,0,0)');
-  else map.setPaintProperty('flood', 'color-relief-color', ['interpolate', ['linear'], ['elevation'], 0, 'rgba(14,58,120,0.92)', m * 0.5, 'rgba(26,95,180,0.85)', m - 0.05, 'rgba(70,160,235,0.72)', m, 'rgba(120,200,255,0)']);
-  if (!nightOn) map.setPaintProperty('buildings', 'fill-extrusion-color', buildingColor());
-  const el = $('#floodFt'); if (el) el.innerHTML = `${ft.toFixed(0)}<small>ft above normal</small>`;
-  const nb = $('#floodBldg');
-  if (nb && floodHist) { let n = 0; const bins = Math.floor(m * 10); for (let i = 0; i < Math.min(bins, floodHist.length); i++) n += floodHist[i]; nb.textContent = n.toLocaleString('en-US'); }
-}
-
-/* ---------- wildfire: minimum travel time spread ---------- */
-const fire = { canvas: null, ctx: null, N: 360, T: null, fuel: null, t: 0, playing: false, wind: 225, speed: 15, dry: 0.7, origin: null, raf: 0, bounds: null };
-function lngLatToTile(lng, lat, z) { const n = 2 ** z; const x = (lng + 180) / 360 * n; const r = lat * Math.PI / 180; const y = (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n; return [x, y]; }
-function tileToLngLat(x, y, z) { const n = 2 ** z; const lng = x / n * 360 - 180; const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) * 180 / Math.PI; return [lng, lat]; }
-async function decodeTile(layer, z, x, y) {
-  const buf = await getTile(layer, z, x, y); if (!buf) return null;
-  const bmp = await createImageBitmap(new Blob([buf]));
-  const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
-  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
-  return g.getImageData(0, 0, c.width, c.height).data;
-}
-async function igniteAt(ll) {
-  stopFire();
-  const Z = 13, N = fire.N; // z13 grid: ~15.6 m/px equatorial; cells = 2 px -> ~25 m
-  const [cx, cy] = lngLatToTile(ll.lng, ll.lat, Z);
-  const cellPx = 2; const half = N * cellPx / 2 / 256; // half-width in tiles
-  const x0 = cx - half, y0 = cy - half, x1 = cx + half, y1 = cy + half;
-  showToast('Reading terrain and fuel…');
-  const tiles = {};
-  const jobs = [];
-  for (let tx = Math.floor(x0); tx <= Math.floor(x1); tx++) for (let ty = Math.floor(y0); ty <= Math.floor(y1); ty++) {
-    jobs.push(decodeTile('terrain', Z, tx, ty).then(d => tiles['t' + tx + '_' + ty] = d));
-    jobs.push(decodeTile('img-' + SEASONS[Math.round(seasonVal)].id, Z, tx, ty).then(d => tiles['i' + tx + '_' + ty] = d));
-  }
-  await Promise.all(jobs);
-  const E = new Float32Array(N * N), F = new Float32Array(N * N);
-  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const px = (x0 + (i + 0.5) * cellPx / 256), py = (y0 + (j + 0.5) * cellPx / 256);
-    const tx = Math.floor(px), ty = Math.floor(py); const lx = Math.min(255, Math.floor((px - tx) * 256)), ly = Math.min(255, Math.floor((py - ty) * 256));
-    const t = tiles['t' + tx + '_' + ty], im = tiles['i' + tx + '_' + ty]; const o = (ly * 256 + lx) * 4;
-    E[j * N + i] = t ? t[o] * 256 + t[o + 1] + t[o + 2] / 256 - 32768 : 0;
-    let fu = 1;
-    if (im) {
-      const r = im[o], g = im[o + 1], b = im[o + 2]; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); const l = (r + g + b) / 3;
-      if (l > 120 && mx - mn < 40) fu = 0.03;            // pavement, rooftops, rock
-      else if (b > g && b > r && l < 70) fu = 0;          // open water
-      else if (l > 150) fu = 0.3;
-      else fu = 0.75 + 0.5 * Math.min(1, Math.max(0, (g - b) / 60));
-    }
-    // natural patchiness
-    fu *= 0.8 + 0.4 * hash(i, j);
-    F[j * N + i] = fu;
-  }
-  if (!tiles['t' + Math.floor(cx) + '_' + Math.floor(cy)]) { showToast('Fire tool works inside the mapped area'); return; }
-  fire.fuel = F; fire.E = E;
-  const nw = tileToLngLat(x0, y0, Z), se = tileToLngLat(x1, y1, Z);
-  fire.bounds = [nw, se];
-  const cellM = cellPx * 40075016.7 / (256 * 2 ** Z) * Math.cos(ll.lat * Math.PI / 180);
-  fire.cellM = cellM; fire.origin = [Math.floor(N / 2), Math.floor(N / 2)];
-  computeSpread();
-  fire.ctx.clearRect(0, 0, N, N);
-  fire.img = fire.ctx.createImageData(N, N);
-  const src = map.getSource('fireSrc');
-  src.setCoordinates([[nw[0], nw[1]], [se[0], nw[1]], [se[0], se[1]], [nw[0], se[1]]]);
-  map.setLayoutProperty('fire', 'visibility', 'visible');
-  fire.t = 0; fire.playing = true; renderFireSheetState(); showToast('Fire started. Watch it climb the slopes.');
-  fire.last = performance.now(); fire.raf = requestAnimationFrame(fireLoop);
-}
-function hash(i, j) { let h = (i * 374761393 + j * 668265263) >>> 0; h = (h ^ (h >>> 13)) * 1274126177 >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
-function computeSpread() {
-  const N = fire.N, E = fire.E, F = fire.fuel, cm = fire.cellM;
-  const U = fire.speed * 1.609; // km/h
-  const LB = 1 + 8.729 * Math.pow(1 - Math.exp(-0.03 * U), 2.155);
-  const ecc = Math.sqrt(1 - 1 / (LB * LB));
-  const Rhead = (0.9 + 0.12 * U) * (0.35 + fire.dry); // m/min, hardwood litter / understory
-  const windTo = (fire.wind + 180) * Math.PI / 180; // wind FROM -> spreads TO
-  const nb = [];
-  for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { if (!dx && !dy) continue; if (Math.abs(dx) === 2 && Math.abs(dy) === 2) continue; if ((Math.abs(dx) === 2 && dy === 0) || (Math.abs(dy) === 2 && dx === 0)) continue; nb.push([dx, dy, Math.hypot(dx, dy)]); }
-  const T = new Float32Array(N * N).fill(Infinity);
-  // binary heap
-  const hi = new Int32Array(N * N * 4), hv = new Float32Array(N * N * 4); let hn = 0;
-  const push = (i, v) => { let k = hn++; while (k > 0) { const p = (k - 1) >> 1; if (hv[p] <= v) break; hi[k] = hi[p]; hv[k] = hv[p]; k = p; } hi[k] = i; hv[k] = v; };
-  const pop = () => { const ri = hi[0]; const lv = hv[--hn], li = hi[hn]; let k = 0; while (true) { let c = 2 * k + 1; if (c >= hn) break; if (c + 1 < hn && hv[c + 1] < hv[c]) c++; if (hv[c] >= lv) break; hi[k] = hi[c]; hv[k] = hv[c]; k = c; } hi[k] = li; hv[k] = lv; return ri; };
-  const o = fire.origin[1] * N + fire.origin[0]; T[o] = 0; push(o, 0);
-  while (hn > 0) {
-    const t0 = hv[0]; const c = pop(); if (t0 > T[c]) continue; if (t0 > 60 * 30) break;
-    const cx = c % N, cy = (c / N) | 0;
-    for (const [dx, dy, d] of nb) {
-      const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
-      const n = ny * N + nx; const fu = F[n]; if (fu < 0.05) continue;
-      const dist = d * cm; const rise = E[n] - E[c]; const tanS = rise / dist;
-      const sf = tanS > 0 ? Math.exp(3.533 * Math.pow(tanS, 1.2)) : Math.max(0.45, 1 + tanS * 0.9);
-      const ang = Math.atan2(dx, -dy); // bearing of this step, 0 = north
-      const th = ang - windTo; const rw = (1 - ecc) / (1 - ecc * Math.cos(th));
-      const R = Rhead * rw * sf * fu * Math.min(F[c] + 0.3, 1.2);
-      const nt = t0 + dist / Math.max(R, 0.02);
-      if (nt < T[n]) { T[n] = nt; push(n, nt); }
-    }
-  }
-  fire.T = T;
-}
-function fireLoop(now) {
-  const dt = Math.min(0.1, (now - fire.last) / 1000); fire.last = now;
-  if (fire.playing) fire.t += dt * 40; // 40 simulated minutes per second
-  drawFire(now);
-  updateFireStats();
-  fire.raf = requestAnimationFrame(fireLoop);
-}
-function drawFire(now) {
-  const N = fire.N, T = fire.T, d = fire.img.data, t = fire.t;
-  const flick = now / 140;
-  for (let k = 0; k < N * N; k++) {
-    const a = T[k]; const o = k * 4;
-    if (a > t) { d[o + 3] = 0; continue; }
-    const age = t - a;
-    if (age < 25) { // flaming front
-      const f = 0.75 + 0.25 * Math.sin(flick + k * 0.37);
-      const u = age / 25;
-      d[o] = 255; d[o + 1] = (210 - 150 * u) * f; d[o + 2] = 60 * (1 - u) * f; d[o + 3] = 250 * f;
-    } else if (age < 90) { const u = (age - 25) / 65; d[o] = 150 - 110 * u; d[o + 1] = 40 - 20 * u; d[o + 2] = 18; d[o + 3] = 225; }
-    else { d[o] = 30; d[o + 1] = 24; d[o + 2] = 20; d[o + 3] = 170; }
-  }
-  fire.ctx.putImageData(fire.img, 0, 0);
-}
-let fireStatT = 0;
-function updateFireStats() {
-  const now = performance.now(); if (now - fireStatT < 200) return; fireStatT = now;
-  const T = fire.T, t = fire.t; let n = 0, act = 0;
-  for (let k = 0; k < T.length; k++) if (T[k] <= t) { n++; if (t - T[k] < 25) act++; }
-  const acres = n * fire.cellM * fire.cellM / 4046.86;
-  const el = $('#fireAcres'); if (el) el.textContent = Math.round(acres).toLocaleString('en-US');
-  const h = $('#fireTime'); if (h) { const hh = Math.floor(t / 60), mm = Math.floor(t % 60); h.textContent = `${hh}h ${String(mm).padStart(2, '0')}m`; }
-  if (act === 0 && n > 1 && fire.playing) { fire.playing = false; renderFireSheetState(); }
-}
-function stopFire() { cancelAnimationFrame(fire.raf); fire.playing = false; if (map && map.getLayer('fire')) map.setLayoutProperty('fire', 'visibility', 'none'); fire.T = null; }
-
-/* ---------- tools ---------- */
-const toolState = { flood: false, fire: false };
-function openTool(name) {
-  const was = toolState[name];
-  Object.keys(toolState).forEach(k => toolState[k] = false);
-  document.querySelectorAll('.tool').forEach(b => b.setAttribute('aria-pressed', 'false'));
-  map.setLayoutProperty('flood', 'visibility', 'none');
-  if (!nightOn) map.setPaintProperty('buildings', 'fill-extrusion-color', buildingColor());
-  stopFire();
-  const sheet = $('#sheet');
-  if (was) { sheet.hidden = true; return; }
-  toolState[name] = true; $('#tool-' + name).setAttribute('aria-pressed', 'true');
-  if (name === 'flood') {
-    sheet.innerHTML = `<button class="close" aria-label="Close">✕</button>
-      <div class="eyebrow">Hazard tool</div><h2>River flood</h2>
-      <p>Drag to raise every river and named creek. Blue shows where water would stand; red buildings would be in it.</p>
-      <div class="row"><div class="big" id="floodFt">0<small>ft above normal</small></div></div>
-      <input class="range" id="floodRange" type="range" min="0" max="40" step="1" value="0" aria-label="River rise in feet">
-      <div class="legend" style="background:linear-gradient(90deg,#0e3a78,#1a5fb4,#46a0eb,rgba(120,200,255,.2))"></div>
-      <div class="row"><div class="stat"><span class="eyebrow">Buildings in water, whole map</span><b id="floodBldg">0</b></div>
-      <div class="row" style="gap:6px"><button class="btn" data-go="0">Gatlinburg</button><button class="btn" data-go="5">Pigeon Forge</button></div></div>
-      <p class="note">Illustration from terrain (height above the nearest river), not a forecast. Helene-scale floods on the Pigeon River reached roughly 15–25 ft above normal.</p>`;
-    map.setLayoutProperty('flood', 'visibility', 'visible');
-    $('#floodRange').addEventListener('input', e => setFlood(+e.target.value));
-    sheet.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { const s = STOPS[+b.dataset.go]; cinematic({ ...s, zoom: s.zoom - 0.8, pitch: 60 }); });
-    if (!floodHist) fetch(BASE + 'flood_hist.json').then(r => r.json()).then(h => { floodHist = h; setFlood(floodFt); }).catch(() => {});
-    setFlood(8); $('#floodRange').value = 8;
-  } else {
-    sheet.innerHTML = `<button class="close" aria-label="Close">✕</button>
-      <div class="eyebrow">Hazard tool</div><h2>Wildfire what-if</h2>
-      <p id="fireHint">Tap anywhere on the mountains to start a fire. Set the wind first.</p>
-      <div class="row" style="align-items:flex-start">
-        <div class="dial" id="windDial" role="slider" aria-label="Wind direction" tabindex="0"><i id="windNeedle"></i><span>N</span></div>
-        <div style="flex:1;min-width:0">
-          <div class="row"><span class="eyebrow">Wind from</span><b id="windDir" style="font-family:var(--font-data)">SW</b></div>
-          <div class="row"><span class="eyebrow">Speed</span><b id="windSpd" style="font-family:var(--font-data)">15 mph</b></div>
-          <input class="range" id="windRange" type="range" min="0" max="60" step="1" value="15" aria-label="Wind speed">
-          <div class="row"><span class="eyebrow">Fuel dryness</span><b id="dryV" style="font-family:var(--font-data)">Dry</b></div>
-          <input class="range" id="dryRange" type="range" min="0.2" max="1" step="0.05" value="0.7" aria-label="Fuel dryness">
-        </div>
-      </div>
-      <div class="row" style="margin-top:8px"><div class="stat"><span class="eyebrow">Burned</span><b><span id="fireAcres">0</span> acres</b></div><div class="stat"><span class="eyebrow">Elapsed</span><b id="fireTime">0h 00m</b></div>
-      <button class="btn primary" id="firePlay">Pause</button></div>
-      <p class="note">Minimum-travel-time spread using slope, wind and fuel read from the imagery. An illustration, not a fire behavior forecast.</p>`;
-    setupWindDial(); renderFireSheetState();
-  }
-  sheet.hidden = false;
-  sheet.querySelector('.close').onclick = () => openTool(name);
-}
-const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-function setupWindDial() {
-  const dial = $('#windDial'), needle = $('#windNeedle');
-  const set = deg => { fire.wind = (deg + 360) % 360; needle.style.transform = `rotate(${fire.wind + 180}deg)`; $('#windDir').textContent = DIRS[Math.round(fire.wind / 45) % 8]; if (fire.T) { computeSpread(); } };
-  set(fire.wind);
-  const onMove = e => { const r = dial.getBoundingClientRect(); const p = e.touches ? e.touches[0] : e; const a = Math.atan2(p.clientX - (r.left + r.width / 2), -(p.clientY - (r.top + r.height / 2))) * 180 / Math.PI; set(a); };
-  dial.addEventListener('pointerdown', e => { dial.setPointerCapture(e.pointerId); onMove(e); dial.onpointermove = onMove; });
-  dial.addEventListener('pointerup', () => dial.onpointermove = null);
-  dial.addEventListener('keydown', e => { if (e.key === 'ArrowRight') set(fire.wind + 15); if (e.key === 'ArrowLeft') set(fire.wind - 15); });
-  $('#windRange').addEventListener('input', e => { fire.speed = +e.target.value; $('#windSpd').textContent = fire.speed + ' mph'; if (fire.T) computeSpread(); });
-  $('#dryRange').addEventListener('input', e => { fire.dry = +e.target.value; $('#dryV').textContent = fire.dry > 0.85 ? 'Drought' : fire.dry > 0.6 ? 'Dry' : fire.dry > 0.4 ? 'Normal' : 'Damp'; if (fire.T) computeSpread(); });
-  $('#firePlay').onclick = () => { if (!fire.T) return; if (!fire.playing && fire.t > 0 && !anyActive()) fire.t = 0; fire.playing = !fire.playing; renderFireSheetState(); };
-}
-function anyActive() { const T = fire.T, t = fire.t; for (let k = 0; k < T.length; k++) if (T[k] > t && T[k] < Infinity) return true; return false; }
-function renderFireSheetState() { const b = $('#firePlay'); if (b) { b.textContent = !fire.T ? 'Tap map' : fire.playing ? 'Pause' : (anyActive() ? 'Resume' : 'Replay'); b.disabled = !fire.T; } const h = $('#fireHint'); if (h && fire.T) h.textContent = 'Tap somewhere else to start a new fire. Change the wind to replay with new conditions.'; }
+function setFloodTint(m) { hazardTint = m; if (map && !nightOn) map.setPaintProperty('buildings', 'fill-extrusion-color', buildingColor()); }
+window.Hazards = (() => {
+  const FLOOD = /flood|hydrologic|heavy rain|excessive rain|tropical storm|hurricane/i;
+  let loading = null;
+  const load = () => loading || (loading = new Promise((ok, no) => {
+    const sc = document.createElement('script'); sc.src = 'hazards.js?v=1';
+    sc.onload = () => window.HazardViews ? ok(window.HazardViews) : no(new Error('hazards.js'));
+    sc.onerror = () => { loading = null; no(new Error('hazards.js')); };
+    document.head.appendChild(sc);
+  }));
+  const go = fn => load().then(fn).catch(e => { console.error('[hazards]', e); showToast('Could not open this view. Check your connection.'); });
+  const isFlood = a => !!(a && FLOOD.test(a.event || ''));
+  return {
+    isFlood,
+    flood(a) { go(H => H.flood(a)); },
+    fire(f) { go(H => H.fire(f)); },
+    close() { if (window.HazardViews) HazardViews.close(); },
+  };
+})();
 
 /* ---------- clicks ---------- */
 function onClick(e) {
-  if (toolState.fire) { igniteAt(e.lngLat); return; }
   const f = map.queryRenderedFeatures(e.point, { layers: ['buildings', 'lbl-peak', 'lbl-poi', 'lbl-place'] })[0];
   if (!f) { $('#card').hidden = true; return; }
   const p = f.properties; const card = $('#card');
@@ -2482,8 +2289,6 @@ function buildUI() {
   tog('t-water', on => vis(['rivers', 'streams', 'water-fill'], on));
   tog('t-lidar', on => vis(['lidar'], on));
   tog('t-fog', on => { vis(['fog'], on); if (on) { map.setPaintProperty('fog', 'color-relief-color', FOG); showToast('Morning fog settles into the valleys'); } });
-  $('#tool-flood').onclick = () => { openTool('flood'); closeMobile(); };
-  $('#tool-fire').onclick = () => { openTool('fire'); closeMobile(); };
   $('#q').addEventListener('input', throttle(doSearch, 150));
   $('#q').addEventListener('focus', loadIndex);
   $('#q').addEventListener('keydown', e => {
@@ -2731,6 +2536,7 @@ const Live = (() => {
     if (kind === 'news') return st.news[i]; if (kind === 'event') return st.events[i]; if (kind === 'traffic') return st.traffic.incidents[i];
     if (kind === 'cam') return st.traffic.cameras[i]; if (kind === 'gauge') return st.gauges[i]; if (kind === 'fire') return st.fires[i]; if (kind === 'alert') return st.alerts[i];
   }
+  function fireWhen(o) { const t = String(o.time || '0000').padStart(4, '0'); const d = new Date(`${o.date}T${t.slice(0, 2)}:${t.slice(2)}:00Z`); return isNaN(d) ? `${o.date} ${o.time} UTC` : d.toLocaleString('en-US', { timeZone: TZ, weekday: 'short', hour: 'numeric', minute: '2-digit' }); }
   function focus(kind, i) {
     const o = lookup(kind, i); if (!o) return;
     const ll = o.place ? [o.place.lng, o.place.lat] : o.lng != null ? [o.lng, o.lat] : o.center || null;
@@ -2739,16 +2545,18 @@ const Live = (() => {
     if (kind === 'cam') body = o.img ? `<div class="camwrap"><img src="${esc(camSrc(o))}" alt="">${camTag(o)}</div>` : '';
     else if (o.img) body = `<div class="camwrap"><img src="${esc(o.img)}" alt="" onerror="this.parentNode.remove()"></div>`;
     const title = o.title || o.event || o.name && (kind === 'gauge' ? niceGauge(o.name) : o.name) || (kind === 'fire' ? 'Heat detected by ' + o.sat : '');
-    const text = o.summary || o.desc || o.description || (kind === 'gauge' ? `${o.cfs != null ? Math.round(o.cfs).toLocaleString() + ' cubic feet per second' : ''}${o.ft != null ? ', gauge height ' + o.ft.toFixed(2) + ' ft' : ''}. ${trend(o.cfs24)}.` : '') || (kind === 'fire' ? `Detected ${o.date} at ${o.time} UTC. Confidence ${o.conf}. Satellite heat detections can include controlled burns and industrial heat.` : '');
+    const text = o.summary || o.desc || o.description || (kind === 'gauge' ? `${o.cfs != null ? Math.round(o.cfs).toLocaleString() + ' cubic feet per second' : ''}${o.ft != null ? ', gauge height ' + o.ft.toFixed(2) + ' ft' : ''}. ${trend(o.cfs24)}.` : '') || (kind === 'fire' ? `Spotted ${fireWhen(o)}. Satellite confidence: ${({ l: 'low', n: 'medium', h: 'high' }[String(o.conf).toLowerCase()] || o.conf)}. Heat detections can include controlled burns and industrial heat.` : '');
     const where = o.place ? `<span class="pin-chip">${esc(o.place.name)}</span>` : '';
     const link = o.link || o.page || (kind === 'gauge' ? `https://waterdata.usgs.gov/monitoring-location/${o.id}/` : null);
     c.innerHTML = `<button class="close" aria-label="Close">✕</button><div class="eyebrow c-${kind}">${label}${o.source ? ' · ' + esc(o.source) : ''}</div><h3>${esc(title)}</h3>${body}${text ? `<p>${esc(String(text).slice(0, 600))}</p>` : ''}<div class="mt">${where}${o.published ? `<span>${ago(o.published)}</span>` : ''}</div>
+      ${kind === 'fire' ? '<button class="btn hzgo" id="lcHz">🧭 Wind and possible spread</button>' : kind === 'alert' && window.Hazards && Hazards.isFlood(o) ? '<button class="btn hzgo" id="lcHz">🌊 What this means near you</button>' : ''}
       <div class="acts">${ll ? '<button class="btn" id="lcFly">Fly here</button>' : ''}${link ? `<a class="btn primary" href="${esc(link)}" target="_blank" rel="noopener">${kind === 'news' ? 'Read story' : kind === 'cam' && o.live ? 'Watch live' : 'Open source'}</a>` : ''}</div>
       ${o.place && o.place.kind !== 'nps' ? '<div class="mt" style="margin-top:8px">Location matched from place names in the story, so it can be approximate.</div>' : ''}`;
     c.hidden = false;
     c.querySelector('.close').onclick = () => c.hidden = true;
     const fly = () => { if (!ll) return; stopOrbit(); map.flyTo({ center: ll, zoom: Math.max(map.getZoom(), kind === 'gauge' || kind === 'fire' ? 13.2 : 15), pitch: 62, duration: 2600, curve: 1.4, easing: easeInOut, essential: true }); bounce(kind, i); };
     const fb = $('#lcFly'); if (fb) fb.onclick = fly;
+    const hz = $('#lcHz'); if (hz) hz.onclick = () => { c.hidden = true; kind === 'fire' ? Hazards.fire(o) : Hazards.flood(o); };
     if (innerWidth <= 760) setOpen(false);
     fly();
   }
@@ -2768,7 +2576,7 @@ const Live = (() => {
     const gridURL = base + `latitude=${pts.map(p => p[1].toFixed(3)).join(',')}&longitude=${pts.map(p => p[0].toFixed(3)).join(',')}&current=temperature_2m,dew_point_2m,relative_humidity_2m,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation,rain,showers,snowfall,weather_code,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph`;
     const ptURL = base + `latitude=${home.lat.toFixed(3)}&longitude=${home.lng.toFixed(3)}&` + 'current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,visibility,precipitation&hourly=temperature_2m,weather_code,precipitation_probability,is_day&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FNew_York&forecast_days=2';
     const [g, w] = await Promise.allSettled([jget(gridURL), jget(ptURL)]);
-    if (w.status === 'fulfilled') { st.wx = w.value; st.updated.wx = new Date().toISOString(); chip(); applyLiveWind(); }
+    if (w.status === 'fulfilled') { st.wx = w.value; st.updated.wx = new Date().toISOString(); chip(); }
     if (g.status === 'fulfilled') {
       const arr = g.value; const cells = arr.slice(0, GRID.length).map(r => ({ ...r.current, elev: r.elevation }));
       const mean = k => cells.reduce((s, c) => s + (c[k] || 0), 0) / cells.length;
@@ -2787,10 +2595,6 @@ const Live = (() => {
     $('#liveChip').querySelector('svg').outerHTML = icon(c.weather_code, c.is_day);
     $('#wxTemp').textContent = Math.round(c.temperature_2m) + '°';
     $('#wxDesc').innerHTML = `<b>${WMO[c.weather_code] || ''}</b> in ${esc(home.n)} · wind ${Math.round(c.wind_speed_10m)} mph ${compass(c.wind_direction_10m)}${st.grid && st.grid.summit ? `<br><span>Le Conte summit ${Math.round(st.grid.summit.temperature_2m)}°</span>` : ''}`;
-  }
-  function applyLiveWind() { // the wildfire tool starts from today's real wind
-    if (!st.wx || toolState.fire) return; const c = st.wx.current;
-    fire.wind = Math.round(c.wind_direction_10m); fire.speed = Math.max(2, Math.round(c.wind_speed_10m));
   }
   let fogAuto = false;
   function autoFog() { // turn on valley fog when the valleys are saturated and calm
@@ -4589,7 +4393,7 @@ const Social = (() => {
 })();
 /* SOCIAL-END */
 window.Social = Social;
-window.__smokies = { get map() { return map; }, getTile, synthTerrain, packName, fly, setSeason, applyNight, applySky, sky, goLive, openTool, setFlood, igniteAt, fire, grandTour, stopOrbit };
+window.__smokies = { get map() { return map; }, getTile, synthTerrain, packName, fly, setSeason, applyNight, applySky, sky, goLive, grandTour, stopOrbit, cinematic, easeInOut, showToast, setFloodTint, BASE, EXAG, M2FT, BOUNDS, get nightOn() { return nightOn; }, seasonId: () => SEASONS[Math.round(seasonVal)].id };
 })();
 </script>
 
@@ -4721,11 +4525,9 @@ const UX = (() => {
     const s = sheet('show', `<header class="uxh"><div><b>Show on map</b><small>Pick what you want to see. Everything else stays out of the way.</small></div><button class="uxx" data-x aria-label="Close">✕</button></header>
       <div class="uxpresets">${PRESETS.map(([id, ic, n]) => `<button data-preset="${id}" aria-pressed="false"><span>${ic}</span>${esc(n)}</button>`).join('')}</div>
       ${GROUPS.map(([g, items], gi) => `<div class="uxgroup${g === 'Map' ? ' fold' : ''}" style="--i:${gi}"><div class="uxeyebrow">${esc(g)}</div>${items.map(row).join('')}</div>`).join('')}
-      <div class="uxgroup" style="--i:6"><div class="uxeyebrow">What if?</div><div class="uxtools"><button data-tool="flood"><span>🌊</span><b>Flood simulator</b><small>Raise the rivers and see what floods</small></button><button data-tool="fire"><span>🔥</span><b>Wildfire simulator</b><small>Start a fire, set the wind</small></button></div></div>
       <p class="uxfine">Wildfires, road closures and weather warnings always show, even on a clean map.</p>`);
     s.querySelectorAll('[data-k]').forEach(r => r.onclick = () => { const k = r.dataset.k; setLayer(k, !BY[k][4].get()); press(r); });
     s.querySelectorAll('[data-preset]').forEach(c => c.onclick = () => { press(c); preset(c.dataset.preset); });
-    s.querySelectorAll('[data-tool]').forEach(t => t.onclick = () => { closeSheet(); toView('map'); setTimeout(() => btn('tool-' + t.dataset.tool).click(), 200); });
     sync();
   }
   function press(el) { el.classList.remove('uxpress'); void el.offsetWidth; el.classList.add('uxpress'); }
@@ -4780,8 +4582,8 @@ const UX = (() => {
   function urgent() {
     const L = window.Live && Live.st; if (!L) return '';
     const out = [];
-    (L.alerts || []).forEach((a, i) => out.push(`<button class="uxalert" data-alert="${i}"><span>⚠️</span><div><b>${esc(a.event)}</b><small>${esc((a.description || a.headline || '').replace(/^\*\s*/, '').replace(/\s*\*\s*/g, ' · '))}</small></div></button>`));
-    if ((L.fires || []).length) out.push(`<button class="uxalert fire" data-fly="fire"><span>🔥</span><div><b>${L.fires.length} fire${L.fires.length > 1 ? 's' : ''} spotted by satellite</b><small>Heat detections in the last 24 hours. Tap to see where.</small></div></button>`);
+    (L.alerts || []).forEach((a, i) => out.push(`<button class="uxalert" data-alert="${i}"><span>⚠️</span><div><b>${esc(a.event)}</b><small>${esc((a.description || a.headline || '').replace(/^\*\s*/, '').replace(/\s*\*\s*/g, ' · '))}</small></div></button>${window.Hazards && Hazards.isFlood(a) ? `<button class="uxhz" data-hz="flood" data-i="${i}">🌊 What this means near you<i>›</i></button>` : ''}`));
+    if ((L.fires || []).length) out.push(`<button class="uxalert fire" data-fly="fire"><span>🔥</span><div><b>${L.fires.length} fire${L.fires.length > 1 ? 's' : ''} spotted by satellite</b><small>Heat detections in the last 24 hours. Tap to see where.</small></div></button><button class="uxhz" data-hz="fire">🧭 Wind and possible spread<i>›</i></button>`);
     const closed = (L.traffic.incidents || []).filter(n => /clos/i.test(n.title + ' ' + (n.desc || '')));
     if (closed.length) out.push(`<button class="uxalert road" data-fly="closed"><span>🚧</span><div><b>${closed.length === 1 ? esc(closed[0].title) : closed.length + ' roads closed'}</b><small>${closed.slice(closed.length === 1 ? 0 : 0, 3).map(n => esc(closed.length === 1 ? (n.desc || '').slice(0, 120) : n.title)).join(' · ')}</small></div></button>`);
     return out.length ? `<div class="uxsec"><div class="uxeyebrow hot">Heads up</div>${out.join('')}</div>` : '';
@@ -4861,7 +4663,6 @@ const UX = (() => {
       <div class="uxsec"><div class="uxeyebrow">This app is for</div><div class="uxseg">${WHO.map(([k, ic, n]) => `<button data-setwho="${k}" aria-pressed="${k === w}">${ic} ${esc(n)}</button>`).join('')}</div><p class="uxfine" style="margin:8px 2px 0">Changes what Today shows first. ${w === 'local' ? 'Local\'s mode is on: tourist stuff is tucked away.' : ''}</p></div>
       <div class="uxsec"><div class="uxeyebrow">Plan</div>${item('data-hub="go"', '🎯', 'Is it worth going?', 'A 0 to 10 score for each spot right now')}${item('data-hub="sky"', '🌄', 'Sunrise and fog forecast', 'Sea of clouds, best overlook')}${item('data-hub="roads"', '🚗', 'Roads and the Parkway clock', 'Drive times and back roads')}${item('data-tour', '🎬', 'Grand tour', 'A flyover of the whole park')}<div class="uxstops">${stops}</div></div>
       <div class="uxsec"><div class="uxeyebrow">Neighbors</div>${item('data-hub="alerts"', '📍', 'Alerts for my places', 'Creeks, fire, ice, outages near home')}${item('data-hub="outages"', '⚡', 'Outages')}${item('data-hub="pets"', '🐾', 'Lost and found pets')}${item('data-hub="board"', '🏪', 'Local business board', 'Deals, open now, jobs, music')}${item('data-hub="events"', '🏈', 'Local events', 'Games, church, community')}${item('data-hub="memory"', '🕰️', 'Old photos and stories')}</div>
-      <div class="uxsec"><div class="uxeyebrow">What if?</div>${item('data-tool="flood"', '🌊', 'Flood simulator', 'Raise the rivers and see what floods')}${item('data-tool="fire"', '🔥', 'Wildfire simulator', 'Start a fire, set the wind, watch it spread')}</div>
       <div class="uxsec"><div class="uxeyebrow">App</div>${Social.standalone && Social.standalone() ? '' : item('data-install', '📲', 'Get the app', 'Add Smokies Live to your home screen')}${item('data-about', 'ℹ️', 'About the data', 'Where everything comes from')}</div>
       <p class="uxfine">Smokies Live · made in Sevier County</p></div>`;
   }
@@ -4875,7 +4676,7 @@ const UX = (() => {
     if (d.hub) { if (window.Locals) { toView('map'); setTimeout(() => Locals.openHub(d.hub), 120); } return; }
     if (d.v) { toView(d.v); if (d.groups != null) setTimeout(() => { const g = document.querySelector('.pgroups'); if (g) g.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 250); return; }
     if (d.presetGo) { toView('map'); preset(d.presetGo); return; }
-    if (d.tool) { toView('map'); setTimeout(() => btn('tool-' + d.tool).click(), 250); return; }
+    if (d.hz) { const L = Live.st; if (d.hz === 'flood') Hazards.flood(L.alerts[+d.i]); else if (L.fires.length === 1) Hazards.fire(L.fires[0]); else { toView('map'); const m = window.__smokies.map, xs = L.fires.map(p => p.lng), ys = L.fires.map(p => p.lat); setTimeout(() => { m.fitBounds([[Math.min(...xs) - .03, Math.min(...ys) - .03], [Math.max(...xs) + .03, Math.max(...ys) + .03]], { padding: 80, pitch: 55, duration: 2200, maxZoom: 13 }); window.__smokies.showToast('Tap a fire to see the wind there and where it could spread'); }, 250); } return; }
     if (d.stop != null) { toView('map'); setTimeout(() => document.querySelectorAll('#tourList .stop')[+d.stop].click(), 200); return; }
     if (d.tour != null) { toView('map'); setTimeout(() => $('#grand').click(), 200); return; }
     if (d.install != null) { Social.install(); return; }
