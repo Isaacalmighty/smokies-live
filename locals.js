@@ -183,7 +183,7 @@
   function npsSays(re) { return S.nps.find(a => re.test(a.title + ' ' + (a.desc || '')) && /clos/i.test(a.title + ' ' + (a.desc || ''))); }
   const DEST = [
     { k: 'cc', n: 'Cades Cove', sub: 'Loop road, wildlife, cabins', roads: ['laurel', 'loop'], view: false, ll: [-83.812, 35.597],
-      shut(t, sr, ss) { if (t.wd === 3 && t.m >= 5 && t.m <= 9) return 'Vehicle-free Wednesday: bikes and walkers only'; const a = npsSays(/cades cove|laurel creek/i); if (a) return a.title; const now = t.h + t.min / 60; if (now < sr - 0.6 || now > ss + 0.3) return 'Loop gates are closed sunset to sunrise'; return null; } },
+      shut(t, sr, ss) { if (t.wd === 3 && t.m >= 5 && t.m <= 9) return 'Vehicle-free Wednesday: bikes and walkers only'; const a = npsSays(/cades cove|laurel creek/i); if (a) return a.title; const now = t.h + t.min / 60; if (now < sr - 0.25 || now > ss + 0.3) return 'Loop gates are closed sunset to sunrise'; return null; } },
     { k: 'kuw', n: 'Kuwohi', sub: 'Clingmans Dome, highest point', roads: ['newfound', 'kuwohi'], view: true, ll: [-83.4984, 35.5629],
       shut(t) { if (kuwohiRoadClosed(new Date(t.y, t.m - 1, t.d))) return 'Road closed for winter (Dec 1 to Mar 31). Hikers can walk the road.'; const a = npsSays(/clingman|kuwohi/i) || npsSays(/newfound gap road|us-?441/i); return a ? a.title : null; } },
     { k: 'nfg', n: 'Newfound Gap', sub: 'Overlook on the state line', roads: ['newfound'], view: true, ll: [-83.4256, 35.6108],
@@ -231,7 +231,7 @@
         if (D.view && fogNow && fogNow.p > 0.5 && !w.inCloud && t.h <= 10 && fogNow.topFt < S.wx[D.k].elev * 3.28 - 300) why.unshift(['sea', 'Sea of clouds below you this morning']);
         const dark = D.view && (t.h + 0.5 < sr || t.h > ss + 0.4);
         if (dark) why.unshift(['dark', 'After dark: stars, but no view']);
-        let s = 10 * (0.42 * w.s + 0.33 * (1 - c) + 0.25 * traffic) * (dark ? 0.55 : 1);
+        let s = 10 * (0.42 * w.s + 0.33 * (1 - c) + 0.25 * traffic) * (dark ? 0.35 : 1);
         if (why.some(x => x[0] === 'sea')) s = Math.min(10, s + 1.5);
         if (shut) s = 0;
         return { s: Math.round(s * 10) / 10, shut, why, crowd: c, t };
@@ -517,6 +517,7 @@
     // phone: a button in the floating column
     const mb = q('#mobileBar');
     if (mb) { const b = document.createElement('button'); b.id = 'm-local'; b.setAttribute('aria-pressed', 'false'); b.dataset.open = 'sky'; b.innerHTML = 'Local<span class="lbadge" hidden></span>'; mb.insertBefore(b, mb.firstChild); }
+    if (!rail && !mb) { const b = document.createElement('button'); b.id = 'lfab'; b.className = 'panel'; b.dataset.open = 'sky'; b.innerHTML = LOGO + '<span>Local</span><span class="lbadge" hidden></span>'; document.body.appendChild(b); } // the layout changed: still give people a way in
     document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', e => { squish(b); openHub(b.dataset.open); }));
     document.querySelectorAll('[data-lmode]').forEach(b => b.addEventListener('click', () => setLocalMode(!S.localMode)));
     document.querySelectorAll('[data-layer]').forEach(b => b.addEventListener('click', () => { const k = b.dataset.layer; S.layers[k] = !S.layers[k]; b.setAttribute('aria-pressed', S.layers[k]); pref.set('layers', S.layers); drawMarkers(); }));
@@ -564,7 +565,7 @@
       <path d="M0 78 L38 52 L62 66 L104 34 L140 58 L170 44 L214 70 L262 48 L320 66 V120 H0Z" fill="#2c3a4a" opacity=".75"/>
       <g class="fogsea" style="opacity:${0.25 + dense * 0.75}"><rect x="-40" y="${fogY}" width="420" height="${125 - fogY}" fill="#eef3f8" filter="url(#lblur)"/><ellipse cx="80" cy="${fogY}" rx="70" ry="6" fill="#f4f7fa" filter="url(#lblur)"/><ellipse cx="230" cy="${fogY + 2}" rx="80" ry="7" fill="#f4f7fa" filter="url(#lblur)"/></g>
       <path d="M0 106 L30 96 L58 102 L96 86 L126 100 L160 94 L196 106 L240 96 L284 104 L320 98 V120 H0Z" fill="#17222c"/>
-      ${f && f.best ? '<g class="seat"><circle cx="96" cy="85" r="3.4" fill="#ffc861"/><circle cx="96" cy="85" r="8" fill="none" stroke="#ffc861" stroke-width="1.4"/></g>' : ''}</svg>`;
+      ${f && f.best ? '<g class="seat"><circle cx="240" cy="95" r="3.4" fill="#ffc861"/><circle cx="240" cy="95" r="8" fill="none" stroke="#ffc861" stroke-width="1.4"/></g>' : ''}</svg>`;
   }
   function render() {
     const el = q('#lbody'); if (!el || !S.open) return;

@@ -16,6 +16,8 @@
 .lquick button:hover{background:rgba(255,255,255,.09)}
 .lbadge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--danger);color:#fff;font:700 11px/18px var(--font-body);text-align:center;animation:lpop .5s var(--ease-out)}
 #m-local{position:relative;color:var(--sun)}
+#lfab{position:fixed;z-index:8;right:16px;top:calc(env(safe-area-inset-top,0px) + 140px);display:flex;align-items:center;gap:6px;padding:7px 12px 7px 8px;cursor:pointer;font-weight:700}
+#lfab svg{width:24px;height:24px}
 #m-local .lbadge{top:2px;right:2px}
 .ltab2 .lbadge{position:static;display:inline-block;margin-left:5px;vertical-align:1px}
 .lsq{animation:lsquish .32s var(--ease-out)}
@@ -72,7 +74,7 @@
 .fogart{position:absolute;inset:0;width:100%;height:100%}
 .fogart .sun{animation:lsunrise 3.2s var(--ease-out) both .15s}
 .fogart .fogsea{animation:ldrift 14s var(--ease-io) infinite alternate}
-.fogart .seat{animation:lpulse 2.4s var(--ease-io) infinite;transform-origin:96px 85px}
+.fogart .seat{animation:lpulse 2.4s var(--ease-io) infinite;transform-origin:240px 95px}
 .lhero-t{position:absolute;left:14px;right:14px;bottom:10px;text-shadow:0 1px 8px rgba(0,0,0,.6)}
 .lhero-t small{display:block;color:rgba(255,255,255,.85);font-size:12px;font-weight:600}
 .lhero-t b{font-family:var(--font-display);font-size:24px;letter-spacing:.01em;color:#fff}
