@@ -302,6 +302,17 @@ const UX = (() => {
     if (store.get('homeSet', false) || !navigator.permissions || !navigator.geolocation) return;
     navigator.permissions.query({ name: 'geolocation' }).then(r => { if (r.state === 'granted') navigator.geolocation.getCurrentPosition(p => setHome(nearestTown(p.coords.latitude, p.coords.longitude), true), () => { }, { timeout: 10000, maximumAge: 600000 }); }).catch(() => { });
   }
+  function phoneMap() { // phones: bigger labels, a lower top pitch (fewer far-off tiles), 3D buildings only up close
+    if (!matchMedia('(max-width:760px)').matches) return;
+    const m = window.__smokies.map;
+    try {
+      m.setMaxPitch(72);
+      if (m.getLayer('buildings')) m.setLayerZoomRange('buildings', 13.5, 24);
+      ['lbl-water', 'lbl-road', 'lbl-trail', 'lbl-poi', 'lbl-waterfall'].forEach(id => { if (!m.getLayer(id)) return; const v = m.getLayoutProperty(id, 'text-size'); if (typeof v === 'number') m.setLayoutProperty(id, 'text-size', +(v * 1.2).toFixed(1)); });
+      if (m.getLayer('lbl-peak')) m.setLayoutProperty('lbl-peak', 'text-size', ['interpolate', ['linear'], ['zoom'], 9, 13.5, 14, 16.5]);
+      if (m.getLayer('lbl-place')) { const v = m.getLayoutProperty('lbl-place', 'text-size'); if (v) m.setLayoutProperty('lbl-place', 'text-size', ['*', 1.18, v]); }
+    } catch (e) { console.warn('[ux] phone map', e); }
+  }
   function tabh() { const t = $('#tabbar'); if (!t) return; const r = t.getBoundingClientRect(); const h = r.top > innerHeight / 2 ? Math.max(0, innerHeight - r.top) : 0; document.body.style.setProperty('--tabh', h + 'px'); }
   function toast(msg) { const t = $('#toast'); if (!t) return; t.textContent = msg; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 3000); }
 
@@ -333,6 +344,7 @@ const UX = (() => {
     const ab = $('#alertBar'); if (ab) ab.addEventListener('click', e => { e.stopImmediatePropagation(); toView('today'); }, true);
     ['#sv-today', '#sv-more'].forEach(s => { const el = $(s); if (el) el.addEventListener('click', onPane); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+    phoneMap();
     searchHelp(); tabh(); addEventListener('resize', tabh); setTimeout(tabh, 1500); setInterval(tabh, 5000); quietHome();
     // apply what this person chose last time (or the clean defaults)
     const w = want(); ALL.forEach(([k, , , , io]) => { if (io.get() !== w[k]) try { io.set(w[k]); } catch (e) { } });
