@@ -239,6 +239,9 @@ const Live = (() => {
     ms.forEach(m => { if (!m) return; const el = m.getElement().firstChild; if (el.classList.contains(kind) && +el.dataset.i === i) { el.classList.remove('focus'); void el.offsetWidth; el.classList.add('focus'); } });
   }
 
+  // animated layers only redraw while the map is what you are looking at
+  const mapOnScreen = () => !document.hidden && (!document.body.dataset.view || document.body.dataset.view === 'map' || document.body.classList.contains('picking'));
+
   /* ---------- weather and the 3D cloud field ---------- */
   const GRID = (() => { const pts = []; for (let j = 0; j < 6; j++) for (let i = 0; i < 7; i++) pts.push([-84.10 + i * (1.22 / 6), 35.33 + j * (0.70 / 5)]); return pts; })();
   async function loadWeather() {
@@ -401,7 +404,8 @@ const Live = (() => {
       gl.disable(gl.CULL_FACE);
       gl.drawArrays(gl.TRIANGLES, 0, this.n * 6);
       gl.disableVertexAttribArray(this.loc.a_c); gl.disableVertexAttribArray(this.loc.a_q); gl.disableVertexAttribArray(this.loc.a_p);
-      if (!this._rq && !document.hidden) this._rq = setTimeout(() => { this._rq = 0; map.triggerRepaint(); }, innerWidth < 760 ? 120 : 66); // gentle drift without burning the battery
+      // gentle drift without burning the battery; no drift at all while the feed or another screen covers the map
+      if (!this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, innerWidth < 760 ? 200 : 66);
     },
     sort(Mm, t) {
       const P = this.puffs, dx = this.dom[0], dy = this.dom[1];
@@ -501,7 +505,7 @@ const Live = (() => {
       const count = Math.round(this.n * Math.min(1, 0.42 + this.rate / 4));
       if (this.snow) gl.drawArrays(gl.POINTS, 0, count * 2); else gl.drawArrays(gl.LINES, 0, count * 2);
       gl.disableVertexAttribArray(this.loc.a_s); gl.disableVertexAttribArray(this.loc.a_e);
-      if (!this._rq && !document.hidden) this._rq = setTimeout(() => { this._rq = 0; map.triggerRepaint(); }, 33);
+      if (!this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, innerWidth < 760 ? 66 : 33);
     },
   };
 

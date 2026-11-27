@@ -837,6 +837,45 @@ body.sl-revealed :is(#brand,#search,#rail,#tours,#season,#mobileBar,#tabbar){ani
 #seasonName{font-size:15px!important;display:flex;align-items:center;gap:7px}
 #seasonName::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 25%,transparent)}
 #seasonDate{font-size:10.5px!important;color:var(--ink-faint)!important}
+
+/* ---------- phones: performance ---------- */
+/* Live blur over a moving 3D map re-blurs every frame on phone GPUs; solid glass reads the same and costs nothing */
+@media (pointer:coarse){
+  .panel,#tabbar,#live,#lcard,#sheet,#card,#toast,.top{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  .panel{background:rgba(15,24,20,.93)}
+  #tabbar{background:rgba(12,19,15,.97)!important}
+}
+/* looping pin pulses pause while the map moves or another screen is showing */
+body.sl-moving :is(.lpin.hot,.rpin.hot)::after,body.sl-moving :is(.lpin.hot,.rpin.hot)::before,
+body:not([data-view="map"]) :is(.lpin.hot,.rpin.hot)::after,body:not([data-view="map"]) :is(.lpin.hot,.rpin.hot)::before{animation-play-state:paused}
+body:not([data-view="map"]):not(.picking) :is(#map,#stars,.maplibregl-marker){visibility:hidden}
+
+/* ---------- phones: one row of labeled menus under the search ---------- */
+#sldock{display:none}
+#search .slmark.insearch{display:none}
+@media (max-width:760px){
+  #brand,#mobileBar{display:none!important}
+  #search{top:calc(env(safe-area-inset-top,0px) + 12px)!important}
+  #search .box{gap:9px}
+  #search .box>svg:not(.slmark){display:none}
+  #search .slmark.insearch{display:block;flex:none;margin-left:-4px}
+  #sldock{display:flex;position:fixed;z-index:6;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 66px);gap:6px;transition:opacity .25s}
+  #sldock button{flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center;gap:5px;height:38px;padding:0 6px;border-radius:999px;border:1px solid var(--line);background:rgba(15,24,20,.93);color:var(--ink);font:600 13px var(--font-body);white-space:nowrap;box-shadow:0 6px 16px rgba(4,8,6,.35);cursor:pointer;transition:background .25s,color .25s,border-color .25s}
+  #sldock svg{flex:none;width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  #sldock button[aria-pressed="true"]{background:var(--ember);color:#1b130b;border-color:transparent}
+  #live{top:calc(env(safe-area-inset-top,0px) + 116px)!important}
+  #lcard{top:calc(env(safe-area-inset-top,0px) + 116px)!important}
+  body:not([data-view="map"]) #sldock,body.picking #sldock{opacity:0;pointer-events:none}
+  body.lhub-open #sldock{opacity:0;pointer-events:none}
+  body.sl-revealed #sldock{animation:sl-in .8s var(--spring) both;animation-delay:.2s;--from:0 -14px}
+}
+
+/* desktop side panel sections fold */
+#rail .group>.eyebrow[data-fold]{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:2px 0}
+#rail .group>.eyebrow[data-fold]::after{content:"";width:7px;height:7px;border:solid currentColor;border-width:0 1.6px 1.6px 0;rotate:45deg;translate:0 -2px;transition:rotate .35s var(--spring),translate .35s var(--spring)}
+#rail .group.sl-folded>.eyebrow[data-fold]::after{rotate:-45deg;translate:-2px 0}
+#rail .group>.eyebrow[data-fold]:hover{color:var(--ink-dim)}
+#rail .group.sl-folded>:not(.eyebrow){display:none!important}
 /* BRAND-CSS-END */
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
@@ -996,13 +1035,80 @@ ${ring ? `<circle class="rim" cx="50" cy="50" r="44" fill="none" stroke="#2f4a46
         else if (med < 15 && pr < cap && moving) { if (++calm > 3) { pr = Math.min(cap, +(pr + 0.25).toFixed(2)); map.setPixelRatio(pr); calm = 0; } }
       });
       window.__smokies.quality = () => ({ pixelRatio: pr, cap });
+      // body.sl-moving pauses decorative loops during gestures
+      map.on('movestart', () => document.body.classList.add('sl-moving'));
+      map.on('moveend', () => document.body.classList.remove('sl-moving'));
+      // coming back to the map from the feed: redraw once so the animated layers resume
+      new MutationObserver(() => { if (document.body.dataset.view === 'map' || document.body.classList.contains('picking')) map.triggerRepaint(); }).observe(document.body, { attributes: true, attributeFilter: ['data-view', 'class'] });
     }, 500);
   }
 
-  window.Brand = { mark, wordmark };
+
+  // ---------- phone navigation: one clear row of labeled buttons under the search ----------
+  // The panels themselves belong to other modules; the dock drives their existing buttons so it never drifts out of sync.
+  const ICON = {
+    local: '<path d="M3 20h18M5 20l5-8 3 4 2-3 4 7"/><circle cx="17" cy="6" r="2.5"/>',
+    live: '<path d="M7 18h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.2 9.2 4.5 4.5 0 0 0 7 18z"/>',
+    tours: '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>',
+    layers: '<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>'
+  };
+  const DOCK = [['local', 'm-local', 'Local'], ['live', 'm-live', 'Weather'], ['tours', 'm-tours', 'Places'], ['layers', 'm-layers', 'Layers']];
+  const phone = () => matchMedia('(max-width:760px)').matches;
+  const pressed = id => { const b = document.getElementById(id); return !!b && b.getAttribute('aria-pressed') === 'true'; };
+  function closeAll(except) {
+    if (except !== 'm-local' && pressed('m-local')) { const x = document.querySelector('#lhub [data-close]'); if (x) x.click(); }
+    for (const id of ['m-live', 'm-tours', 'm-layers']) if (id !== except && pressed(id)) document.getElementById(id).click();
+  }
+  function dock() {
+    const mb = document.getElementById('mobileBar'); if (!mb || document.getElementById('sldock')) return;
+    const nav = document.createElement('nav'); nav.id = 'sldock'; nav.setAttribute('aria-label', 'Map menus');
+    nav.innerHTML = DOCK.map(([k, id, label]) => `<button data-proxy="${id}" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg><span>${label}</span></button>`).join('');
+    document.body.appendChild(nav);
+    const sync = () => nav.querySelectorAll('[data-proxy]').forEach(b => { const t = document.getElementById(b.dataset.proxy); b.hidden = !t; b.setAttribute('aria-pressed', pressed(b.dataset.proxy)); });
+    nav.addEventListener('click', e => {
+      const b = e.target.closest('[data-proxy]'); if (!b) return; const id = b.dataset.proxy, t = document.getElementById(id); if (!t) return;
+      const was = pressed(id); closeAll(id);
+      if (was && id === 'm-local') { const x = document.querySelector('#lhub [data-close]'); if (x) x.click(); } else t.click();
+      setTimeout(sync, 30);
+    });
+    new MutationObserver(sync).observe(mb, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-pressed'] });
+    sync();
+    // tapping the map itself puts any open menu away
+    const wait = setInterval(() => {
+      const map = window.__smokies && window.__smokies.map; if (!map) return; clearInterval(wait);
+      map.on('click', () => { if (phone()) closeAll(); });
+    }, 500);
+  }
+  // the logo moves into the search bar on phones, so the header row is gone and the map gets the space
+  function searchLogo() {
+    const box = document.querySelector('#search .box'); if (!box || box.querySelector('.slmark')) return;
+    box.insertAdjacentHTML('afterbegin', mark(26, { cls: 'insearch' }));
+  }
+
+  // ---------- desktop: the long side panel folds into sections you can open and close ----------
+  const FOLD_KEY = 'sl-fold', FOLD_DEFAULT = { 'Layers': true, 'Live': true };
+  let fold = FOLD_DEFAULT; try { fold = { ...FOLD_DEFAULT, ...JSON.parse(localStorage.getItem(FOLD_KEY) || '{}') }; } catch (e) {}
+  function folds() {
+    const rail = document.getElementById('rail'); if (!rail) return;
+    const apply = () => rail.querySelectorAll(':scope > .group').forEach(g => {
+      const h = g.querySelector(':scope > .eyebrow'); if (!h) return;
+      const k = h.textContent.trim(); if (!h.dataset.fold) { h.dataset.fold = k; h.setAttribute('role', 'button'); h.tabIndex = 0; }
+      g.classList.toggle('sl-folded', !!fold[k]); h.setAttribute('aria-expanded', !fold[k]);
+    });
+    rail.addEventListener('click', e => {
+      const h = e.target.closest('.group > .eyebrow[data-fold]'); if (!h) return;
+      const k = h.dataset.fold; fold[k] = !fold[k];
+      try { localStorage.setItem(FOLD_KEY, JSON.stringify(fold)); } catch (err) {}
+      apply();
+    });
+    new MutationObserver(apply).observe(rail, { childList: true });
+    apply();
+  }
+
+  window.Brand = { mark, wordmark, closeAll };
   favicon(); intro(); presses(); cascade();
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { header(); governor(); });
-  else { header(); governor(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { header(); governor(); searchLogo(); folds(); setTimeout(dock, 0); addEventListener('load', () => setTimeout(dock, 2500)); });
+  else { header(); governor(); searchLogo(); folds(); dock(); }
 })();
 /* BRAND-END */
 </script>
@@ -1280,7 +1386,11 @@ function init() {
     let shown = false;
     const reveal = () => {
       if (shown) return; shown = true; updateReadout();
-      setTimeout(() => { regionOn = true; setSeason(seasonVal, false); }, 600);
+      setTimeout(() => {
+        regionOn = true; setSeason(seasonVal, false);
+        // once real imagery covers the whole region, the flat tint and the wide shading under it are wasted work
+        setTimeout(() => map.once('idle', () => ['land-tint', 'shade-wide'].forEach(l => map.setLayoutProperty(l, 'visibility', 'none'))), 5000);
+      }, 600);
       $('#loader').classList.add('done');
       // anticipation, then a long slow-in/slow-out glide into the park
       if (!window.__noIntro) setTimeout(() => cinematic(INTRO, 5200), 250);
@@ -1503,7 +1613,7 @@ function updateSkyUI() {
 const starField = (() => { let s = 11; const r = () => (s = (s * 16807) % 2147483647) / 2147483647; return Array.from({ length: 900 }, () => ({ az: r() * 360, alt: Math.asin(r()) / RAD, m: r() })); })();
 function drawSkyCanvas() {
   const c = $('#stars'); if (!c || !map) return;
-  const d = devicePixelRatio || 1, W = innerWidth, H = innerHeight;
+  const d = Math.min(devicePixelRatio || 1, 2), W = innerWidth, H = innerHeight;
   if (c.width !== W * d) { c.width = W * d; c.height = H * d; c.style.width = W + 'px'; c.style.height = H + 'px'; }
   const g = c.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, W, H);
   if (!sky.sun) return;
@@ -2083,6 +2193,9 @@ const Live = (() => {
     ms.forEach(m => { if (!m) return; const el = m.getElement().firstChild; if (el.classList.contains(kind) && +el.dataset.i === i) { el.classList.remove('focus'); void el.offsetWidth; el.classList.add('focus'); } });
   }
 
+  // animated layers only redraw while the map is what you are looking at
+  const mapOnScreen = () => !document.hidden && (!document.body.dataset.view || document.body.dataset.view === 'map' || document.body.classList.contains('picking'));
+
   /* ---------- weather and the 3D cloud field ---------- */
   const GRID = (() => { const pts = []; for (let j = 0; j < 6; j++) for (let i = 0; i < 7; i++) pts.push([-84.10 + i * (1.22 / 6), 35.33 + j * (0.70 / 5)]); return pts; })();
   async function loadWeather() {
@@ -2245,7 +2358,8 @@ const Live = (() => {
       gl.disable(gl.CULL_FACE);
       gl.drawArrays(gl.TRIANGLES, 0, this.n * 6);
       gl.disableVertexAttribArray(this.loc.a_c); gl.disableVertexAttribArray(this.loc.a_q); gl.disableVertexAttribArray(this.loc.a_p);
-      if (!this._rq && !document.hidden) this._rq = setTimeout(() => { this._rq = 0; map.triggerRepaint(); }, innerWidth < 760 ? 120 : 66); // gentle drift without burning the battery
+      // gentle drift without burning the battery; no drift at all while the feed or another screen covers the map
+      if (!this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, innerWidth < 760 ? 200 : 66);
     },
     sort(Mm, t) {
       const P = this.puffs, dx = this.dom[0], dy = this.dom[1];
@@ -2345,7 +2459,7 @@ const Live = (() => {
       const count = Math.round(this.n * Math.min(1, 0.42 + this.rate / 4));
       if (this.snow) gl.drawArrays(gl.POINTS, 0, count * 2); else gl.drawArrays(gl.LINES, 0, count * 2);
       gl.disableVertexAttribArray(this.loc.a_s); gl.disableVertexAttribArray(this.loc.a_e);
-      if (!this._rq && !document.hidden) this._rq = setTimeout(() => { this._rq = 0; map.triggerRepaint(); }, 33);
+      if (!this._rq && mapOnScreen()) this._rq = setTimeout(() => { this._rq = 0; if (mapOnScreen()) map.triggerRepaint(); }, innerWidth < 760 ? 66 : 33);
     },
   };
 
