@@ -53,8 +53,8 @@ def in_bbox(lng, lat, pad=0.0):
 
 
 # ---------------------------------------------------------------- places
-GAZ = json.load(open(os.path.join(HERE, 'gazetteer.json')))  # [name, lng, lat, kind, priority], longest first
-GAZ_RE = [(re.compile(r'(?<![\w\'])' + re.escape(n) + r'(?![\w])'), n, lng, lat, kind, pri) for n, lng, lat, kind, pri in GAZ]
+GAZ = json.load(open(os.path.join(HERE, 'gazetteer.json')))  # [name, lng, lat, kind, priority, current name if renamed], longest first
+GAZ_RE = [(re.compile(r'(?<![\w\'])' + re.escape(g[0]) + r'(?![\w])'), g[5] if len(g) > 5 else g[0], g[1], g[2], g[3], g[4]) for g in GAZ]
 TRUSTED = re.compile(r'Mountain Press|WBIR|WATE|WVLT|Knox ?News|News Sentinel|Smoky Mountain News|Smoky Mountain Times|Citizen[- ]Times|Daily Times|Cherokee One Feather|WLOS|WJHL|Tennessee Lookout|Tennessean|AP News|Associated Press|National Park Service|NPS\.gov|City of|County|Blue Ridge Public Radio|WUOT|Cardinal & Pine|Asheville|Knoxville|Tennessee|Gatlinburg|Pigeon Forge|Sevier', re.I)
 LOCAL_WORDS = re.compile(r'Sevier|Gatlinburg|Pigeon Forge|Sevierville|Smoky|Smokies|Kodak|Seymour|Wears Valley|Townsend|Cosby|Pittman|Cherokee|Bryson|Cades Cove|Dollywood|LeConte|Le Conte|Newfound', re.I)
 

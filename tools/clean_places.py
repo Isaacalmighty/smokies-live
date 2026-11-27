@@ -48,11 +48,40 @@ for r in pq.read_table(sys.argv[1]).to_pylist():
     n = (r['names'] or {}).get('primary')
     if not n: continue
     g = shapely.wkb.loads(r['geometry'])
-    rows.append(dict(id=r['id'], name=n, n=norm(n), xy=(g.x, g.y), conf=r['confidence'] or 0, cat=r['basic_category'],
+    rows.append(dict(closed=r.get('operating_status') == 'permanently_closed', id=r['id'], name=n, n=norm(n), xy=(g.x, g.y), conf=r['confidence'] or 0, cat=r['basic_category'],
                      addr=street(r), web={domain(w) for w in (r['websites'] or []) if domain(w)},
                      fb={s for s in (r['socials'] or []) if 'facebook' in s}))
 
 drop = {}   # id -> reason
+rename = {}  # id -> new name
+
+# 0. businesses Overture marks as permanently closed
+for r in rows:
+    if r['closed']: drop[r['id']] = 'permanently closed'
+
+# 0b. places that were renamed or are gone, checked against current sources (Nov 2026):
+#   Clingmans Dome -> Kuwohi (US Board on Geographic Names, Sept 18 2024, nps.gov)
+#   Ober Mountain -> Ober Gatlinburg (name restored April 2026, visitmysmokies.com)
+#   Gatlinburg SkyLift Park -> Gatlinburg SkyPark (June 2023, gatlinburgskypark.com)
+#   Dixie Stampede -> Dolly Parton's Stampede (2018); the map already has a pin under the new name
+#   Belz Factory Outlet World closed; the building is now The Mountain Mile
+KUWOHI = (-83.4985, 35.5629); GATLINBURG = (-83.5150, 35.7110)
+RULES = [  # pattern, new name (None = drop), near, within km (outside it: drop as misplaced)
+    (r"^clingman'?s? ?dome$", 'Kuwohi', KUWOHI, 1.5),
+    (r"^clingman'?s? ?dome\b.*(smok|park|nc|ft)", None, None, 0),
+    (r"^dixie stampede$", None, None, 0),
+    (r"^belz factory outlet world$", None, None, 0),
+    (r"^ober mountain", lambda n: re.sub(r'(?i)^ober mountain', 'Ober Gatlinburg', n), GATLINBURG, 6),
+    (r"^(gatlinburg )?sky ?lift( park)?( in gatlinburg.*)?$|^skylift in gatlinburg", 'Gatlinburg SkyPark', GATLINBURG, 2.5),
+]
+for r in rows:
+    if r['id'] in drop: continue
+    for pat, new, near, within in RULES:
+        if not re.search(pat, r['name'].strip(), re.I): continue
+        if new is None: drop[r['id']] = 'closed or renamed; current name already on the map'
+        elif near and km(r['xy'], near) > within: drop[r['id']] = 'misplaced copy of ' + (new if isinstance(new, str) else r['name'])
+        else: rename[r['id']] = new(r['name']) if callable(new) else new
+        break
 byname = collections.defaultdict(list)
 for r in rows: byname[r['n'][:6]].append(r)
 rank = lambda r: (bool(r['addr']), r['conf'])
@@ -99,6 +128,7 @@ def home_kind(n):
 recat = {r['id']: home_kind(r['name']) for r in rows if r['id'] not in drop and r['cat'] in WRONG_FOR_HOMES and APTS.search(r['name'])}
 
 out = {'drop': [[r['name'], round(r['xy'][0], 5), round(r['xy'][1], 5), drop[r['id']]] for r in rows if r['id'] in drop],
+       'rename': [[r['name'], round(r['xy'][0], 5), round(r['xy'][1], 5), rename[r['id']]] for r in rows if r['id'] in rename and r['id'] not in drop],
        'recat': [[r['name'], round(r['xy'][0], 5), round(r['xy'][1], 5), recat[r['id']]] for r in rows if r['id'] in recat]}
 json.dump(out, open(sys.argv[2] if len(sys.argv) > 2 else 'tools/places_fix.json', 'w'), indent=0)
-print('drop', len(out['drop']), 'recategorize', len(out['recat']))
+print('drop', len(out['drop']), 'rename', len(out['rename']), 'recategorize', len(out['recat']))
