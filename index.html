@@ -655,6 +655,60 @@ body.app #credits{display:none}
 .media.txt.camlink{aspect-ratio:16/10;color:inherit;text-decoration:none;background:radial-gradient(120% 90% at 80% 0%,#1d6b5a,#08110e 78%)}
 .media.txt.camlink .watch{display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:8px 14px;border-radius:999px;background:#fff;color:#0b100e;font-weight:700;font-size:14px}
 .media.txt.camlink:active .watch{transform:scale(.95)}
+
+/* ---------- private groups ---------- */
+.ic.xs{width:12px;height:12px;stroke-width:2.4;vertical-align:-1px}
+.scopes{display:flex;gap:8px;overflow-x:auto;padding:2px 14px 10px;scrollbar-width:none}
+.scopes::-webkit-scrollbar{display:none}
+.scopes button{flex:none;display:flex;align-items:center;gap:7px;padding:5px 12px 5px 5px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--ink-dim);cursor:pointer;font-size:13.5px;transition:background .3s,border-color .3s,color .3s,transform .35s var(--ease-out)}
+.scopes button b{font-weight:600;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scopes .ge,.pgroups .ge{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:color-mix(in srgb,var(--c,#3f6f8f) 40%,#111);font-size:15px;color:#fff;flex:none}
+.scopes button[aria-selected="true"]{background:color-mix(in srgb,var(--c) 22%,transparent);border-color:color-mix(in srgb,var(--c) 70%,#fff 0%);color:var(--ink)}
+.scopes button.bump,.gprev.bump{animation:bump .45s var(--ease-out)}
+.scopes .gnew{border-style:dashed}
+.scopes .gnew .ge,.pgroups .gnew .ge{background:rgba(255,255,255,.08);font-size:18px;font-weight:600}
+body.ingroup #stories,body.ingroup #fchips{display:none}
+.ghead{position:relative;margin:0 14px 14px;padding:18px 16px 14px;border-radius:18px;background:radial-gradient(120% 120% at 0% 0%,color-mix(in srgb,var(--c) 45%,#0b100e),#0e1411 70%);border:1px solid color-mix(in srgb,var(--c) 40%,transparent);display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:center;animation:fresh .7s var(--ease-out)}
+.ghead .gbig{font-size:40px;width:64px;height:64px;display:grid;place-items:center;border-radius:20px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.15)}
+.ghead h2{margin:0;font-family:var(--font-display);font-size:24px;line-height:1.1}
+.ghead span{font-size:12.5px;color:var(--ink-dim)}
+.gacts{grid-column:1/-1;display:flex;gap:8px;margin-top:12px}
+.gacts .btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 6px;font-size:13.5px}
+.gtag{display:inline-flex;align-items:center;gap:4px;margin-left:8px;padding:1px 8px 1px 6px;border-radius:999px;border:0;background:color-mix(in srgb,var(--c) 30%,transparent);color:#e9f1ea;font-size:11.5px;font-weight:600;cursor:pointer;vertical-align:1px}
+.shareto{margin:4px 0 10px}
+.shareto small{display:block;color:var(--ink-faint);font-size:12px;margin-bottom:6px}
+.shareto div{display:flex;gap:6px;flex-wrap:wrap}
+.shareto button{display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:none;color:var(--ink-dim);font-size:13px;cursor:pointer;transition:background .25s,border-color .25s,color .25s}
+.shareto button.on{background:color-mix(in srgb,var(--c) 28%,transparent);border-color:var(--c);color:#fff}
+.gintro{text-align:center;padding:4px 0 6px}.gintro>span{font-size:44px;display:block;animation:ppop .6s var(--ease-out)}
+.gintro h4{margin:6px 0 2px}.gintro .fine{margin:0 0 12px}
+.gform .gprev{width:76px;height:76px;margin:4px auto 10px;border-radius:24px;display:grid;place-items:center;font-size:40px;background:radial-gradient(circle at 30% 20%,color-mix(in srgb,var(--c) 85%,#fff 10%),color-mix(in srgb,var(--c) 70%,#000));box-shadow:0 10px 26px color-mix(in srgb,var(--c) 40%,transparent);transition:background .4s}
+.gpick{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.gpick button{aspect-ratio:1;border-radius:12px;border:1px solid transparent;background:rgba(255,255,255,.04);font-size:20px;cursor:pointer;transition:transform .3s var(--ease-out),background .2s,border-color .2s}
+.gpick button.on{background:rgba(255,255,255,.12);border-color:var(--ink-faint);transform:scale(1.08)}
+.gcols{display:flex;gap:8px;justify-content:center;margin:6px 0 4px}
+.gcols button{width:28px;height:28px;border-radius:50%;border:2px solid transparent;background:var(--c);cursor:pointer;transition:transform .3s var(--ease-out)}
+.gcols button.on{border-color:#fff;transform:scale(1.15)}
+.ginvite{text-align:center}.ginvite .gbig{font-size:46px;display:block;animation:ppop .6s var(--ease-out)}
+.ginvite h4{margin:6px 0 4px}
+.gcode{display:flex;justify-content:center;gap:5px;margin:14px 0}
+.gcode i{font-style:normal;width:30px;height:40px;display:grid;place-items:center;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid color-mix(in srgb,var(--c) 50%,transparent);font:600 20px var(--font-data);opacity:0;animation:rise .45s var(--ease-out) forwards;transform:translateY(8px)}
+.cm.mem{align-items:center}.cm.mem div{flex:1}
+.link.danger,.menu .danger{color:#ff7b6b}
+.pgroups{padding:0 14px 8px}.pgroups .sideHead{padding:0;margin:8px 0}
+.pgroups>div{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+.pgroups button{flex:none;width:112px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--ink);cursor:pointer;transition:transform .3s var(--ease-out)}
+.pgroups button:active{transform:scale(.95)}
+.pgroups .ge{width:44px;height:44px;font-size:22px}
+.pgroups b{font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pgroups small{font-size:11px;color:var(--ink-faint)}
+.grow{width:100%;background:none;border:0;color:inherit;text-align:left;cursor:pointer;border-radius:10px;font:inherit}
+.grow:hover{background:rgba(255,255,255,.04)}
+.gdot{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:color-mix(in srgb,var(--c,#555) 45%,#111);font-size:16px;flex:none}
+.ppin.grp{border-color:#ffe6b0;box-shadow:0 0 0 3px rgba(255,230,176,.35),0 6px 16px rgba(0,0,0,.5)}
+.otp .otpf{display:flex;gap:8px;width:100%;max-width:300px;margin-top:10px}
+.otpf input{flex:1;min-width:0;text-align:center;font:600 22px var(--font-data);letter-spacing:.3em}
+.otpf.shake{animation:shake .4s var(--ease-io)}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
 /* SOCIAL-CSS-END */
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
@@ -2202,7 +2256,7 @@ const Social = (() => {
   // Supabase project (public URL and anon key; data is protected by row-level security). Empty = device-only mode.
   const SUPA = { url: 'https://uamuqhkpbszogmdusfqr.supabase.co', key: 'sb_publishable_Y0fiNms2M0TI1Ph_ITWk0Q_hk2TS848' };
   const SUPA_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.79.0/dist/umd/supabase.js';
-  const S = { view: 'map', posts: [], likes: {}, saved: {}, comments: {}, me: null, stories: [], storyAt: 0, pins: [], seen: 0, votes: {}, rvotes: {}, filter: 'all', here: null };
+  const S = { view: 'map', posts: [], likes: {}, saved: {}, comments: {}, me: null, stories: [], storyAt: 0, pins: [], seen: 0, votes: {}, rvotes: {}, filter: 'all', here: null, groups: [], scope: 'public', signed: {} };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ago = iso => { if (!iso) return ''; const s = (Date.now() - new Date(iso)) / 1000; if (s < 0) return 'upcoming'; if (s < 60) return 'now'; if (s < 3600) return Math.round(s / 60) + 'm'; if (s < 86400) return Math.round(s / 3600) + 'h'; if (s < 7 * 86400) return Math.round(s / 86400) + 'd'; return new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }); };
   const I = { // 24px line icons
@@ -2226,6 +2280,10 @@ const Social = (() => {
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     eye: '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
     phone: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
+    lock: '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/>',
+    users: '<circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M15.5 5.2a3.3 3.3 0 0 1 0 6.6M17.5 14.2a6 6 0 0 1 4 5.8"/>',
+    link: '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>',
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/>',
   };
   const svg = (k, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`;
 
@@ -2251,8 +2309,8 @@ const Social = (() => {
         const probe = await this.sb.from('post_feed').select('id').limit(1); if (probe.error) throw new Error('tables not set up: ' + probe.error.message);
         const { data } = await this.sb.auth.getSession(); this.user = data.session ? data.session.user : null;
         this.on = true; Store.shared = true;
-        this.sb.auth.onAuthStateChange(async (ev, ses) => { const was = this.user && this.user.id; this.user = ses ? ses.user : null; if ((this.user && this.user.id) !== was) { await this.loadMe(); await this.loadFeed(); refresh(); if (ev === 'SIGNED_IN') showToast('Signed in'); } });
-        await this.loadMe(); await this.loadFeed();
+        this.sb.auth.onAuthStateChange(async (ev, ses) => { const was = this.user && this.user.id; this.user = ses ? ses.user : null; if ((this.user && this.user.id) !== was) { await this.loadMe(); await this.loadGroups(); await this.loadFeed(); refresh(); if (ev === 'SIGNED_IN') { showToast('Signed in'); pendingJoin(); } } });
+        await this.loadMe(); await this.loadGroups(); await this.loadFeed();
         this.sb.channel('posts').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, () => this.loadFeed().then(refresh)).subscribe();
         if (!this.votesOff) this.sb.channel('votes').on('postgres_changes', { event: '*', schema: 'public', table: 'report_votes' }, () => this.loadVotes().then(refresh)).subscribe();
         if (location.search.includes('code=')) history.replaceState(null, '', location.pathname + location.hash);
@@ -2265,7 +2323,27 @@ const Social = (() => {
       const { data: lk } = await this.sb.from('likes').select('post_id').eq('user_id', this.user.id);
       S.serverLikes = Object.fromEntries((lk || []).map(r => ['s' + r.post_id, 1]));
     },
-    async loadFeed() { const { data, error } = await this.sb.from('post_feed').select('*').order('created_at', { ascending: false }).limit(100); if (!error) S.remote = data || []; await this.loadVotes(); },
+    async loadFeed() { const { data, error } = await this.sb.from('post_feed').select('*').order('created_at', { ascending: false }).limit(150); if (!error) S.remote = data || []; await Promise.all([this.loadVotes(), this.signPhotos()]); },
+    groupsOff: false,
+    async loadGroups() { // the private groups you belong to
+      if (!this.user) { S.groups = []; return; }
+      const { data, error } = await this.sb.from('group_members').select('role, groups(*)').eq('user_id', this.user.id);
+      if (error) { this.groupsOff = true; S.groups = []; return; }
+      this.groupsOff = false;
+      S.groups = (data || []).filter(r => r.groups).map(r => ({ ...r.groups, role: r.role })).sort((a, b) => a.name.localeCompare(b.name));
+      if (S.scope !== 'public' && !S.groups.some(g => g.id === S.scope)) S.scope = 'public';
+    },
+    async signPhotos() { // group photos are private: get short-lived links for the ones in view
+      const need = [...new Set(S.remote.map(r => r.image_url).filter(u => u && u.startsWith('gp:') && !S.signed[u.slice(3)]))].map(u => u.slice(3));
+      if (!need.length) return;
+      const { data } = await this.sb.storage.from('group-photos').createSignedUrls(need, 6 * 3600);
+      (data || []).forEach(d => { if (d.signedUrl) S.signed[d.path] = d.signedUrl; });
+    },
+    async uploadGroup(dataUrl, gid, name) {
+      const blob = await (await fetch(dataUrl)).blob(); const path = `${gid}/${name}.jpg`;
+      const { error } = await this.sb.storage.from('group-photos').upload(path, blob, { contentType: 'image/jpeg' }); if (error) throw error;
+      S.signed[path] = dataUrl; return 'gp:' + path;
+    },
     votesOff: false,
     async loadVotes() { // "still there" / "cleared" votes on community reports
       const reps = S.remote.filter(r => isReport(r.tag)); if (this.votesOff || !reps.length) return;
@@ -2283,12 +2361,20 @@ const Social = (() => {
     },
   };
   function needSignIn(why) {
-    sheet(`<h4>Join Smokies Live</h4><p class="fine" style="text-align:center;margin:0 0 14px">${esc(why)}</p><form class="pform"><label>Email<input name="email" type="email" required autocomplete="email" placeholder="you@example.com"></label><button class="btn primary">Email me a sign-in link</button></form><p class="fine">No password. We send a one-time link. By joining you agree to keep posts respectful; posts can be reported and removed.</p>`, sh => {
+    sheet(`<h4>Join Smokies Live</h4><p class="fine" style="text-align:center;margin:0 0 14px">${esc(why)}</p><form class="pform"><label>Email<input name="email" type="email" required autocomplete="email" placeholder="you@example.com"></label><button class="btn primary">Email me a sign-in link</button></form><p class="fine">No password. We email you a one-time link and code. By joining you agree to keep posts respectful; posts can be reported and removed.</p>`, sh => {
       const f = sh.querySelector('form'); f.email.focus();
       f.onsubmit = async e => { e.preventDefault(); const b = f.querySelector('button'); b.disabled = true; b.textContent = 'Sending…';
         const { error } = await Cloud.sb.auth.signInWithOtp({ email: f.email.value.trim(), options: { emailRedirectTo: location.origin + location.pathname } });
         if (error) { b.disabled = false; b.textContent = 'Email me a sign-in link'; showToast(error.message.slice(0, 80)); return; }
-        f.outerHTML = `<div class="empty">${svg('send', 'big')}<b>Check your email</b><span>Open the link on this device to finish signing in.</span></div>`; };
+        const email = f.email.value.trim();
+        f.outerHTML = `<div class="empty otp">${svg('send', 'big')}<b>Check your email</b><span>Tap the link in the email, or type the code from it here. In the phone app, use the code.</span>
+          <form class="pform otpf"><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,8}" maxlength="8" placeholder="Code" aria-label="Sign-in code"><button class="btn primary">Sign in</button></form></div>`;
+        const of = sh.querySelector('.otpf'); setTimeout(() => of.code.focus(), 200);
+        of.code.oninput = () => { of.code.value = of.code.value.replace(/\D/g, ''); if (of.code.value.length === 6 || of.code.value.length === 8) of.requestSubmit(); };
+        of.onsubmit = async ev => { ev.preventDefault(); const ob = of.querySelector('button'); if (ob.disabled) return; ob.disabled = true; ob.textContent = 'Checking…';
+          const { error: er } = await Cloud.sb.auth.verifyOtp({ email, token: of.code.value.trim(), type: 'email' });
+          if (er) { ob.disabled = false; ob.textContent = 'Sign in'; of.classList.remove('shake'); void of.offsetWidth; of.classList.add('shake'); showToast(/expired|invalid/i.test(er.message) ? 'That code did not work. Check it or send a new one.' : er.message.slice(0, 80)); return; }
+          closeSheet(); }; };
     });
   }
   const signedIn = () => Cloud.on && Cloud.user;
@@ -2315,7 +2401,9 @@ const Social = (() => {
   const fmtLeft = ms => ms > 36e5 * 24 ? Math.round(ms / 864e5) + 'd' : ms > 36e5 ? Math.round(ms / 36e5) + 'h' : Math.max(1, Math.round(ms / 6e4)) + 'm';
   const color = h => { let x = 0; for (const ch of h || '') x = (x * 31 + ch.charCodeAt(0)) >>> 0; return `hsl(${x % 360} 45% 42%)`; };
   const authorOf = r => ({ name: r.name || r.handle, h: r.handle || 'someone', c: color(r.handle), i: (r.name || r.handle || '?').slice(0, 1).toUpperCase(), photo: r.avatar_url });
-  const remoteItem = r => ({ id: 's' + r.id, kind: 'user', a: authorOf(r), t: r.created_at, img: r.image_url, text: r.caption, tag: r.tag, place: r.lng != null ? { name: r.place_name || 'Pinned spot', lng: r.lng, lat: r.lat } : null, likes: r.like_count, ncom: r.comment_count, mine: !!(Cloud.user && r.user_id === Cloud.user.id), ref: { id: 's' + r.id, sid: r.id, remote: true, img: r.image_url } });
+  const imgOf = u => u && u.startsWith('gp:') ? S.signed[u.slice(3)] || '' : u;
+  const groupOf = id => id ? S.groups.find(g => g.id === id) || { id, name: 'Private group', emoji: '🔒', color: '#555' } : null;
+  const remoteItem = r => ({ id: 's' + r.id, kind: 'user', group: groupOf(r.group_id), a: authorOf(r), t: r.created_at, img: imgOf(r.image_url), text: r.caption, tag: r.tag, place: r.lng != null ? { name: r.place_name || 'Pinned spot', lng: r.lng, lat: r.lat } : null, likes: r.like_count, ncom: r.comment_count, mine: !!(Cloud.user && r.user_id === Cloud.user.id), ref: { id: 's' + r.id, sid: r.id, remote: true, img: r.image_url, gid: r.group_id } });
 
   async function loadLocal() {
     S.me = await Store.get('me', null);
@@ -2379,7 +2467,7 @@ const Social = (() => {
     const nC = p.ncom != null ? p.ncom : (S.comments[p.id] || []).length;
     const likeLine = p.likes != null ? (p.likes ? `<div class="likes">${p.likes.toLocaleString()} like${p.likes > 1 ? 's' : ''}</div>` : '') : liked ? '<div class="likes">You liked this</div>' : '';
     return `<article class="post" data-id="${esc(p.id)}" style="animation-delay:${Math.min(j, 6) * 60}ms">
-      <header>${avatar(p.a, 32, p.kind === 'cam' || p.kind === 'alert')}<div class="who"><b>${esc(p.a.h)}</b>${p.place ? `<button class="loc" data-act="map">${esc(p.place.name)}</button>` : ''}</div><span class="when">${ago(p.t)}</span><button class="ib" data-act="more" aria-label="More">${svg('more')}</button></header>
+      <header>${avatar(p.a, 32, p.kind === 'cam' || p.kind === 'alert')}<div class="who"><b>${esc(p.a.h)}${p.group && S.scope === 'public' ? `<button class="gtag" data-act="group" style="--c:${esc(p.group.color)}">${svg('lock', 'xs')}${esc(p.group.emoji)} ${esc(p.group.name)}</button>` : ''}</b>${p.place ? `<button class="loc" data-act="map">${esc(p.place.name)}</button>` : ''}</div><span class="when">${ago(p.t)}</span><button class="ib" data-act="more" aria-label="More">${svg('more')}</button></header>
       ${media}
       <div class="acts"><button class="ib like${liked ? ' on' : ''}" data-act="like" aria-label="Like" aria-pressed="${liked}">${svg('heart')}</button><button class="ib" data-act="comment" aria-label="Comment">${svg('comment')}</button><button class="ib" data-act="share" aria-label="Share">${svg('send')}</button>${p.place ? `<button class="ib" data-act="map" aria-label="See on map">${svg('pin')}</button>` : ''}<span class="sp"></span><button class="ib save${saved ? ' on' : ''}" data-act="save" aria-label="Save">${svg('save')}</button></div>
       ${R ? `<div class="rvote"><span>${R.still > 1 ? `${R.still} people say it's still there · ` : R.still === 1 && R.mine !== 'still' ? '1 person says it\'s still there · ' : ''}up for ${fmtLeft(R.left)} more</span><button data-act="still" class="${R.mine === 'still' ? 'on' : ''}">${svg('eye', 'sm')} Still there</button><button data-act="cleared" class="${R.mine === 'cleared' ? 'on' : ''}">${svg('check', 'sm')} ${p.mine ? 'Resolved' : 'Cleared'}</button></div>` : ''}
@@ -2436,7 +2524,7 @@ const Social = (() => {
     document.body.appendChild(nav);
     nav.querySelectorAll('button').forEach(b => b.onclick = () => { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); b.dataset.v === 'create' ? openCreate() : setView(b.dataset.v); });
     const v = document.createElement('div'); v.id = 'socialView'; v.hidden = true;
-    v.innerHTML = `<div class="col"><div id="sv-feed" class="pane"><div class="ptr" aria-hidden="true"><i></i></div><header class="top"><div class="logo"><span>Smokies <em>Live</em></span></div><button class="rbtn" data-report>${svg('alert', 'sm')} Report</button><button class="ib" data-v="activity" aria-label="Activity">${svg('heart')}</button></header><div id="stories" class="stories"></div><div id="fchips" class="chips" role="tablist"></div><div id="feed"></div></div>
+    v.innerHTML = `<div class="col"><div id="sv-feed" class="pane"><div class="ptr" aria-hidden="true"><i></i></div><header class="top"><div class="logo"><span>Smokies <em>Live</em></span></div><button class="rbtn" data-report>${svg('alert', 'sm')} Report</button><button class="ib" data-v="activity" aria-label="Activity">${svg('heart')}</button></header><div id="scopes" class="scopes" role="tablist" hidden></div><div id="stories" class="stories"></div><div id="fchips" class="chips" role="tablist"></div><div id="feed"></div></div>
       <div id="sv-activity" class="pane"></div><div id="sv-profile" class="pane"></div></div><aside class="side" id="sv-side"></aside>`;
     document.body.appendChild(v);
     v.querySelectorAll('[data-v]').forEach(b => b.onclick = () => setView(b.dataset.v));
@@ -2445,6 +2533,7 @@ const Social = (() => {
     const sh = document.createElement('div'); sh.id = 'sheetView'; sh.hidden = true; document.body.appendChild(sh);
     $('#feed').addEventListener('click', onFeedClick);
     v.querySelector('[data-report]').onclick = () => openCreate('report');
+    $('#scopes').onclick = e => { const b = e.target.closest('[data-scope]'); if (b) { bump(b); setScope(b.dataset.scope); } };
     $('#fchips').onclick = e => { const b = e.target.closest('[data-f]'); if (!b) return; const f = b.dataset.f; if (f === 'near' && !S.here && navigator.geolocation) navigator.geolocation.getCurrentPosition(p => { S.here = { lng: p.coords.longitude, lat: p.coords.latitude }; renderFeed(); }, () => {}, { timeout: 8000, maximumAge: 300000 }); S.filter = f; renderFeed(); $('#socialView').scrollTo({ top: 0, behavior: 'smooth' }); };
     pullToRefresh(v);
     $('#feed').addEventListener('dblclick', e => { const m = e.target.closest('.media'); if (m) { const id = m.closest('.post').dataset.id; if (S.likes[id] || S.serverLikes[id]) { const h = m.querySelector('.burst'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go'); } else like(id, true, m); } });
@@ -2485,7 +2574,33 @@ const Social = (() => {
     const n = all.filter(x => x.kind === 'report').length;
     $('#fchips').innerHTML = FILTERS.map(([k, l]) => `<button data-f="${k}" aria-selected="${S.filter === k}">${k === 'near' ? svg('locate', 'sm') + ' ' : ''}${l}${k === 'report' && n ? ` <i>${n}</i>` : ''}</button>`).join('');
   }
-  function renderFeed() { buildStories(); renderStories(); const all = feedItems(); renderChips(all); feedCache = filtered(all); const f = $('#feed');
+  function renderScopes() {
+    const el = $('#scopes'); if (!el) return;
+    if (!Cloud.on || Cloud.groupsOff) { el.hidden = true; return; }
+    el.hidden = false;
+    const tab = (id, emo, name, c) => `<button data-scope="${id}" aria-selected="${S.scope === id}" style="--c:${c}"><span class="ge">${emo}</span><b>${esc(name)}</b>${id !== 'public' ? svg('lock', 'xs') : ''}</button>`;
+    el.innerHTML = tab('public', svg('globe', 'sm'), 'Smokies', '#3f6f8f') + S.groups.map(g => tab(g.id, esc(g.emoji), g.name, g.color)).join('') + `<button data-scope="new" class="gnew"><span class="ge">+</span><b>${S.groups.length ? 'Group' : 'Start a family group'}</b></button>`;
+  }
+  function setScope(id) {
+    if (id === 'new') return openGroups();
+    S.scope = id; Store.set('scope', id); S.filter = 'all';
+    if (S.view !== 'feed') setView('feed'); else renderFeed();
+    $('#socialView').scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function renderGroupFeed(g) {
+    const items = S.remote.filter(r => r.group_id === g.id).map(remoteItem);
+    items.forEach(x => { if (isReport(x.tag)) { x.kind = 'report'; x.rs = rstate(x); } });
+    feedCache = items.filter(x => !(x.kind === 'report' && x.rs.gone));
+    $('#feed').innerHTML = `<div class="ghead" style="--c:${esc(g.color)}"><span class="gbig">${esc(g.emoji)}</span><div><h2>${esc(g.name)}</h2><span>${svg('lock', 'xs')} Private group · only members see these posts</span></div>
+      <div class="gacts"><button class="btn primary" data-g="post">${svg('plus', 'sm')} Post</button><button class="btn" data-g="invite">${svg('link', 'sm')} Invite</button><button class="btn" data-g="members">${svg('users', 'sm')} Members</button></div></div>` +
+      (feedCache.length ? feedCache.map(card).join('') : `<div class="empty">${svg('camera', 'big')}<b>Nothing here yet</b><span>Share the first photo or update with ${esc(g.name)}. Only people in this group will see it.</span></div>`);
+    const f = $('#feed');
+    f.querySelector('[data-g="post"]').onclick = () => openCreate('post');
+    f.querySelector('[data-g="invite"]').onclick = () => showInvite(g);
+    f.querySelector('[data-g="members"]').onclick = () => openMembers(g);
+  }
+  function renderFeed() { renderScopes(); const g = S.scope !== 'public' && S.groups.find(x => x.id === S.scope); document.body.classList.toggle('ingroup', !!g); if (g) return renderGroupFeed(g);
+    buildStories(); renderStories(); const all = feedItems(); renderChips(all); feedCache = filtered(all); const f = $('#feed');
     if (!feedCache.length && all.length) { f.innerHTML = `<div class="empty">${svg(S.filter === 'report' ? 'alert' : 'search', 'big')}<b>${S.filter === 'report' ? 'All quiet right now' : 'Nothing here yet'}</b><span>${S.filter === 'report' ? 'No open community reports. See something on the road or trail? Let people know.' : S.filter === 'near' ? 'Nothing posted within 25 km of you.' : 'Try another filter.'}</span>${S.filter === 'report' || S.filter === 'near' ? '<button class="btn primary" data-newrep>Report something</button>' : ''}</div>`; const nb = f.querySelector('[data-newrep]'); if (nb) nb.onclick = () => openCreate('report'); return; }
     f.innerHTML = feedCache.length ? feedCache.map(card).join('') : `<div class="empty">${Live.st.blocked ? `The feed needs live data, which this preview blocks. Open <a href="${SITE}" target="_blank" rel="noopener">the full site</a>.` : 'Loading the latest from the mountains…'}</div>`; }
   function renderSide() {
@@ -2494,10 +2609,12 @@ const Social = (() => {
     el.innerHTML = `<div class="meRow">${avatar(me, 44)}<div><b>${esc(me.h)}</b><span>${esc(me.name)}</span></div><button class="link" data-p>${S.me ? 'Edit' : 'Set up'}</button></div>
       ${L.wx ? `<div class="sideCard"><small>Right now</small><b>${Math.round(L.wx.current.temperature_2m)}° · ${esc(document.getElementById('wxDesc') ? document.getElementById('wxDesc').querySelector('b')?.textContent || '' : '')}</b><span>${L.alerts.length ? esc(L.alerts[0].event) : 'No weather alerts'}</span></div>` : ''}
       <button class="btn primary sideRep" data-rep>${svg('alert', 'sm')} Report something</button>
+      ${Cloud.on && !Cloud.groupsOff ? `<div class="sideHead">Private groups</div>${S.groups.map(g => `<button class="meRow sm grow" data-scope="${g.id}"><span class="gdot" style="--c:${esc(g.color)}">${esc(g.emoji)}</span><div><b>${esc(g.name)}</b><span>${g.role === 'owner' ? 'You run this group' : 'Member'}</span></div></button>`).join('')}<button class="meRow sm grow" data-scope="new"><span class="gdot">+</span><div><b>Create or join a group</b><span>A private feed for your family</span></div></button>` : ''}
       <div class="sideHead">Accounts in your feed</div>${[...new Set([...L.news.map(n => n.source), ...L.events.map(e => e.source)])].slice(0, 6).map(s => { const a = acct(s); return `<div class="meRow sm">${avatar(a, 32)}<div><b>${esc(a.h)}</b><span>${esc(s)}</span></div></div>`; }).join('')}
       <p class="fine">Smokies Live · open data from NWS, USGS, NASA, the National Park Service and local newsrooms.</p>`;
     const p = el.querySelector('[data-p]'); if (p) p.onclick = editProfile;
     el.querySelector('[data-rep]').onclick = () => openCreate('report');
+    el.querySelectorAll('[data-scope]').forEach(b => b.onclick = () => setScope(b.dataset.scope));
   }
   function onFeedClick(e) {
     const b = e.target.closest('[data-act]'); if (!b) return; const id = b.closest('.post').dataset.id; const p = feedCache.find(x => x.id === id); if (!p) return;
@@ -2506,6 +2623,7 @@ const Social = (() => {
     if (act === 'save') { S.saved[id] = !S.saved[id]; if (!S.saved[id]) delete S.saved[id]; persist('saved'); b.classList.toggle('on', !!S.saved[id]); bump(b); }
     if (act === 'share') share(p);
     if (act === 'still' || act === 'cleared') vote(p, act);
+    if (act === 'group' && p.group) setScope(p.group.id);
     if (act === 'map') showOnMap(p);
     if (act === 'comment') openComments(p);
     if (act === 'more') openMore(p);
@@ -2588,7 +2706,7 @@ const Social = (() => {
         const m = b.dataset.m; closeSheet();
         if (m === 'map') showOnMap(p); if (m === 'share') share(p);
         if (m === 'del') {
-          if (p.ref.remote) { const { error } = await Cloud.sb.from('posts').delete().eq('id', p.ref.sid); if (error) return showToast('Could not delete'); if (p.ref.img && p.ref.img.includes('/photos/')) Cloud.sb.storage.from('photos').remove([p.ref.img.split('/photos/')[1]]); await Cloud.loadFeed(); }
+          if (p.ref.remote) { const { error } = await Cloud.sb.from('posts').delete().eq('id', p.ref.sid); if (error) return showToast('Could not delete'); if (p.ref.img && p.ref.img.startsWith('gp:')) Cloud.sb.storage.from('group-photos').remove([p.ref.img.slice(3)]); else if (p.ref.img && p.ref.img.includes('/photos/')) Cloud.sb.storage.from('photos').remove([p.ref.img.split('/photos/')[1]]); await Cloud.loadFeed(); }
           else { S.posts = S.posts.filter(x => x.id !== p.ref.id); await persist('posts'); }
           refresh(); showToast('Post deleted');
         }
@@ -2605,7 +2723,7 @@ const Social = (() => {
   let draft = null;
   function openCreate(mode = 'post', cat = null) {
     const c = map.getCenter();
-    draft = { mode, cat, img: null, caption: '', tag: null, place: { name: placeName(c), lng: c.lng, lat: c.lat }, placeSet: false };
+    draft = { mode, cat, img: null, caption: '', tag: null, place: { name: placeName(c), lng: c.lng, lat: c.lat }, placeSet: false, group: S.scope !== 'public' && S.groups.some(g => g.id === S.scope) ? S.scope : null };
     const v = $('#createView'); v.hidden = false; v.classList.remove('out');
     v.innerHTML = `<div class="cbox"><header><button class="ib" data-x aria-label="Close">${svg('close')}</button><div class="seg" role="tablist"><button data-mode="post">Post</button><button data-mode="report">Report</button><i></i></div><button class="link" data-share disabled>Share</button></header>
       <div class="cbody"></div></div>`;
@@ -2633,12 +2751,16 @@ const Social = (() => {
     v.querySelector('.cbody').innerHTML = (R ? `<div class="rgrid">${Object.entries(RC).map(([k, [l, e, c]]) => `<button data-cat="${k}" style="--c:${c}" class="${draft.cat === k ? 'on' : ''}"><span>${e}</span>${l}</button>`).join('')}</div>` : '') + photo +
       `<div class="fields"><textarea maxlength="800" placeholder="${R ? 'Add details: which lane, how bad, what to watch for (optional)' : 'Write a caption…'}" rows="3">${esc(draft.caption)}</textarea>
       ${R ? '' : `<div class="tags">${TAGS.map(t => `<button data-t="${t}" class="${draft.tag === t ? 'on' : ''}">${t}</button>`).join('')}</div>`}
+      ${Cloud.on && S.groups.length ? `<div class="shareto"><small>Share with</small><div>${[{ id: null, emoji: '', name: 'Everyone', color: '#3f6f8f' }, ...S.groups].map(g => `<button data-gid="${g.id || ''}" class="${(draft.group || null) === g.id ? 'on' : ''}" style="--c:${esc(g.color)}">${g.id ? esc(g.emoji) + ' ' : svg('globe', 'xs')}${esc(g.name)}${g.id ? svg('lock', 'xs') : ''}</button>`).join('')}</div></div>` : ''}
       <button class="where${draft.placeSet ? ' set' : ''}" data-where>${svg('pin')}<div><b id="crPlace">${esc(draft.place.name)}</b><small>${R ? 'Where is it? Tap to search or move the pin.' : 'Tap to search for a place or set it on the map'}</small></div><span class="link" data-gps>${svg('locate', 'sm')} Here</span></button>
       <p class="fine">${R ? 'Reports show on everyone\'s map and feed and come down on their own after a few hours unless people say it\'s still there. For emergencies, call 911 first.' : Store.shared ? (signedIn() ? 'Your post is public and appears on everyone\'s map. Keep it kind and safe: no faces of strangers, no exact locations of wildlife dens or nests.' : 'You will be asked to sign in when you share.') : 'For now your posts are saved on this device and shown on your map.'}</p></div>`;
     const inp = v.querySelector('input[type=file]');
     inp.onchange = async () => { const f = inp.files[0]; if (!f) return; draft.img = await shrink(f); drawCreate(); };
     v.querySelector('textarea').oninput = e => { draft.caption = e.target.value; ready(); };
     v.querySelectorAll('.tags button').forEach(b => b.onclick = () => { draft.tag = draft.tag === b.dataset.t ? null : b.dataset.t; v.querySelectorAll('.tags button').forEach(x => x.classList.toggle('on', x.dataset.t === draft.tag)); });
+    const fine = () => { const el = v.querySelector('.fields > .fine'); if (el && draft.group) el.textContent = `Only members of ${groupOf(draft.group).name} can see this post and its photo. It stays off the public map and feed.`; };
+    v.querySelectorAll('.shareto button').forEach(b => b.onclick = () => { draft.group = b.dataset.gid || null; v.querySelectorAll('.shareto button').forEach(x => x.classList.toggle('on', x === b)); bump(b); ready(); if (draft.group) fine(); else drawCreate(); });
+    fine();
     v.querySelectorAll('.rgrid button').forEach(b => b.onclick = () => { draft.cat = b.dataset.cat; v.querySelectorAll('.rgrid button').forEach(x => x.classList.toggle('on', x === b)); bump(b); ready(); });
     v.querySelector('[data-where]').onclick = async e => {
       if (e.target.closest('[data-gps]')) return locateMe();
@@ -2731,10 +2853,13 @@ const Social = (() => {
       const b = $('#createView [data-share]'); b.disabled = true; b.textContent = 'Sharing…';
       try {
         const id = (crypto.randomUUID && crypto.randomUUID()) || Date.now().toString(36);
-        const image_url = draft.img ? await Cloud.upload(draft.img, id) : null;
-        const { error } = await Cloud.sb.from('posts').insert({ caption: draft.caption.trim().slice(0, 800), tag: postTag(), image_url, place_name: draft.place.name.slice(0, 120), lng: draft.place.lng, lat: draft.place.lat });
+        const gid = draft.group || null;
+        const image_url = draft.img ? (gid ? await Cloud.uploadGroup(draft.img, gid, id) : await Cloud.upload(draft.img, id)) : null;
+        const row = { caption: draft.caption.trim().slice(0, 800), tag: postTag(), image_url, place_name: draft.place.name.slice(0, 120), lng: draft.place.lng, lat: draft.place.lat };
+        if (gid) row.group_id = gid;
+        const { error } = await Cloud.sb.from('posts').insert(row);
         if (error) throw error;
-        await Cloud.loadFeed(); closeCreate(); S.filter = 'all'; setView('feed'); drawUserPins(); showToast(draft.mode === 'report' ? 'Report sent. Thanks for looking out.' : 'Posted');
+        await Cloud.loadFeed(); closeCreate(); S.filter = 'all'; setView('feed'); drawUserPins(); showToast(draft.mode === 'report' ? 'Report sent. Thanks for looking out.' : gid ? 'Shared with ' + groupOf(gid).name : 'Posted');
         requestAnimationFrame(() => { const el = document.querySelector('#feed .post'); if (el) el.classList.add('fresh'); });
       } catch (e) { b.disabled = false; ready(); showToast('Could not post: ' + String(e.message || e).slice(0, 60)); }
       return;
@@ -2749,13 +2874,13 @@ const Social = (() => {
   function drawUserPins() {
     S.pins.forEach(m => m.remove()); S.pins = [];
     const mine = r => !!(Cloud.user && r.user_id === Cloud.user.id);
-    [...S.remote.map(r => ({ id: 's' + r.id, img: r.image_url, caption: r.caption, tag: r.tag, t: r.created_at, mine: mine(r), place: r.lng != null ? { lng: r.lng, lat: r.lat } : null, fid: 's' + r.id })), ...S.posts.map(p => ({ ...p, mine: true, fid: 'u' + p.id }))].forEach(p => {
+    [...S.remote.map(r => ({ id: 's' + r.id, img: imgOf(r.image_url), grp: !!r.group_id, caption: r.caption, tag: r.tag, t: r.created_at, mine: mine(r), place: r.lng != null ? { lng: r.lng, lat: r.lat } : null, fid: 's' + r.id })), ...S.posts.map(p => ({ ...p, mine: true, fid: 'u' + p.id }))].forEach(p => {
       if (!p.place) return;
       const box = document.createElement('div'); box.dataset.id = p.id;
       if (isReport(p.tag)) {
         const R = rstate({ ...p, id: p.fid }); if (R.gone) return;
         box.className = 'rpin' + (R.fresh ? ' hot' : ''); box.style.setProperty('--c', R.col); box.title = R.label; box.innerHTML = `<b>${R.emo}</b>`;
-      } else { box.className = 'ppin'; box.innerHTML = p.img ? `<img src="${p.img}" alt="">` : `<b>${esc((p.caption || '•').slice(0, 1))}</b>`; }
+      } else { box.className = 'ppin' + (p.grp ? ' grp' : ''); box.innerHTML = p.img ? `<img src="${p.img}" alt="">` : `<b>${esc((p.caption || '•').slice(0, 1))}</b>`; }
       box.onclick = e => { e.stopPropagation(); openPost(p.fid); };
       const wrap = document.createElement('div'); wrap.className = 'mkbox'; wrap.appendChild(box); // MapLibre owns the wrapper's transform; the pin animates inside it
       S.pins.push(new maplibregl.Marker({ element: wrap, anchor: 'bottom' }).setLngLat([p.place.lng, p.place.lat]).addTo(map));
@@ -2782,11 +2907,12 @@ const Social = (() => {
   }
   function renderProfile() {
     const me = meAcct();
-    const L = signedIn() ? S.remote.filter(r => r.user_id === Cloud.user.id).map(r => ({ id: 's' + r.id, img: r.image_url, caption: r.caption, place: r.lng != null ? { name: r.place_name, lng: r.lng, lat: r.lat } : null })).concat(S.posts) : S.posts;
+    const L = signedIn() ? S.remote.filter(r => r.user_id === Cloud.user.id).map(r => ({ id: 's' + r.id, img: imgOf(r.image_url), caption: r.caption, place: r.lng != null ? { name: r.place_name, lng: r.lng, lat: r.lat } : null })).concat(S.posts) : S.posts;
     $('#sv-profile').innerHTML = `<header class="top"><b class="title">${esc(me.h)}</b></header>
       <div class="prof">${avatar(me, 86)}<div class="nums"><div><b>${L.length}</b><span>posts</span></div><div><b>${Object.keys(S.likes).length}</b><span>liked</span></div><div><b>${Object.keys(S.saved).length}</b><span>saved</span></div></div></div>
       <div class="bio"><b>${esc(me.name)}</b>${S.me && S.me.bio ? `<p>${esc(S.me.bio)}</p>` : ''}</div>
       <div class="prow">${Cloud.on && !signedIn() ? '<button class="btn primary" data-in>Sign in or join</button>' : `<button class="btn" data-edit>${S.me && !S.me.placeholder ? 'Edit profile' : 'Set up your profile'}</button>`}<button class="btn" data-new>New post</button>${signedIn() ? '<button class="btn" data-out>Sign out</button>' : ''}</div>
+      ${Cloud.on && !Cloud.groupsOff ? `<div class="pgroups"><div class="sideHead">Your groups</div><div>${S.groups.map(g => `<button data-scope="${g.id}" style="--c:${esc(g.color)}"><span class="ge">${esc(g.emoji)}</span><b>${esc(g.name)}</b><small>${g.role === 'owner' ? 'Owner' : 'Member'}</small></button>`).join('')}<button data-scope="new" class="gnew"><span class="ge">+</span><b>New or join</b><small>Family, friends</small></button></div></div>` : ''}
       ${installRow()}
       <div class="ptabs"><button aria-selected="true">${svg('grid', 'sm')}</button></div>
       <div class="pgrid">${L.length ? L.map(p => `<button data-id="${p.id}">${p.img ? `<img src="${p.img}" alt="">` : `<span>${esc((p.caption || '').slice(0, 60))}</span>`}</button>`).join('') : `<div class="empty" style="grid-column:1/-1">${svg('camera', 'big')}<b>Share your first photo</b><span>Waterfalls, wildlife, traffic, sunsets. Every post lands on the map.</span></div>`}</div>`;
@@ -2795,6 +2921,7 @@ const Social = (() => {
     if (q('[data-edit]')) q('[data-edit]').onclick = editProfile; q('[data-new]').onclick = openCreate;
     if (q('[data-in]')) q('[data-in]').onclick = () => needSignIn('Post photos, like and comment with everyone in the Smokies.');
     if (q('[data-install]')) q('[data-install]').onclick = install;
+    v.querySelectorAll('.pgroups [data-scope]').forEach(b => b.onclick = () => setScope(b.dataset.scope));
     if (q('[data-out]')) q('[data-out]').onclick = async () => { await Cloud.sb.auth.signOut(); S.me = await Store.get('me', null); refresh(); };
     v.querySelectorAll('.pgrid button[data-id]').forEach(b => b.onclick = () => { const p = L.find(x => x.id === b.dataset.id); if (p && p.place) showOnMap({ place: p.place, ref: { id: p.id } }); });
   }
@@ -2824,6 +2951,87 @@ const Social = (() => {
     });
   }
 
+  /* ---------- private groups: families, friends, neighborhoods ---------- */
+  const GEMO = ['🏡', '🏕️', '🌲', '⛰️', '🎣', '🦌', '🐻', '🛶', '🔥', '🌻', '🐾', '🚙', '❄️', '🍂', '⭐', '❤️'];
+  const GCOL = ['#3f8f4f', '#2f7f9f', '#8a5a33', '#c96a2b', '#7a4fbf', '#c0465f', '#4f6f2f', '#3d5fa8'];
+  const inviteLink = g => SITE + '#join=' + g.invite_code;
+  function needGroups() {
+    if (!Cloud.on) { showToast('Groups need accounts, which are not on in this preview'); return false; }
+    if (Cloud.groupsOff) { showToast('Groups turn on after the latest database update'); return false; }
+    if (!signedIn()) { needSignIn('Sign in to create or join a private group.'); return false; }
+    return true;
+  }
+  function openGroups() {
+    if (!needGroups()) return;
+    sheet(`<div class="gintro"><span>🏡</span><h4>Private groups</h4><p class="fine">A feed just for your family or friends. Only people you invite can see what's posted, and it never shows up for anyone else.</p></div>
+      <div class="menu"><button data-m="create">${svg('plus', 'sm')} Create a group</button><button data-m="join">${svg('link', 'sm')} Join with a code</button><button data-x>Cancel</button></div>`, s => {
+      s.querySelector('[data-m="create"]').onclick = () => { closeSheet(); setTimeout(createGroup, 280); };
+      s.querySelector('[data-m="join"]').onclick = () => { closeSheet(); setTimeout(() => joinGroup(), 280); };
+    });
+  }
+  function createGroup() {
+    let emo = GEMO[0], col = GCOL[0];
+    sheet(`<h4>New private group</h4><form class="pform gform"><div class="gprev" style="--c:${col}"><span>${emo}</span></div>
+      <label>Name<input name="name" maxlength="40" placeholder="The Harker family" required autocomplete="off"></label>
+      <div class="gpick">${GEMO.map((e, i) => `<button type="button" data-e="${e}" class="${i ? '' : 'on'}">${e}</button>`).join('')}</div>
+      <div class="gcols">${GCOL.map((c, i) => `<button type="button" data-c="${c}" class="${i ? '' : 'on'}" style="--c:${c}" aria-label="Color"></button>`).join('')}</div>
+      <button class="btn primary">Create group</button></form>`, s => {
+      const f = s.querySelector('form'), pv = s.querySelector('.gprev');
+      s.querySelectorAll('[data-e]').forEach(b => b.onclick = () => { emo = b.dataset.e; s.querySelectorAll('[data-e]').forEach(x => x.classList.toggle('on', x === b)); pv.querySelector('span').textContent = emo; bump(pv); });
+      s.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { col = b.dataset.c; s.querySelectorAll('[data-c]').forEach(x => x.classList.toggle('on', x === b)); pv.style.setProperty('--c', col); });
+      setTimeout(() => f.name.focus(), 350);
+      f.onsubmit = async e => {
+        e.preventDefault(); const btn = f.querySelector('.btn'); btn.disabled = true; btn.textContent = 'Creating…';
+        const { data, error } = await Cloud.sb.rpc('create_group', { gname: f.name.value.trim(), gemoji: emo, gcolor: col });
+        if (error) { btn.disabled = false; btn.textContent = 'Create group'; return showToast(error.message.slice(0, 80)); }
+        await Cloud.loadGroups(); S.scope = data.id; Store.set('scope', data.id); closeSheet(); refresh();
+        setTimeout(() => showInvite(data, true), 300);
+      };
+    });
+  }
+  function showInvite(g, fresh) {
+    const link = inviteLink(g);
+    sheet(`<div class="ginvite" style="--c:${esc(g.color)}"><span class="gbig">${esc(g.emoji)}</span><h4>${fresh ? 'Invite your people' : 'Invite to ' + esc(g.name)}</h4>
+      <p class="fine">Send this link to family or friends. When they open it and sign in, they join ${esc(g.name)}.</p>
+      <div class="gcode">${esc(g.invite_code).split('').map((ch, i) => `<i style="animation-delay:${i * 40}ms">${ch}</i>`).join('')}</div>
+      <div class="pk-acts"><button class="btn" data-copy>${svg('link', 'sm')} Copy link</button><button class="btn primary" data-share>${svg('send', 'sm')} Share invite</button></div>
+      <p class="fine">Anyone with the link can join. ${g.role === 'owner' || fresh ? 'You can make a new code from Members if it gets passed around.' : ''}</p></div>`, s => {
+      s.querySelector('[data-copy]').onclick = async () => { try { await navigator.clipboard.writeText(link); showToast('Invite link copied'); } catch (e) { showToast(link); } };
+      s.querySelector('[data-share]').onclick = async () => { try { if (navigator.share) return await navigator.share({ title: `Join ${g.name} on Smokies Live`, text: `Join our private group "${g.name}" on Smokies Live. Code: ${g.invite_code}`, url: link }); } catch (e) { return; } try { await navigator.clipboard.writeText(link); showToast('Invite link copied'); } catch (e) { showToast(link); } };
+    });
+  }
+  function joinGroup(code = '') {
+    if (!needGroups()) { if (code) Store.set('joinCode', code); return; }
+    sheet(`<h4>Join a group</h4><form class="pform"><label>Invite code<input name="code" value="${esc(code)}" maxlength="12" placeholder="8 letters and numbers" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase;letter-spacing:.2em;font-family:var(--font-data)"></label><button class="btn primary">Join</button></form><p class="fine">Ask someone in the group to send you their invite link or code.</p>`, s => {
+      const f = s.querySelector('form'); if (!code) setTimeout(() => f.code.focus(), 350);
+      f.onsubmit = async e => {
+        e.preventDefault(); const btn = f.querySelector('.btn'); btn.disabled = true; btn.textContent = 'Joining…';
+        const { data, error } = await Cloud.sb.rpc('join_group', { code: f.code.value.trim() });
+        if (error) { btn.disabled = false; btn.textContent = 'Join'; return showToast(/code/i.test(error.message) ? 'That code did not work. Check it and try again.' : error.message.slice(0, 80)); }
+        Store.set('joinCode', ''); await Cloud.loadGroups(); await Cloud.loadFeed(); closeSheet(); setScope(data.id); showToast(`Welcome to ${data.name}`);
+      };
+    });
+  }
+  async function pendingJoin() { const c = await Store.get('joinCode', ''); if (c && signedIn() && !Cloud.groupsOff) setTimeout(() => joinGroup(c), 600); }
+  async function openMembers(g) {
+    const { data } = await Cloud.sb.from('group_members').select('user_id, role, joined_at, profiles(handle, name, avatar_url)').eq('group_id', g.id).order('joined_at');
+    const owner = g.role === 'owner'; const me = Cloud.user.id;
+    sheet(`<h4>${esc(g.emoji)} ${esc(g.name)}</h4><p class="fine" style="text-align:center;margin:-6px 0 10px">${(data || []).length} member${(data || []).length === 1 ? '' : 's'}</p>
+      <div class="clist">${(data || []).map(m => `<div class="cm mem">${avatar(authorOf(m.profiles || {}), 36)}<div><b>${esc((m.profiles || {}).name || (m.profiles || {}).handle || 'Member')}</b><small>@${esc((m.profiles || {}).handle || '')}${m.role === 'owner' ? ' · owner' : ''}${m.user_id === me ? ' · you' : ''}</small></div>${owner && m.user_id !== me && m.role !== 'owner' ? `<button class="link danger" data-rm="${m.user_id}">Remove</button>` : ''}</div>`).join('')}</div>
+      <div class="menu"><button data-m="invite">${svg('link', 'sm')} Invite people</button>${owner ? '<button data-m="code">New invite code</button><button data-m="del" class="danger">Delete group</button>' : '<button data-m="leave" class="danger">Leave group</button>'}<button data-x>Close</button></div>`, s => {
+      s.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => { const { error } = await Cloud.sb.from('group_members').delete().eq('group_id', g.id).eq('user_id', b.dataset.rm); if (error) return showToast('Could not remove'); b.closest('.mem').classList.add('leave'); showToast('Removed from the group'); });
+      s.querySelector('[data-m="invite"]').onclick = () => { closeSheet(); setTimeout(() => showInvite(g), 280); };
+      const q = k => s.querySelector(`[data-m="${k}"]`);
+      if (q('code')) q('code').onclick = async () => { const { data: c, error } = await Cloud.sb.rpc('new_invite_code', { gid: g.id }); if (error) return showToast('Could not make a new code'); g.invite_code = c; await Cloud.loadGroups(); closeSheet(); setTimeout(() => showInvite(g), 280); showToast('Old invite links no longer work'); };
+      if (q('leave')) q('leave').onclick = () => confirmSheet(`Leave ${g.name}?`, 'You will stop seeing its posts. You can rejoin with an invite.', 'Leave group', async () => { await Cloud.sb.from('group_members').delete().eq('group_id', g.id).eq('user_id', me); await Cloud.loadGroups(); await Cloud.loadFeed(); setScope('public'); showToast('You left ' + g.name); });
+      if (q('del')) q('del').onclick = () => confirmSheet(`Delete ${g.name}?`, 'This removes the group and every post, photo and comment in it, for everyone. It cannot be undone.', 'Delete group', async () => { const { error } = await Cloud.sb.from('groups').delete().eq('id', g.id); if (error) return showToast('Could not delete'); await Cloud.loadGroups(); await Cloud.loadFeed(); setScope('public'); showToast('Group deleted'); });
+    });
+  }
+  function confirmSheet(title, body, label, fn) {
+    closeSheet();
+    setTimeout(() => sheet(`<h4>${esc(title)}</h4><p class="fine" style="text-align:center;margin:0 0 14px">${esc(body)}</p><div class="menu"><button data-ok class="danger">${esc(label)}</button><button data-x>Cancel</button></div>`, s => { s.querySelector('[data-ok]').onclick = () => { closeSheet(); fn(); }; }), 280);
+  }
+
   /* ---------- install as an app (home screen, full screen, works offline for the shell) ---------- */
   let installEvt = null;
   const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -2840,11 +3048,11 @@ const Social = (() => {
 
   /* ---------- start ---------- */
   async function init() {
-    await loadLocal();
+    await loadLocal(); S.scope = await Store.get('scope', 'public');
     shell(); document.body.dataset.view = 'map'; registerSW();
     if (standalone()) document.body.classList.add('app');
     drawUserPins();
-    Cloud.init().then(() => { if (Cloud.on) refresh(); });
+    Cloud.init().then(() => { if (Cloud.on) { refresh(); pendingJoin(); } });
     fetch(BASE + 'search.json').then(r => r.json()).then(j => { window.__placeIndex = j.filter(p => p[4] === 1 || p[4] === 0 || /park|trail|waterfall|historic|campground|attraction|amusement/.test(p[3])); }).catch(() => {});
     // new activity dot once feeds arrive
     setInterval(() => { const L = Live.st; const latest = Math.max(0, ...L.news.map(n => +new Date(n.published || 0)), ...L.alerts.map(a => +new Date(a.sent || 0))); $('#tabbar .dot').hidden = !(latest > (S.seen || 0)) || S.view === 'activity'; if (S.view === 'feed' && !document.querySelector('#feed .post')) renderFeed(); }, 5000);
@@ -2852,6 +3060,7 @@ const Social = (() => {
     if (h.startsWith('#post=')) setTimeout(() => { setView('feed'); const el = document.querySelector(`.post[data-id="${CSS.escape(h.slice(6))}"]`); if (el) el.scrollIntoView({ block: 'center' }); }, 4000);
     if (h === '#feed') setView('feed');
     if (h === '#report') setTimeout(() => openCreate('report'), 1500);
+    if (h.startsWith('#join=')) { const code = h.slice(6).replace(/[^A-Za-z0-9]/g, '').toUpperCase(); Store.set('joinCode', code); history.replaceState(null, '', location.pathname + location.search); setTimeout(() => { setView('feed'); Cloud.on ? joinGroup(code) : showToast('Open the full site to join this group'); }, 3500); }
     setInterval(() => { if (S.view !== 'map' || !document.hidden) drawUserPins(); }, 5 * 60e3); // reports expire on their own
     setTimeout(placesReady, 8000);
   }
