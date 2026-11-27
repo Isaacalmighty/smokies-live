@@ -9,6 +9,8 @@ const Live = (() => {
   const SITE = 'https://isaacalmighty.github.io/smokies-live/';
   // TomTom key for real traffic speeds (free plan; a browser key, like a map key). Empty = modeled traffic.
   const TOMTOM = 'j81wnoR8SajwacDSKgn20e1SNEzZzf1r';
+  const HOME_DEF = { n: 'Gatlinburg', lat: 35.714, lng: -83.512 };
+  let home = (() => { try { const h = JSON.parse(localStorage.getItem('sl-home')); return h && h.lat ? h : HOME_DEF; } catch (e) { return HOME_DEF; } })();
   const st = { blocked: false, wx: null, grid: null, alerts: [], news: [], events: [], traffic: { incidents: [], cameras: [] }, gauges: [], fires: [], radar: null, iss: null, tab: 'now', markers: {}, on: { clouds: true, radar: false, traffic: false, cams: false, news: false, rivers: false }, updated: {} };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ago = iso => { if (!iso) return ''; const s = (Date.now() - new Date(iso)) / 1000; if (s < 0) return new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }); if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' hr ago'; return Math.round(s / 86400) + ' d ago'; };
@@ -91,7 +93,7 @@ const Live = (() => {
       if (st.wx) {
         const c = st.wx.current, d = st.wx.daily;
         const summit = st.grid && st.grid.summit;
-        h += `<div class="lsec">Gatlinburg now</div><div class="nowgrid">
+        h += `<div class="lsec">${esc(home.n)} now</div><div class="nowgrid">
           <div><span>Feels like</span><b>${Math.round(c.apparent_temperature)}°</b></div>
           <div><span>Wind</span><b>${Math.round(c.wind_speed_10m)}<small> mph ${compass(c.wind_direction_10m)}</small></b></div>
           <div><span>Humidity</span><b>${Math.round(c.relative_humidity_2m)}%</b></div>
@@ -251,7 +253,7 @@ const Live = (() => {
     const pts = [...GRID, [-83.4357, 35.6545]];
     const base = 'https://api.open-meteo.com/v1/forecast?';
     const gridURL = base + `latitude=${pts.map(p => p[1].toFixed(3)).join(',')}&longitude=${pts.map(p => p[0].toFixed(3)).join(',')}&current=temperature_2m,dew_point_2m,relative_humidity_2m,cloud_cover_low,cloud_cover_mid,cloud_cover_high,precipitation,rain,showers,snowfall,weather_code,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph`;
-    const ptURL = base + 'latitude=35.714&longitude=-83.512&current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,visibility,precipitation&hourly=temperature_2m,weather_code,precipitation_probability,is_day&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FNew_York&forecast_days=2';
+    const ptURL = base + `latitude=${home.lat.toFixed(3)}&longitude=${home.lng.toFixed(3)}&` + 'current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,visibility,precipitation&hourly=temperature_2m,weather_code,precipitation_probability,is_day&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FNew_York&forecast_days=2';
     const [g, w] = await Promise.allSettled([jget(gridURL), jget(ptURL)]);
     if (w.status === 'fulfilled') { st.wx = w.value; st.updated.wx = new Date().toISOString(); chip(); applyLiveWind(); }
     if (g.status === 'fulfilled') {
@@ -271,7 +273,7 @@ const Live = (() => {
     const c = st.wx.current;
     $('#liveChip').querySelector('svg').outerHTML = icon(c.weather_code, c.is_day);
     $('#wxTemp').textContent = Math.round(c.temperature_2m) + '°';
-    $('#wxDesc').innerHTML = `<b>${WMO[c.weather_code] || ''}</b> in Gatlinburg · wind ${Math.round(c.wind_speed_10m)} mph ${compass(c.wind_direction_10m)}${st.grid && st.grid.summit ? `<br>Le Conte summit ${Math.round(st.grid.summit.temperature_2m)}°` : ''}`;
+    $('#wxDesc').innerHTML = `<b>${WMO[c.weather_code] || ''}</b> in ${esc(home.n)} · wind ${Math.round(c.wind_speed_10m)} mph ${compass(c.wind_direction_10m)}${st.grid && st.grid.summit ? `<br><span>Le Conte summit ${Math.round(st.grid.summit.temperature_2m)}°</span>` : ''}`;
   }
   function applyLiveWind() { // the wildfire tool starts from today's real wind
     if (!st.wx || toolState.fire) return; const c = st.wx.current;
@@ -308,7 +310,7 @@ const Live = (() => {
         const v = (k) => (c(i, j)[k] * (1 - tx) + c(i + 1, j)[k] * tx) * (1 - ty) + (c(i, j + 1)[k] * (1 - tx) + c(i + 1, j + 1)[k] * tx) * ty;
         return typeof key === 'function' ? key(v) : v(key);
       };
-      const small = innerWidth < 760 ? 0.55 : 1;
+      const small = innerWidth < 760 ? 0.32 : 1; // phones: fewer, slightly bolder puffs (big alpha sprites are the costliest thing on a phone GPU)
       const LAYERS = [
         // kept above the highest peaks (Kuwohi is 2,025 m) so the map stays readable under an overcast sky
         { key: 'cloud_cover_low', count: 2600, size: [1300, 2800], alpha: 0.4, thick: 600, base: (lng, lat) => Math.max(2350, cover(lng, lat, v => v('elev') + Math.max(150, (v('temperature_2m') - v('dew_point_2m')) * 0.5556 * 125))) },
@@ -327,7 +329,7 @@ const Live = (() => {
           const m = maplibregl.MercatorCoordinate.fromLngLat([lng, lat], 0);
           const alt = (L.base(lng, lat) + Math.pow(r(), 1.6) * L.thick * (0.4 + cv)) * EXAG;
           const size = (L.size[0] + r() * (L.size[1] - L.size[0])) * mpu * (li === 2 ? 1 : 0.6 + 0.6 * cv);
-          P.push({ x: m.x - O.x, y: m.y - O.y, z: alt * mpu, s: size, a: L.alpha * (0.45 + 0.55 * cv), l: li, r: r() });
+          P.push({ x: m.x - O.x, y: m.y - O.y, z: alt * mpu, s: size, a: Math.min(0.6, L.alpha * (0.45 + 0.55 * cv) * (small < 1 ? 1.35 : 1)), l: li, r: r() });
         }
       });
       this.puffs = P; this.n = P.length; this.dirty = true;
@@ -386,7 +388,7 @@ const Live = (() => {
       for (let i = 0; i < 4; i++) Mm[12 + i] = M[i] * ox + M[4 + i] * oy + M[12 + i];
       const t = (performance.now() - this.t0) / 1000;
       const now = performance.now();
-      if (this.dirty || now - this.lastSort > 280) { this.sort(Mm, t); this.lastSort = now; this.dirty = false; this.upload(gl); }
+      if (this.dirty || now - this.lastSort > (innerWidth < 760 ? 600 : 280)) { this.sort(Mm, t); this.lastSort = now; this.dirty = false; this.upload(gl); }
       const norm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
       const right = norm([M[0], M[4], M[8]]), up = norm([M[1], M[5], M[9]]);
       gl.useProgram(this.prog);
@@ -693,5 +695,5 @@ const Live = (() => {
     const b = document.querySelector(`[data-live="${k}"]`); if (b) b.setAttribute('aria-pressed', on);
     if (map) applyToggles(k);
   }
-  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render, refresh, setOn, setOpen: on => setOpen(on), icon, WMO, liveTraffic: () => !!TOMTOM };
+  return { init, st, cloudLight, flowColor, Clouds, Rain, focus, render, refresh, setOn, setOpen: on => setOpen(on), icon, WMO, home: () => home, setHome(h) { home = h; try { localStorage.setItem('sl-home', JSON.stringify(h)); } catch (e) { } return loadWeather(); }, liveTraffic: () => !!TOMTOM };
 })();

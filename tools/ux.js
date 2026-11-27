@@ -151,6 +151,28 @@ const UX = (() => {
   /* ---------- Today ---------- */
   const WHO = [['visitor', '🧳', 'Visiting', 'Plan the day: weather, drive times, what\'s worth it'], ['local', '🏡', 'I live here', 'Roads, alerts, neighbors, the Parkway clock'], ['explorer', '🥾', 'Exploring', 'Hikes, sunrise, rivers, wildlife, photos']];
   const who = () => store.get('who', 'visitor');
+  const TOWNS = [['Sevierville', 35.868, -83.562], ['Pigeon Forge', 35.788, -83.554], ['Gatlinburg', 35.714, -83.510], ['Wears Valley', 35.702, -83.665], ['Kodak', 35.971, -83.618], ['Seymour', 35.886, -83.775], ['Townsend', 35.675, -83.756], ['Cosby', 35.789, -83.210], ['Newport', 35.967, -83.188], ['Maryville', 35.757, -83.971], ['Knoxville', 35.961, -83.921], ['Cherokee', 35.484, -83.315], ['Bryson City', 35.431, -83.450], ['Maggie Valley', 35.518, -83.098], ['Waynesville', 35.489, -82.989]];
+  const home = () => (window.Live && Live.home ? Live.home() : { n: 'Gatlinburg' });
+  function nearestTown(lat, lng) { let b = TOWNS[0], d = 1e9; TOWNS.forEach(t => { const k = (t[1] - lat) ** 2 + ((t[2] - lng) * 0.81) ** 2; if (k < d) { d = k; b = t; } }); return b; }
+  function setHome(t, quiet) {
+    if (!window.Live || !Live.setHome) return;
+    Promise.resolve(Live.setHome({ n: t[0], lat: t[1], lng: t[2] })).then(() => { if (document.body.dataset.view === 'today') today($('#sv-today')); });
+    store.set('homeSet', true); if (!quiet) toast(`Weather and your brief now follow ${t[0]}`);
+    if (document.body.dataset.view === 'today') today($('#sv-today'));
+  }
+  function askHome(first) {
+    const w = who(), q = w === 'local' ? 'Where do you live?' : w === 'explorer' ? 'Where are you based?' : 'Where are you staying?';
+    const s = sheet('home', `<header class="uxh"><div><b>${q}</b><small>Your weather, morning brief and drive times start from here.</small></div><button class="uxx" data-x aria-label="Close">✕</button></header>
+      <button class="uxgps" data-gps>📍 Use my location</button>
+      <div class="uxtowns">${TOWNS.map((t, i) => `<button data-town="${i}" aria-pressed="${t[0] === home().n}" style="--i:${i}">${esc(t[0])}</button>`).join('')}</div>
+      ${first ? '<p class="uxfine">You can change this any time from the Today screen.</p>' : ''}`);
+    s.querySelectorAll('[data-town]').forEach(b => b.onclick = () => { press(b); setHome(TOWNS[+b.dataset.town]); setTimeout(closeSheet, 200); });
+    s.querySelector('[data-gps]').onclick = () => {
+      if (!navigator.geolocation) return toast('Location is not available on this device');
+      s.querySelector('[data-gps]').textContent = '📍 Finding you…';
+      navigator.geolocation.getCurrentPosition(p => { const t = nearestTown(p.coords.latitude, p.coords.longitude); setHome(t); closeSheet(); }, () => { toast('Could not get your location. Pick your town instead.'); s.querySelector('[data-gps]').textContent = '📍 Use my location'; }, { timeout: 10000, maximumAge: 600000 });
+    };
+  }
   function greet() {
     const h = +new Date().toLocaleString('en-US', { timeZone: TZ, hour: 'numeric', hour12: false });
     return h < 4 ? 'Up late' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
@@ -170,7 +192,7 @@ const UX = (() => {
     let k = hrs.time.findIndex(t => new Date(t + ':00-05:00').valueOf() > now - 3600e3); if (k < 0) k = 0;
     const strip = hrs.time.slice(k, k + 12).map((t, j) => { const i = k + j; const p = hrs.precipitation_probability[i] || 0; return `<div><small>${j ? new Date(t + ':00-05:00').toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric' }) : 'Now'}</small>${Live.icon(hrs.weather_code[i], hrs.is_day ? hrs.is_day[i] : 1).replace('id="wxIcon"', 'width="26" height="26"')}<b>${Math.round(hrs.temperature_2m[i])}°</b>${p >= 20 ? `<i>${p}%</i>` : '<i></i>'}</div>`; }).join('');
     const fmt = s => new Date(s + ':00-05:00').toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
-    return `<div class="uxwx"><div class="big">${Live.icon(c.weather_code, c.is_day).replace('id="wxIcon"', 'width="64" height="64"')}<div><b>${Math.round(c.temperature_2m)}°</b><span>${esc(Live.WMO[c.weather_code] || '')} in Gatlinburg</span><small>High ${Math.round(d.temperature_2m_max[0])}° · Low ${Math.round(d.temperature_2m_min[0])}° · Feels ${Math.round(c.apparent_temperature)}°${L.grid && L.grid.summit ? ` · Le Conte ${Math.round(L.grid.summit.temperature_2m)}°` : ''}</small></div></div>
+    return `<div class="uxwx"><div class="big">${Live.icon(c.weather_code, c.is_day).replace('id="wxIcon"', 'width="64" height="64"')}<div><b>${Math.round(c.temperature_2m)}°</b><span>${esc(Live.WMO[c.weather_code] || '')} in ${esc(home().n)}</span><small>High ${Math.round(d.temperature_2m_max[0])}° · Low ${Math.round(d.temperature_2m_min[0])}° · Feels ${Math.round(c.apparent_temperature)}°${L.grid && L.grid.summit ? ` · Le Conte ${Math.round(L.grid.summit.temperature_2m)}°` : ''}</small></div></div>
       <div class="strip">${strip}</div><div class="sun">🌅 ${fmt(d.sunrise[0])} <span>·</span> 🌇 ${fmt(d.sunset[0])}</div></div>`;
   }
   function section(title, tab, body, more) {
@@ -224,7 +246,7 @@ const UX = (() => {
       local: [section('Your morning brief', 'today', brief(), 'Local hub'), section('Rivers', 'alerts', rivers(), 'My alerts'), sponsor()],
       explorer: [section('Sunrise and fog', 'sky', sunrise(), 'Forecast'), section('Best views now', 'go', worthTop(3), 'All places'), section('Rivers', 'alerts', rivers(), 'Alerts'), section('Out there', 'trails', chips([['trails', '🥾', 'Trail reports'], ['wild', '🐻', 'Sightings'], ['memory', '🕰️', 'Old photos']])), section('Happening today', 'events', events(), 'Events')],
     }[w];
-    el.innerHTML = `<header class="uxtop"><div><small>${esc(date)}</small><b>${greet()}${w === 'local' ? ', neighbor' : ''}.</b></div><button class="uxwho" data-who aria-label="Change who this is for">${WHO.find(x => x[0] === w)[1]} ${esc(WHO.find(x => x[0] === w)[2])} ▾</button></header>
+    el.innerHTML = `<header class="uxtop"><div><small>${esc(date)}</small><b>${greet()}${w === 'local' ? ', neighbor' : ''}.</b></div><div class="uxchipsr"><button class="uxwho" data-home aria-label="Change your town">📍 ${esc(home().n)} ▾</button><button class="uxwho" data-who aria-label="Change who this is for">${WHO.find(x => x[0] === w)[1]} ${esc(WHO.find(x => x[0] === w)[2])} ▾</button></div></header>
       <div class="uxbody">${urgent()}${weather()}${parts.join('')}<p class="uxfine">Weather from Open-Meteo and the National Weather Service. Drive times from TomTom. Events from the town calendars.</p></div>`;
     if (window.Locals && Locals.rings) Locals.rings(el);
   }
@@ -248,6 +270,7 @@ const UX = (() => {
   function onPane(e) {
     const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
     if (d.who != null) { askWho(true); return; }
+    if (d.home != null) { askHome(false); return; }
     if (d.setwho) { setWho(d.setwho); more($('#sv-more')); return; }
     if (d.hub) { if (window.Locals) { toView('map'); setTimeout(() => Locals.openHub(d.hub), 120); } return; }
     if (d.v) { toView(d.v); if (d.groups != null) setTimeout(() => { const g = document.querySelector('.pgroups'); if (g) g.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 250); return; }
@@ -273,8 +296,13 @@ const UX = (() => {
     const s = sheet('who', `<header class="uxh"><div><b>${again ? 'Who is this for?' : 'Welcome to Smokies Live'}</b><small>${again ? 'Today will show what matters to you first.' : 'The whole park, live. Tell us what brings you here and we\'ll keep it simple.'}</small></div>${again ? '<button class="uxx" data-x aria-label="Close">✕</button>' : ''}</header>
       <div class="uxwhos">${WHO.map(([k, ic, n, d], i) => `<button data-pick="${k}" style="--i:${i}"><span class="ic">${ic}</span><b>${esc(n)}</b><small>${esc(d)}</small></button>`).join('')}</div>
       ${again ? '' : '<p class="uxfine">You can change this any time under More. The map starts clean; tap <b>Show on map</b> to add traffic, radar, trails and more.</p>'}`);
-    s.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { press(b); setWho(b.dataset.pick); setTimeout(closeSheet, 220); if (!again) setTimeout(() => toast(b.dataset.pick === 'local' ? 'Welcome, neighbor. Today has your roads and alerts.' : 'You\'re set. Tap Today any time for the day\'s plan.'), 500); });
+    s.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { press(b); setWho(b.dataset.pick); if (again) { setTimeout(closeSheet, 220); return; } setTimeout(() => askHome(true), 260); });
   }
+  function quietHome() { // already allowed location? pick the nearest town without asking
+    if (store.get('homeSet', false) || !navigator.permissions || !navigator.geolocation) return;
+    navigator.permissions.query({ name: 'geolocation' }).then(r => { if (r.state === 'granted') navigator.geolocation.getCurrentPosition(p => setHome(nearestTown(p.coords.latitude, p.coords.longitude), true), () => { }, { timeout: 10000, maximumAge: 600000 }); }).catch(() => { });
+  }
+  function tabh() { const t = $('#tabbar'); if (!t) return; const r = t.getBoundingClientRect(); const h = r.top > innerHeight / 2 ? Math.max(0, innerHeight - r.top) : 0; document.body.style.setProperty('--tabh', h + 'px'); }
   function toast(msg) { const t = $('#toast'); if (!t) return; t.textContent = msg; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 3000); }
 
   /* ---------- search: popular places before you type ---------- */
@@ -305,7 +333,7 @@ const UX = (() => {
     const ab = $('#alertBar'); if (ab) ab.addEventListener('click', e => { e.stopImmediatePropagation(); toView('today'); }, true);
     ['#sv-today', '#sv-more'].forEach(s => { const el = $(s); if (el) el.addEventListener('click', onPane); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
-    searchHelp();
+    searchHelp(); tabh(); addEventListener('resize', tabh); setTimeout(tabh, 1500); setInterval(tabh, 5000); quietHome();
     // apply what this person chose last time (or the clean defaults)
     const w = want(); ALL.forEach(([k, , , , io]) => { if (io.get() !== w[k]) try { io.set(w[k]); } catch (e) { } });
     if (window.Locals) Locals.setLocalMode(who() === 'local', true);
@@ -321,7 +349,7 @@ const UX = (() => {
 
   return {
     render(v, el) { if (v === 'today') today(el); else if (v === 'more') more(el); },
-    share, openShow, closeSheet, preset, setLayer, askWho,
+    share, openShow, closeSheet, preset, setLayer, askWho, askHome,
   };
 })();
 window.UX = UX;
