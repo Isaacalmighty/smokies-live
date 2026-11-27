@@ -351,3 +351,57 @@ body.app #credits{display:none}
 .media.txt.camlink{aspect-ratio:16/10;color:inherit;text-decoration:none;background:radial-gradient(120% 90% at 80% 0%,#1d6b5a,#08110e 78%)}
 .media.txt.camlink .watch{display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:8px 14px;border-radius:999px;background:#fff;color:#0b100e;font-weight:700;font-size:14px}
 .media.txt.camlink:active .watch{transform:scale(.95)}
+
+/* ---------- private groups ---------- */
+.ic.xs{width:12px;height:12px;stroke-width:2.4;vertical-align:-1px}
+.scopes{display:flex;gap:8px;overflow-x:auto;padding:2px 14px 10px;scrollbar-width:none}
+.scopes::-webkit-scrollbar{display:none}
+.scopes button{flex:none;display:flex;align-items:center;gap:7px;padding:5px 12px 5px 5px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--ink-dim);cursor:pointer;font-size:13.5px;transition:background .3s,border-color .3s,color .3s,transform .35s var(--ease-out)}
+.scopes button b{font-weight:600;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scopes .ge,.pgroups .ge{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:color-mix(in srgb,var(--c,#3f6f8f) 40%,#111);font-size:15px;color:#fff;flex:none}
+.scopes button[aria-selected="true"]{background:color-mix(in srgb,var(--c) 22%,transparent);border-color:color-mix(in srgb,var(--c) 70%,#fff 0%);color:var(--ink)}
+.scopes button.bump,.gprev.bump{animation:bump .45s var(--ease-out)}
+.scopes .gnew{border-style:dashed}
+.scopes .gnew .ge,.pgroups .gnew .ge{background:rgba(255,255,255,.08);font-size:18px;font-weight:600}
+body.ingroup #stories,body.ingroup #fchips{display:none}
+.ghead{position:relative;margin:0 14px 14px;padding:18px 16px 14px;border-radius:18px;background:radial-gradient(120% 120% at 0% 0%,color-mix(in srgb,var(--c) 45%,#0b100e),#0e1411 70%);border:1px solid color-mix(in srgb,var(--c) 40%,transparent);display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:center;animation:fresh .7s var(--ease-out)}
+.ghead .gbig{font-size:40px;width:64px;height:64px;display:grid;place-items:center;border-radius:20px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.15)}
+.ghead h2{margin:0;font-family:var(--font-display);font-size:24px;line-height:1.1}
+.ghead span{font-size:12.5px;color:var(--ink-dim)}
+.gacts{grid-column:1/-1;display:flex;gap:8px;margin-top:12px}
+.gacts .btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 6px;font-size:13.5px}
+.gtag{display:inline-flex;align-items:center;gap:4px;margin-left:8px;padding:1px 8px 1px 6px;border-radius:999px;border:0;background:color-mix(in srgb,var(--c) 30%,transparent);color:#e9f1ea;font-size:11.5px;font-weight:600;cursor:pointer;vertical-align:1px}
+.shareto{margin:4px 0 10px}
+.shareto small{display:block;color:var(--ink-faint);font-size:12px;margin-bottom:6px}
+.shareto div{display:flex;gap:6px;flex-wrap:wrap}
+.shareto button{display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:none;color:var(--ink-dim);font-size:13px;cursor:pointer;transition:background .25s,border-color .25s,color .25s}
+.shareto button.on{background:color-mix(in srgb,var(--c) 28%,transparent);border-color:var(--c);color:#fff}
+.gintro{text-align:center;padding:4px 0 6px}.gintro>span{font-size:44px;display:block;animation:ppop .6s var(--ease-out)}
+.gintro h4{margin:6px 0 2px}.gintro .fine{margin:0 0 12px}
+.gform .gprev{width:76px;height:76px;margin:4px auto 10px;border-radius:24px;display:grid;place-items:center;font-size:40px;background:radial-gradient(circle at 30% 20%,color-mix(in srgb,var(--c) 85%,#fff 10%),color-mix(in srgb,var(--c) 70%,#000));box-shadow:0 10px 26px color-mix(in srgb,var(--c) 40%,transparent);transition:background .4s}
+.gpick{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.gpick button{aspect-ratio:1;border-radius:12px;border:1px solid transparent;background:rgba(255,255,255,.04);font-size:20px;cursor:pointer;transition:transform .3s var(--ease-out),background .2s,border-color .2s}
+.gpick button.on{background:rgba(255,255,255,.12);border-color:var(--ink-faint);transform:scale(1.08)}
+.gcols{display:flex;gap:8px;justify-content:center;margin:6px 0 4px}
+.gcols button{width:28px;height:28px;border-radius:50%;border:2px solid transparent;background:var(--c);cursor:pointer;transition:transform .3s var(--ease-out)}
+.gcols button.on{border-color:#fff;transform:scale(1.15)}
+.ginvite{text-align:center}.ginvite .gbig{font-size:46px;display:block;animation:ppop .6s var(--ease-out)}
+.ginvite h4{margin:6px 0 4px}
+.gcode{display:flex;justify-content:center;gap:5px;margin:14px 0}
+.gcode i{font-style:normal;width:30px;height:40px;display:grid;place-items:center;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid color-mix(in srgb,var(--c) 50%,transparent);font:600 20px var(--font-data);opacity:0;animation:rise .45s var(--ease-out) forwards;transform:translateY(8px)}
+.cm.mem{align-items:center}.cm.mem div{flex:1}
+.link.danger,.menu .danger{color:#ff7b6b}
+.pgroups{padding:0 14px 8px}.pgroups .sideHead{padding:0;margin:8px 0}
+.pgroups>div{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+.pgroups button{flex:none;width:112px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--ink);cursor:pointer;transition:transform .3s var(--ease-out)}
+.pgroups button:active{transform:scale(.95)}
+.pgroups .ge{width:44px;height:44px;font-size:22px}
+.pgroups b{font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pgroups small{font-size:11px;color:var(--ink-faint)}
+.grow{width:100%;background:none;border:0;color:inherit;text-align:left;cursor:pointer;border-radius:10px;font:inherit}
+.grow:hover{background:rgba(255,255,255,.04)}
+.gdot{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:color-mix(in srgb,var(--c,#555) 45%,#111);font-size:16px;flex:none}
+.ppin.grp{border-color:#ffe6b0;box-shadow:0 0 0 3px rgba(255,230,176,.35),0 6px 16px rgba(0,0,0,.5)}
+.otp .otpf{display:flex;gap:8px;width:100%;max-width:300px;margin-top:10px}
+.otpf input{flex:1;min-width:0;text-align:center;font:600 22px var(--font-data);letter-spacing:.3em}
+.otpf.shake{animation:shake .4s var(--ease-io)}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
