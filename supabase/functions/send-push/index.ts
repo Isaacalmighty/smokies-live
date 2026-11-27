@@ -46,6 +46,7 @@ const LINES: Record<string, (who: string, n: number, t: string) => [string, stri
   dm: (w, _n, t) => [w, t],
   group_post: (w, _n, t) => [`${w} posted in your group`, t],
   group_join: w => [`${w} joined your group`, ''],
+  tag: (w, _n, t) => [`${w} tagged you in a group photo`, t],
 };
 async function forNotification(id: number) {
   const { data: n } = await db.from('notifications').update({ pushed_at: new Date().toISOString() }).eq('id', id).is('pushed_at', null).select('id,user_id,actor,kind,n,text,post_id,thread_id,group_id').maybeSingle();

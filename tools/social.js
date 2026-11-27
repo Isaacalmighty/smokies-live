@@ -9,7 +9,7 @@ const Social = (() => {
   // Supabase project (public URL and anon key; data is protected by row-level security). Empty = device-only mode.
   const SUPA = { url: 'https://uamuqhkpbszogmdusfqr.supabase.co', key: 'sb_publishable_Y0fiNms2M0TI1Ph_ITWk0Q_hk2TS848' };
   const SUPA_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.79.0/dist/umd/supabase.js';
-  const S = { showPins: (() => { try { return localStorage.getItem('sl-userpins') === '1'; } catch (e) { return false; } })(), view: 'map', posts: [], likes: {}, saved: {}, comments: {}, me: null, stories: [], storyAt: 0, pins: [], seen: 0, news: [], freshNews: new Set(), votes: {}, rvotes: {}, filter: 'all', here: null, groups: [], scope: 'public', signed: {} };
+  const S = { showPins: (() => { try { return localStorage.getItem('sl-userpins') === '1'; } catch (e) { return false; } })(), view: 'map', posts: [], likes: {}, saved: {}, comments: {}, me: null, stories: [], storyAt: 0, pins: [], seen: 0, news: [], freshNews: new Set(), votes: {}, rvotes: {}, filter: 'all', here: null, groups: [], scope: 'public', signed: {}, members: {}, wall: true };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ago = iso => { if (!iso) return ''; const s = (Date.now() - new Date(iso)) / 1000; if (s < 0) return 'upcoming'; if (s < 60) return 'now'; if (s < 3600) return Math.round(s / 60) + 'm'; if (s < 86400) return Math.round(s / 3600) + 'h'; if (s < 7 * 86400) return Math.round(s / 86400) + 'd'; return new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }); };
   const I = { // 24px line icons
@@ -100,6 +100,12 @@ const Social = (() => {
       this.groupsOff = false;
       S.groups = (data || []).filter(r => r.groups).map(r => ({ ...r.groups, role: r.role })).sort((a, b) => a.name.localeCompare(b.name));
       if (S.scope !== 'public' && !S.groups.some(g => g.id === S.scope)) S.scope = 'public';
+      await this.loadMembers();
+    },
+    async loadMembers() { // everyone in your groups, in one ask: names for tags and the "tag people" picker
+      S.members = {}; if (!S.groups.length) return;
+      const { data } = await this.sb.from('group_members').select('group_id, user_id, profiles(handle, name, avatar_url)').in('group_id', S.groups.map(g => g.id));
+      (data || []).forEach(m => { (S.members[m.group_id] = S.members[m.group_id] || []).push({ id: m.user_id, ...authorOf(m.profiles || {}) }); });
     },
     async signPhotos() { // group photos are private: get short-lived links for the ones in view
       const need = [...new Set(S.remote.flatMap(r => [r.image_url, r.video_url]).filter(u => u && u.startsWith('gp:') && !S.signed[u.slice(3)]))].map(u => u.slice(3));
@@ -187,7 +193,11 @@ const Social = (() => {
   }
   const imgOf = u => u && u.startsWith('gp:') ? S.signed[u.slice(3)] || '' : u;
   const groupOf = id => id ? S.groups.find(g => g.id === id) || { id, name: 'Private group', emoji: '🔒', color: '#555' } : null;
-  const remoteItem = r => ({ id: 's' + r.id, kind: 'user', group: groupOf(r.group_id), a: authorOf(r), t: r.created_at, img: imgOf(r.image_url), vid: r.video_url ? imgOf(r.video_url) : null, vm: r.video_meta, text: r.caption, tag: r.tag, place: r.lng != null ? { name: r.place_name || 'Pinned spot', lng: r.lng, lat: r.lat } : null, likes: r.like_count, ncom: r.comment_count, mine: !!(Cloud.user && r.user_id === Cloud.user.id), ref: { id: 's' + r.id, sid: r.id, remote: true, img: r.image_url, vid: r.video_url, gid: r.group_id, uid: r.user_id, h: r.handle } });
+  const whoIn = (gid, uid) => (S.members[gid] || []).find(m => m.id === uid);
+  const tagNames = p => (p.tagged || []).map(u => p.group && whoIn(p.group.id, u)).filter(Boolean);
+  const andList = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+  const withLine = p => { const me = Cloud.user && Cloud.user.id, t = tagNames(p).sort((x, y) => (y.id === me) - (x.id === me)); return t.length ? `<div class="with">${svg('users', 'xs')} with ${andList(t.map(m => `<b>${m.id === me ? 'you' : esc(m.name)}</b>`))}</div>` : ''; };
+  const remoteItem = r => ({ id: 's' + r.id, kind: 'user', group: groupOf(r.group_id), a: authorOf(r), t: r.created_at, img: imgOf(r.image_url), vid: r.video_url ? imgOf(r.video_url) : null, vm: r.video_meta, text: r.caption, tag: r.tag, place: r.lng != null ? { name: r.place_name || 'Pinned spot', lng: r.lng, lat: r.lat } : null, likes: r.like_count, ncom: r.comment_count, mine: !!(Cloud.user && r.user_id === Cloud.user.id), tagged: r.tagged || [], ref: { id: 's' + r.id, sid: r.id, remote: true, img: r.image_url, vid: r.video_url, gid: r.group_id, uid: r.user_id, h: r.handle } });
 
   async function loadLocal() {
     S.me = await Store.get('me', null);
@@ -262,7 +272,7 @@ const Social = (() => {
       <div class="acts"><button class="ib like${liked ? ' on' : ''}" data-act="like" aria-label="Like" aria-pressed="${liked}">${svg('heart')}</button><button class="ib" data-act="comment" aria-label="Comment">${svg('comment')}</button><button class="ib" data-act="share" aria-label="Share">${svg('send')}</button>${p.place ? `<button class="ib" data-act="map" aria-label="See on map">${svg('pin')}</button>` : ''}<span class="sp"></span><button class="ib save${saved ? ' on' : ''}" data-act="save" aria-label="Save">${svg('save')}</button></div>
       ${R ? `<div class="rvote"><span>${R.still > 1 ? `${R.still} people say it's still there · ` : R.still === 1 && R.mine !== 'still' ? '1 person says it\'s still there · ' : ''}up for ${fmtLeft(R.left)} more</span><button data-act="still" class="${R.mine === 'still' ? 'on' : ''}">${svg('eye', 'sm')} Still there</button><button data-act="cleared" class="${R.mine === 'cleared' ? 'on' : ''}">${svg('check', 'sm')} ${p.mine ? 'Resolved' : 'Cleared'}</button></div>` : ''}
       ${likeLine}${p.tag && !R ? `<div class="ptag">#${esc(p.tag.toLowerCase())}</div>` : ''}
-      ${cap ? `<div class="cap"><b>${esc(p.a.h)}</b> ${cap}</div>` : ''}
+      ${cap ? `<div class="cap"><b>${esc(p.a.h)}</b> ${cap}</div>` : ''}${p.tagged && p.tagged.length ? withLine(p) : ''}
       ${p.link && p.card !== 'cam' ? `<a class="more" href="${esc(p.link)}" target="_blank" rel="noopener">${p.kind === 'news' ? 'Read the full story' : 'More details'}</a>` : ''}
       ${nC ? `<button class="more" data-act="comment">View ${nC} comment${nC > 1 ? 's' : ''}</button>` : ''}
     </article>`;
@@ -353,6 +363,7 @@ const Social = (() => {
     });
   }
   function setView(v) {
+    if (v !== S.view) Wall.g = null; // coming back to a wall plays its entrance again
     S.view = v; document.body.dataset.view = v; if (window.UX) UX.closeSheet();
     document.querySelectorAll('#tabbar button').forEach(b => b.toggleAttribute('aria-current', b.dataset.v === v));
     const sv = $('#socialView');
@@ -386,7 +397,7 @@ const Social = (() => {
   }
   function setScope(id) {
     if (id === 'new') return openGroups();
-    S.scope = id; Store.set('scope', id); S.filter = 'all';
+    S.scope = id; Store.set('scope', id); S.filter = 'all'; Wall.g = null;
     if (S.view !== 'feed') setView('feed'); else renderFeed();
     $('#socialView').scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -394,14 +405,62 @@ const Social = (() => {
     const items = S.remote.filter(r => r.group_id === g.id).map(remoteItem);
     items.forEach(x => { if (isReport(x.tag)) { x.kind = 'report'; x.rs = rstate(x); } });
     feedCache = items.filter(x => !(x.kind === 'report' && x.rs.gone));
-    $('#feed').innerHTML = `<div class="ghead" style="--c:${esc(g.color)}"><span class="gbig">${esc(g.emoji)}</span><div><h2>${esc(g.name)}</h2><span>${svg('lock', 'xs')} Private group · only members see these posts</span></div>
-      <div class="gacts"><button class="btn primary" data-g="post">${svg('plus', 'sm')} Post</button><button class="btn" data-g="invite">${svg('link', 'sm')} Invite</button><button class="btn" data-g="members">${svg('users', 'sm')} Members</button></div></div>` +
-      (feedCache.length ? feedCache.map(card).join('') : `<div class="empty">${svg('camera', 'big')}<b>Nothing here yet</b><span>Share the first photo or update with ${esc(g.name)}. Only people in this group will see it.</span></div>`);
+    const n = (S.members[g.id] || []).length, wall = S.wall; Wall.loadFont();
+    $('#feed').innerHTML = `<div class="ghead" style="--c:${esc(g.color)}"><span class="gbig">${esc(g.emoji)}</span><div><h2>${esc(g.name)}</h2><span>${svg('lock', 'xs')} Private${n ? ` · ${n} member${n === 1 ? '' : 's'}` : ''} · only members see this</span></div>
+      <div class="gacts"><button class="btn primary" data-g="post">${svg('camera', 'sm')} Pin a photo</button><button class="btn" data-g="invite">${svg('link', 'sm')} Invite</button><button class="btn" data-g="members">${svg('users', 'sm')} Members</button></div>
+      <div class="gview" role="tablist" data-on="${wall ? 'wall' : 'list'}"><button role="tab" data-w="wall" aria-selected="${wall}">${svg('grid', 'xs')} Wall</button><button role="tab" data-w="list" aria-selected="${!wall}">${svg('comment', 'xs')} Posts</button><i></i></div></div>` +
+      (!feedCache.length ? `<div class="wall empty-wall"><div class="pol ghost" style="--r:-3deg;--pc:#d94a3a"><i class="pin"></i><div class="ph">${svg('camera', 'big')}</div><div class="hw"><b>Your first memory</b><span>goes right here</span></div></div><p>Pin the first photo for ${esc(g.name)}. Only people in this group will ever see it.</p></div>`
+        : wall ? Wall.html(feedCache, g.id) : feedCache.map(card).join(''));
     const f = $('#feed');
     f.querySelector('[data-g="post"]').onclick = () => openCreate('post');
     f.querySelector('[data-g="invite"]').onclick = () => showInvite(g);
     f.querySelector('[data-g="members"]').onclick = () => openMembers(g);
+    f.querySelectorAll('[data-w]').forEach(b => b.onclick = () => { const w = b.dataset.w === 'wall'; if (w === S.wall) return; S.wall = w; Store.set('wall', w); renderGroupFeed(g); });
+    if (wall) Wall.wire(f);
   }
+  /* ---------- the group wall: every photo is a Polaroid pinned up, dated and labeled by hand ---------- */
+  const Wall = {
+    font: false,
+    loadFont() { if (this.font) return; this.font = true; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap'; document.head.appendChild(l); },
+    hash(id) { let h = 0; for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); },
+    day(t) { const d = new Date(t); return d.toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }) + (d.getFullYear() !== new Date().getFullYear() ? ` '${String(d.getFullYear()).slice(2)}` : ''); },
+    spot(p) { return p.place && p.place.name !== 'Pinned spot' ? p.place.name.split(',')[0] : ''; },
+    one(p, j, isNew) {
+      const h = this.hash(p.id), r = ((h % 9) - 4) * 0.8 + (j % 2 ? 0.6 : -0.6), pin = h % 3 === 0 ? 'tape' : 'pin', hue = ['#d94a3a', '#e0a526', '#3f8f6f', '#3f6f9f'][h % 4];
+      const me = Cloud.user && Cloud.user.id, tags = tagNames(p), who = tags.length ? `<span class="w">w/ ${esc(andList(tags.sort((x, y) => (y.id === me) - (x.id === me)).map(m => m.id === me ? 'you' : m.name.split(' ')[0])))}</span>` : '';
+      const delay = `animation-delay:${Math.min(j, 8) * 55}ms`;
+      if (!p.img) { // words only, or a report: a sticky note
+        const R = p.kind === 'report' && RC[(p.tag || '').slice(2)];
+        return `<button class="pol note${R ? ' rep' : ''}${isNew ? ' fresh' : ''}" data-id="${esc(p.id)}" style="--r:${r.toFixed(1)}deg;--pc:${hue};${delay}"><i class="${pin}"></i><div class="hw"><p>${R ? R[1] + ' ' : ''}${esc((p.text || (R ? R[0] : '')).slice(0, 140))}</p><span class="d">${this.day(p.t)}${this.spot(p) ? ' · ' + esc(this.spot(p)) : ''}</span>${who}</div><span class="by">${avatar(p.a, 20)}</span></button>`;
+      }
+      return `<button class="pol${isNew ? ' fresh' : ''}" data-id="${esc(p.id)}" style="--r:${r.toFixed(1)}deg;--pc:${hue};${delay}"><i class="${pin}"></i><div class="ph"><img src="${esc(p.img)}" alt="" loading="lazy" decoding="async">${p.vid ? `<span class="vb">${svg('play', 'sm')}</span>` : ''}</div>
+        <div class="hw"><span class="d">${this.day(p.t)}</span>${this.spot(p) ? `<span class="l">${esc(this.spot(p))}</span>` : ''}${who}</div><span class="by">${avatar(p.a, 20)}</span>${p.ncom || p.likes ? `<span class="ct">${p.likes ? `${svg('heart', 'xs')}${p.likes}` : ''}${p.ncom ? ` ${svg('comment', 'xs')}${p.ncom}` : ''}</span>` : ''}</button>`;
+    },
+    html(items, gid) { // a redraw of the same wall stays still; only photos that just arrived drop in
+      const calm = this.g === gid, seen = this.seen || new Set(); this.g = gid; this.seen = new Set(items.map(p => p.id));
+      return `<div class="wall${calm ? ' calm' : ''}">${items.map((p, j) => this.one(p, j, calm && !seen.has(p.id))).join('')}</div>`; },
+    wire(f) { const w = f.querySelector('.wall'); if (w) w.onclick = e => { const b = e.target.closest('.pol[data-id]'); if (b) this.open(b.dataset.id, b); }; },
+    open(id, from) { // lift the Polaroid off the wall and show the whole post
+      const p = feedCache.find(x => x.id === id); if (!p) return;
+      let v = $('#wallZoom'); if (!v) { v = document.createElement('div'); v.id = 'wallZoom'; document.body.appendChild(v); v.addEventListener('click', e => { if (e.target.closest('[data-zx]')) return this.close(); onFeedClick(e); const a = e.target.closest('[data-act]'); if (a && /^(map|group)$/.test(a.dataset.act)) this.close(); }); document.addEventListener('keydown', e => { if (e.key === 'Escape') this.close(); }); }
+      v.hidden = false; v.className = '';
+      v.innerHTML = `<div class="scrim" data-zx></div><div class="wz"><button class="ib zx" data-zx aria-label="Close">${svg('close')}</button>${p.img ? `<div class="wzcap hw2"><span>${this.day(p.t)}</span>${this.spot(p) ? `<span>${esc(this.spot(p))}</span>` : ''}</div>` : ''}${card(p, 0)}</div>`;
+      const box = v.querySelector('.wz');
+      const cap = box.querySelector('.wzcap'), med = box.querySelector('.post .media'); if (cap && med) med.after(cap); // the handwriting sits right under the photo, like the real thing
+      if (from && box.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) { // grows out of the Polaroid you tapped
+        const a = from.getBoundingClientRect(), b = box.getBoundingClientRect(), sx = a.width / b.width;
+        from.classList.add('lifted');
+        box.animate([{ transform: `translate(${a.left - b.left}px,${a.top - b.top}px) scale(${sx}) rotate(${getComputedStyle(from).getPropertyValue('--r') || '0deg'})`, opacity: .6 }, { transform: 'translate(0,0) scale(1.015) rotate(0deg)', opacity: 1, offset: .75 }, { transform: 'none', opacity: 1 }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+        v.querySelector('.scrim').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300 });
+      }
+      this.from = from;
+    },
+    close() {
+      const v = $('#wallZoom'); if (!v || v.hidden) return; Vid.stop(); v.classList.add('out');
+      if (this.from) this.from.classList.remove('lifted');
+      setTimeout(() => { v.hidden = true; v.innerHTML = ''; }, 240);
+    },
+  };
   function renderFeed() { renderScopes(); const g = S.scope !== 'public' && S.groups.find(x => x.id === S.scope); document.body.classList.toggle('ingroup', !!g); if (g) return renderGroupFeed(g);
     buildStories(); renderStories(); const all = feedItems(); renderChips(all); feedCache = filtered(all); const f = $('#feed');
     if (!feedCache.length && all.length) { f.innerHTML = `<div class="empty">${svg(S.filter === 'report' ? 'alert' : 'search', 'big')}<b>${S.filter === 'report' ? 'All quiet right now' : 'Nothing here yet'}</b><span>${S.filter === 'report' ? 'No open community reports. See something on the road or trail? Let people know.' : S.filter === 'near' ? 'Nothing posted within 25 km of you.' : 'Try another filter.'}</span>${S.filter === 'report' || S.filter === 'near' ? '<button class="btn primary" data-newrep>Report something</button>' : ''}</div>`; const nb = f.querySelector('[data-newrep]'); if (nb) nb.onclick = () => openCreate('report'); return; }
@@ -554,7 +613,7 @@ const Social = (() => {
   let draft = null;
   function openCreate(mode = 'post', cat = null) {
     const c = map.getCenter();
-    draft = { mode, cat, img: null, caption: '', tag: null, place: { name: placeName(c), lng: c.lng, lat: c.lat }, placeSet: false, group: S.scope !== 'public' && S.groups.some(g => g.id === S.scope) ? S.scope : null };
+    draft = { mode, cat, img: null, caption: '', tag: null, place: { name: placeName(c), lng: c.lng, lat: c.lat }, placeSet: false, tagged: [], group: S.scope !== 'public' && S.groups.some(g => g.id === S.scope) ? S.scope : null };
     const v = $('#createView'); v.hidden = false; v.classList.remove('out');
     v.innerHTML = `<div class="cbox"><header><button class="ib" data-x aria-label="Close">${svg('close')}</button><div class="seg" role="tablist"><button data-mode="post">Post</button><button data-mode="report">Report</button><i></i></div><button class="link" data-share disabled>Share</button></header>
       <div class="cbody"></div></div>`;
@@ -585,6 +644,7 @@ const Social = (() => {
       `<div class="fields"><textarea maxlength="800" placeholder="${R ? 'Add details: which lane, how bad, what to watch for (optional)' : 'Write a caption…'}" rows="3">${esc(draft.caption)}</textarea>
       ${R ? '' : `<div class="tags">${TAGS.map(t => `<button data-t="${t}" class="${draft.tag === t ? 'on' : ''}">${t}</button>`).join('')}</div>`}
       ${Cloud.on && S.groups.length ? `<div class="shareto"><small>Share with</small><div>${[{ id: null, emoji: '', name: 'Everyone', color: '#3f6f8f' }, ...S.groups].map(g => `<button data-gid="${g.id || ''}" class="${(draft.group || null) === g.id ? 'on' : ''}" style="--c:${esc(g.color)}">${g.id ? esc(g.emoji) + ' ' : svg('globe', 'xs')}${esc(g.name)}${g.id ? svg('lock', 'xs') : ''}</button>`).join('')}</div></div>` : ''}
+      ${!R && draft.group ? tagRow() : ''}
       <button class="where${draft.placeSet ? ' set' : ''}" data-where>${svg('pin')}<div><b id="crPlace">${esc(draft.place.name)}</b><small>${R ? 'Where is it? Tap to search or move the pin.' : 'Tap to search for a place or set it on the map'}</small></div><span class="link" data-gps>${svg('locate', 'sm')} Here</span></button>
       <p class="fine">${R ? 'Reports show on everyone\'s map and feed and come down on their own after a few hours unless people say it\'s still there. For emergencies, call 911 first.' : Store.shared ? (signedIn() ? 'Your post is public and appears on everyone\'s map. Keep it kind and safe: no faces of strangers, no exact locations of wildlife dens or nests.' : 'You will be asked to sign in when you share.') : 'For now your posts are saved on this device and shown on your map.'}</p></div>`;
     const inp = v.querySelector('input[type=file]');
@@ -605,7 +665,8 @@ const Social = (() => {
     v.querySelector('textarea').oninput = e => { draft.caption = e.target.value; ready(); };
     v.querySelectorAll('.tags button').forEach(b => b.onclick = () => { draft.tag = draft.tag === b.dataset.t ? null : b.dataset.t; v.querySelectorAll('.tags button').forEach(x => x.classList.toggle('on', x.dataset.t === draft.tag)); });
     const fine = () => { const el = v.querySelector('.fields > .fine'); if (el && draft.group) el.textContent = `Only members of ${groupOf(draft.group).name} can see this post and its photo. It stays off the public map and feed.`; };
-    v.querySelectorAll('.shareto button').forEach(b => b.onclick = () => { draft.group = b.dataset.gid || null; v.querySelectorAll('.shareto button').forEach(x => x.classList.toggle('on', x === b)); bump(b); ready(); if (draft.group) fine(); else drawCreate(); });
+    v.querySelectorAll('.shareto button').forEach(b => b.onclick = () => { const was = draft.group; draft.group = b.dataset.gid || null; if (draft.group !== was) draft.tagged = []; bump(b); drawCreate(); });
+    v.querySelectorAll('.tagwho [data-tu]').forEach(b => b.onclick = () => { const u = b.dataset.tu, i = draft.tagged.indexOf(u); if (i < 0) draft.tagged.push(u); else draft.tagged.splice(i, 1); b.classList.toggle('on', i < 0); b.setAttribute('aria-pressed', i < 0); bump(b); const c = v.querySelector('.tagwho small em'); if (c) c.textContent = draft.tagged.length ? `${draft.tagged.length} tagged` : ''; });
     fine();
     v.querySelectorAll('.rgrid button').forEach(b => b.onclick = () => { draft.cat = b.dataset.cat; v.querySelectorAll('.rgrid button').forEach(x => x.classList.toggle('on', x === b)); bump(b); ready(); });
     v.querySelector('[data-where]').onclick = async e => {
@@ -614,6 +675,11 @@ const Social = (() => {
       if (p) { draft.place = p; draft.placeSet = true; drawCreate(); }
     };
     ready();
+  }
+  function tagRow() { // tag fellow members of the group you're sharing with
+    const me = Cloud.user && Cloud.user.id, ms = (S.members[draft.group] || []).filter(m => m.id !== me);
+    if (!ms.length) return `<div class="tagwho"><small>Tag people</small><p class="fine">Invite family or friends to this group, then you can tag them in photos.</p></div>`;
+    return `<div class="tagwho"><small>Tag people <em>${draft.tagged.length ? draft.tagged.length + ' tagged' : ''}</em></small><div>${ms.map(m => `<button data-tu="${esc(m.id)}" class="${draft.tagged.includes(m.id) ? 'on' : ''}" aria-pressed="${draft.tagged.includes(m.id)}">${avatar(m, 24)}<span>${esc(m.name)}</span><i>${svg('check', 'xs')}</i></button>`).join('')}</div></div>`;
   }
   function ready() { const b = $('#createView [data-share]'); if (!b) return; b.textContent = draft.mode === 'report' ? 'Send' : 'Share'; b.disabled = !!draft.prep || (draft.mode === 'report' ? !draft.cat : !(draft.img || draft.caption.trim())); }
 
@@ -793,11 +859,13 @@ const Social = (() => {
         const video_url = draft.video ? await Cloud.uploadVideo(draft.video.blob, gid, id).catch(e => { Cloud.dropFiles([image_url]); throw e; }) : null;
         const row = { caption: draft.caption.trim().slice(0, 800), tag: postTag(), image_url, place_name: draft.place.name.slice(0, 120), lng: draft.place.lng, lat: draft.place.lat };
         if (gid) row.group_id = gid;
+        if (gid && draft.tagged.length && !Cloud.tagsOff) row.tagged = draft.tagged.slice(0, 20);
         if (video_url) { row.video_url = video_url; row.video_meta = { dur: Math.round(draft.video.dur * 10) / 10, w: draft.video.w, h: draft.video.h }; }
-        const { error } = await Cloud.sb.from('posts').insert(row);
+        let { error } = await Cloud.sb.from('posts').insert(row);
+        if (error && row.tagged && /tagged/.test(error.message || '')) { Cloud.tagsOff = true; delete row.tagged; ({ error } = await Cloud.sb.from('posts').insert(row)); if (!error) setTimeout(() => showToast('Posted. Tags turn on after the latest database update.'), 2600); }
         if (error) { Cloud.dropFiles([image_url, video_url]); throw error; }
         await Cloud.loadFeed(); closeCreate(); S.filter = 'all'; setView('feed'); drawUserPins(); showToast(draft.mode === 'report' ? 'Report sent. Thanks for looking out.' : gid ? 'Shared with ' + groupOf(gid).name : 'Posted');
-        requestAnimationFrame(() => { const el = document.querySelector('#feed .post'); if (el) el.classList.add('fresh'); });
+        requestAnimationFrame(() => { const el = document.querySelector('#feed .wall .pol, #feed .post'); if (el) el.classList.add('fresh'); });
       } catch (e) { b.disabled = false; ready(); const m = String(e.message || e); showToast(/video_url|mime|not supported|exceeded|too large/i.test(m) && draft.video ? 'Video posts are not switched on yet. Try again soon.' : 'Could not post: ' + m.slice(0, 60)); }
       return;
     }
@@ -825,7 +893,14 @@ const Social = (() => {
       S.pins.push(new maplibregl.Marker({ element: wrap, anchor: 'bottom' }).setLngLat([p.place.lng, p.place.lat]).addTo(map));
     });
   }
-  function openPost(fid) { S.filter = 'all'; setView('feed'); requestAnimationFrame(() => { const el = document.querySelector(`.post[data-id="${CSS.escape(fid)}"]`); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.remove('fresh'); void el.offsetWidth; el.classList.add('fresh'); } }); }
+  function openPost(fid) {
+    const r = S.remote.find(x => 's' + x.id === fid), g = r && r.group_id && S.groups.find(x => x.id === r.group_id);
+    if (g) { // a group post (a tag or a new photo): open its wall and lift that Polaroid
+      S.scope = g.id; S.filter = 'all'; if (S.view !== 'feed') setView('feed'); else renderFeed();
+      return requestAnimationFrame(() => { const el = document.querySelector(`.pol[data-id="${CSS.escape(fid)}"]`); if (el) { el.scrollIntoView({ block: 'center' }); setTimeout(() => Wall.open(fid, el), 350); } else { const c = document.querySelector(`.post[data-id="${CSS.escape(fid)}"]`); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); } });
+    }
+    if (r && !r.group_id) S.scope = 'public';
+    S.filter = 'all'; setView('feed'); requestAnimationFrame(() => { const el = document.querySelector(`.post[data-id="${CSS.escape(fid)}"]`); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.remove('fresh'); void el.offsetWidth; el.classList.add('fresh'); } }); }
   function focusPin(id) { const el = document.querySelector(`.ppin[data-id="${id}"]`); if (el) { el.classList.remove('focus'); void el.offsetWidth; el.classList.add('focus'); } }
 
   /* ---------- messages and notifications ---------- */
@@ -874,6 +949,7 @@ const Social = (() => {
     if (n.kind === 'like') return `${w}${n.n > 1 ? ` and ${n.n - 1} other${n.n > 2 ? 's' : ''}` : ''} liked your post`;
     if (n.kind === 'comment') return `${w} commented: ${e(n.text)}`;
     if (n.kind === 'dm') return `${w} sent you ${n.n > 1 ? n.n + ' messages' : 'a message'}: ${e(n.text)}`;
+    if (n.kind === 'tag') return `${w} tagged you in ${gn}${n.text ? ': ' + e(n.text) : ''}`;
     if (n.kind === 'group_post') return `${w} posted in ${gn}${n.text ? ': ' + e(n.text) : ''}`;
     return `${w} joined ${gn}`;
   }
@@ -963,7 +1039,7 @@ const Social = (() => {
     rows.sort((x, y) => new Date(y.t || 0) - new Date(x.t || 0));
     const newer = rows.filter(r => new Date(r.t || 0) > since), older = rows.filter(r => !(new Date(r.t || 0) > since));
     const row = r => `<button class="arow${r.unread ? ' unread' : ''}" ${r.k ? `data-k="${r.k}" data-i="${r.i}"` : r.fid ? `data-fid="${esc(r.fid)}"` : r.tid ? `data-tid="${r.tid}"` : r.gid ? `data-gid="${r.gid}"` : ''}>${avatar(r.a, 40)}<div>${r.html}<small>${ago(r.t)}</small></div>${r.img ? `<img src="${esc(r.img)}" alt="" onerror="this.remove()">` : ''}</button>`;
-    $('#sv-activity').innerHTML = `<header class="top"><b class="title">Activity</b><button class="ib dmb" data-dm aria-label="Messages">${svg('send')}<i class="cnt" hidden></i></button></header>${newer.length ? '<div class="sideHead">New</div>' + newer.map(row).join('') : ''}<div class="sideHead">Earlier</div>${older.map(row).join('') || '<p class="fine">Nothing yet.</p>'}`;
+    $('#sv-activity').innerHTML = `<header class="top"><b class="title">Activity</b><button class="ib dmb" data-dm aria-label="Messages">${svg('send')}<i class="cnt" hidden></i></button></header>${newer.length ? '<div class="sideHead">New</div>' + newer.map(row).join('') : ''}<div class="sideHead">Earlier</div>${older.map(row).join('') || '<p class="fine aempty">Nothing yet.</p>'}`;
     $('#sv-activity').querySelectorAll('.arow[data-k]').forEach(b => b.onclick = () => { setView('map'); Live.focus(b.dataset.k, +b.dataset.i); });
     $('#sv-activity').querySelectorAll('.arow[data-fid]').forEach(b => b.onclick = () => openPost(b.dataset.fid));
     $('#sv-activity').querySelectorAll('.arow[data-tid]').forEach(b => b.onclick = () => openMessages(b.dataset.tid));
@@ -1115,7 +1191,7 @@ const Social = (() => {
 
   /* ---------- start ---------- */
   async function init() {
-    await loadLocal(); S.scope = await Store.get('scope', 'public');
+    await loadLocal(); S.scope = await Store.get('scope', 'public'); S.wall = await Store.get('wall', true);
     shell(); document.body.dataset.view = 'map'; registerSW(); Vid.init();
     if (standalone()) document.body.classList.add('app');
     drawUserPins();
@@ -1135,7 +1211,7 @@ const Social = (() => {
     // new activity dot once feeds arrive
     setInterval(() => { const L = Live.st; const latest = Math.max(0, ...L.news.map(n => +new Date(n.published || 0)), ...L.alerts.map(a => +new Date(a.sent || 0))); $('#tabbar .dot').hidden = !(latest > (S.seen || 0) || Inbox.unread()) || S.view === 'feed'; if (S.view === 'feed' && !document.querySelector('#feed .post')) renderFeed(); }, 5000);
     const h = decodeURIComponent(location.hash || '');
-    if (h.startsWith('#post=')) setTimeout(() => { setView('feed'); const el = document.querySelector(`.post[data-id="${CSS.escape(h.slice(6))}"]`); if (el) el.scrollIntoView({ block: 'center' }); }, 4000);
+    if (h.startsWith('#post=')) setTimeout(() => openPost(decodeURIComponent(h.slice(6))), 4000);
     if (h === '#feed') setView('feed');
     if (h === '#activity') setTimeout(() => setView('activity'), 1500);
     if (h.startsWith('#dm=')) { history.replaceState(null, '', location.pathname + location.search); setTimeout(() => openMessages(h.slice(4)), 3500); }

@@ -10,3 +10,9 @@ Messages, notifications and videos (update 5), with stand-ins for pg_cron and pg
     psql -d t -f supabase_stub.sql -f cron_net_stub.sql -f ../setup.sql -f ../ALL_UPDATES.sql -f messages_test.sql
 
 (delete the `create extension` lines from ALL_UPDATES.sql first; local Postgres doesn't have them). Expected: only the two people in a conversation see it, notifications can only be marked read, a block stops new conversations, and video links must be https or a private group path.
+
+Tags (update 6), after the same setup:
+
+    psql -d t -f tags_test.sql
+
+Expected: only fellow group members stay tagged (no strangers, no yourself, no public-post tags), a tagged person gets one "tag" notification instead of "posted in", and tags added later notify only the newly tagged.
