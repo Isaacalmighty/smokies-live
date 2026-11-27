@@ -181,3 +181,9 @@ body:not([data-view="map"]) #uxshow,body.picking #uxshow{opacity:0;pointer-event
 .uxtowns button[aria-pressed="true"]{background:rgba(240,163,94,.22);border-color:var(--ember);color:#ffe2c6}
 @media (min-width:761px){#uxsheet[data-kind="home"]{right:auto;left:50%;top:50%;width:min(520px,calc(100vw - 120px));transform:translate(-50%,-50%);transform-origin:50% 50%;animation:uxzoom .4s var(--spring,var(--ease-out)) both}}
 @media (max-width:760px){body.ux #socialView{padding-bottom:calc(var(--tabh,calc(env(safe-area-inset-bottom,0px) + 54px)) + 10px)!important}}
+/* pins: always solid. MapLibre fades a marker to 20% when it thinks a hill hides it, and on 3D terrain that misfires all the time */
+body.ux .maplibregl-marker{opacity:1!important}
+body.ux .lpin{width:36px;height:36px;border:2.5px solid #fff;box-shadow:0 3px 0 rgba(0,0,0,.25),0 6px 16px rgba(0,0,0,.55)}
+body.ux .lpin svg{width:18px;height:18px}
+body.ux .lpinbox{width:42px;height:48px}
+body.ux .lmk-in>span{border-width:2.5px;box-shadow:0 3px 0 rgba(0,0,0,.2),0 6px 16px rgba(0,0,0,.55)}
