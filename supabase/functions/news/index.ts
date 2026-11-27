@@ -64,12 +64,12 @@ export function parseFeed(xml: string) {
   return out;
 }
 
-type Gaz = [string, number, number, string, number][];
+type Gaz = [string, number, number, string, number, string?][]; // 6th: current name when the text uses an old one
 let GAZ: { rx: RegExp; n: string; lng: number; lat: number; kind: string; pri: number }[] | null = null;
 async function gazetteer() {
   if (GAZ) return GAZ;
   const g: Gaz = await (await fetch(GAZ_URL)).json();
-  GAZ = g.map(([n, lng, lat, kind, pri]) => ({ rx: new RegExp(`(?<![\\w'])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w])`), n, lng, lat, kind, pri }));
+  GAZ = g.map(([n, lng, lat, kind, pri, now]) => ({ rx: new RegExp(`(?<![\\w'])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w])`), n: now || n, lng, lat, kind, pri }));
   return GAZ;
 }
 export function geotag(gaz: NonNullable<typeof GAZ>, text: string) {

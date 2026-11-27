@@ -433,11 +433,26 @@ const MapMe = (() => {
     place(); addEventListener('resize', place); setInterval(place, 2000); Brief.place = place;
   }
 
+  /* ---------- speed meter: open the site with #perf to see real frame rates on a phone ---------- */
+  function perfMeter() {
+    if (!/perf/.test(location.hash) && !store.get('perf', false)) return;
+    store.set('perf', !/noperf/.test(location.hash));
+    if (/noperf/.test(location.hash)) return;
+    let gpu = '?'; try { const gl = map.painter.context.gl, ext = gl.getExtension('WEBGL_debug_renderer_info'); gpu = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); } catch (e) { }
+    const el = document.createElement('div'); el.id = 'mmPerf'; document.body.appendChild(el);
+    let frames = [], last = performance.now(), renders = 0; map.on('render', () => renders++);
+    const tick = now => { frames.push(now - last); last = now; requestAnimationFrame(tick); }; requestAnimationFrame(tick);
+    setInterval(() => {
+      const f = frames.splice(0), fps = f.length, worst = f.length ? Math.max(...f) : 0, slow = f.filter(x => x > 34).length;
+      el.textContent = `${fps} fps · worst ${Math.round(worst)} ms · ${slow} slow · map ${renders}/s · ${map.getPixelRatio().toFixed(2)}x of ${(devicePixelRatio || 1).toFixed(2)}x · ${gpu}`; renders = 0;
+    }, 1000);
+  }
+
   /* ---------- start ---------- */
   function build() {
     map = window.__smokies.map;
     document.body.classList.add('mm');
-    locBtn(); chipEl(); feel();
+    locBtn(); chipEl(); feel(); perfMeter();
     // came back with location already allowed: show the dot quietly, no fly-in
     if (store.get('on', false) && navigator.permissions) navigator.permissions.query({ name: 'geolocation' }).then(r => { if (r.state === 'granted') startLocate(false, true); }).catch(() => { });
     Brief.chip(); setInterval(() => { Brief.chip(); if (Brief.open) render(); }, 30e3);
