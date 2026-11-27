@@ -1,4 +1,4 @@
-desktop state {"blocked":false,"wx":true,"puffs":2652,"alerts":[],"news":0,"events":0,"incidents":0,"cams":0,"gauges":0,"fires":0,"sky":"9:03 AM · Daylight","chip":"Overcast in Gatlinburg · wind 11 mph SW"}
+desktop state {"blocked":false,"wx":true,"puffs":2652,"alerts":[],"news":69,"events":56,"incidents":5,"cams":17,"gauges":0,"fires":0,"sky":"9:12 AM · Daylight","chip":"Overcast in Gatlinburg · wind 11 mph SW"}
 desktop tomtom {}
-phone state {"blocked":false,"wx":true,"puffs":847,"alerts":["Special Weather Statement","Wind Advisory"],"news":69,"events":56,"incidents":5,"cams":17,"gauges":11,"fires":0,"sky":"9:06 AM · Daylight","chip":"Overcast in Gatlinburg · wind 11 mph SW"}
+phone state {"blocked":false,"wx":true,"puffs":852,"alerts":["Special Weather Statement","Wind Advisory"],"news":69,"events":56,"incidents":5,"cams":17,"gauges":11,"fires":0,"sky":"9:15 AM · Daylight","chip":"Overcast in Gatlinburg · wind 12 mph SW"}
 phone tomtom {}
