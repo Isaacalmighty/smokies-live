@@ -1,12 +1,12 @@
-Supabase check 2026-11-27T18:20:29.822Z
+Supabase check 2026-11-27T18:31:09.082Z
 ON   posts table   [200 [{"id":"864ed72b-aa60-49b8-8b5e-fcc1cce88b68"}]]
 ON   report votes (02)   [200 []]
 ON   groups (03)   [200 []]
 ON   group posts column (03)   [200 [{"group_id":null}]]
 ON   push devices (03_push)   [200 {"code":"P0001","details":null,"hint":null,"message":"bad token"}]
-ON   news table (04)   [200 [{"id":"blountcountymanconvictedofvehicularhomicideafterdeadly2025al","source":"WATE 6 On Your Side","published":"2026-11-21T21:02:02+00:00"]
-     news rows: 46, last collected: 2026-11-27T18:20:09.972+00:00 (0 min ago)
-     per outlet: {"WATE 6 On Your Side":8,"WVLT":8,"National Park Service":1,"WBIR 10News":13,"Knox News":9,"City of Sevierville, TN":1,"Smoky Mountain News":1,"The Mountain Press":5}
+ON   news table (04)   [200 [{"id":"innkeeperreflectsonlossoflodgeatbuckberrycreek10yearsafterga","source":"WATE 6 On Your Side","published":"2026-11-25T20:22:31+00:00"]
+     news rows: 47, last collected: 2026-11-27T18:30:11.894+00:00 (1 min ago)
+     per outlet: {"WATE 6 On Your Side":9,"WBIR 10News":13,"National Park Service":1,"WVLT":8,"Knox News":9,"Smoky Mountain News":1,"The Mountain Press":5,"City of Sevierville, TN":1}
 ON   video columns (05)   [200 [{"video_url":null,"video_meta":null}]]
 ON   messages (05)   [401 {"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.dm_messages TO anon;",]
 ON   conversations (05)   [401 {"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.dm_threads TO anon;","]
@@ -16,5 +16,5 @@ ON   tags column (06)   [200 [{"tagged":[]}]]
 ON   family locations (07)   [401 {"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.member_locations TO an]
 ON   post_feed view has videos   [200 [{"video_url":null}]]
 ON   function send-push   [200 {"skipped":true}]
-function news run   [500] {"error":"SyntaxError: Unexpected end of JSON input"}
+function news run   [200] {"stories":31,"fresh":1,"withPhoto":11,"withSummary":30,"perOutlet":{"WBIR 10News":12,"WVLT":9,"WATE 6 On Your Side":7,"City of Sevierville, TN":1,"Knox News":1,"Smoky Mountain News":1},"visited":20,"log":["ok WBIR 10News 4","ok WVLT 1","ok WATE 6 On Your Side 0","ok WATE 6 On Your Side 6","ok Smoky Mountain News 0","ok National Park Service 0","fail The Mountain Press Error: HTTP 429 https://news.google.com/rss/search?q=site%3Athemountainpress.com%20when%3A7d&hl=","fail Knox News Error: HTTP 429 https://news.google.com/rss/search?q=site%3Aknoxnews.com%20(Sevier%20OR%20Gatlin","ok The Daily Times 0","ok WLOS 0","ok Citizen Times 0","ok Google News 17","ok Google News 3","enrich: 20 visited, 0 links resolved, 0 photos found"]}
 auth settings: {"external":{"anonymous_users":false,"apple":false,"azure":false,"bitbucket":false,"discord":false,"facebook":false,"snapchat":false,"figma":false,"fly":false,"github":false,"gitlab":false,"google":false,"keycloak":false,"kakao":false,"linkedin":false,"linkedin_oidc":false,"notion":false,"spotify":f
