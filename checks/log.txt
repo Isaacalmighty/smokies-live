@@ -1,10 +1,5 @@
-desktop state {"blocked":false,"wx":true,"puffs":2736,"alerts":["Special Weather Statement","Wind Advisory","Special Weather Statement","Special Weather Statement"],"news":70,"events":75,"incidents":5,"cams":17,"gauges":0,"fires":0,"sky":"12:10 AM · Night","chip":"Overcast in Gatlinburg · wind 9 mph SW"}
+desktop state {"blocked":false,"wx":true,"puffs":2746,"alerts":[],"news":70,"events":75,"incidents":5,"cams":17,"gauges":11,"fires":0,"sky":"12:19 AM · Night","chip":"Overcast in Gatlinburg · wind 11 mph SW"}
 desktop tomtom {}
-desktop console info [live] iss The user aborted a request.
-desktop console info [live] iss The user aborted a request.
-desktop console info [live] iss The user aborted a request.
-desktop console info [live] iss The user aborted a request.
-desktop console info [live] iss The user aborted a request.
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
@@ -78,13 +73,8 @@ desktop console error Failed to load resource: the server responded with a statu
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
 desktop console error Failed to load resource: the server responded with a status of 400 ()
-desktop console error Failed to load resource: the server responded with a status of 400 ()
-phone state {"blocked":false,"wx":true,"puffs":1510,"alerts":[],"news":70,"events":75,"incidents":5,"cams":17,"gauges":11,"fires":0,"sky":"12:16 AM · Night","chip":"Overcast in Gatlinburg · wind 11 mph SW"}
+phone state {"blocked":false,"wx":true,"puffs":1510,"alerts":["Special Weather Statement","Wind Advisory","Special Weather Statement","Special Weather Statement"],"news":70,"events":75,"incidents":5,"cams":17,"gauges":11,"fires":0,"sky":"12:21 AM · Night","chip":"Overcast in Gatlinburg · wind 11 mph SW"}
 phone tomtom {"200":23}
-phone console error Failed to load resource: the server responded with a status of 400 ()
-phone console error Failed to load resource: the server responded with a status of 400 ()
-phone console error Failed to load resource: the server responded with a status of 400 ()
-phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
 phone console error Failed to load resource: the server responded with a status of 400 ()
