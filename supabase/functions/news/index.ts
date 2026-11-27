@@ -174,7 +174,8 @@ async function db(path: string, init: RequestInit = {}) {
   const url = Deno.env.get('SUPABASE_URL')!, key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const r = await fetch(`${url}/rest/v1/${path}`, { ...init, headers: { apikey: key, authorization: `Bearer ${key}`, 'content-type': 'application/json', ...(init.headers || {}) } });
   if (!r.ok) throw new Error(`db ${r.status} ${await r.text()}`);
-  return r.status === 204 ? null : r.json();
+  const t = await r.text(); // inserts with return=minimal answer 201 with an empty body
+  return t ? JSON.parse(t) : null;
 }
 
 // Expired community posts (reports, sightings, outages, trail reports, lost and found pets) and their files.
