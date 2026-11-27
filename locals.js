@@ -228,7 +228,7 @@
         let traffic = 1 - c * 0.6; const why = [...w.why];
         if (live) { const rr = roadRatio(D.roads); if (rr) { traffic = rr.ratio; if (rr.closed) why.unshift(['closed', `${rr.slow.name} is closed`]); else if (rr.ratio < 0.6) why.unshift(['traffic', `${rr.slow.name} crawling at ${Math.round(rr.slow.cur)} mph`]); else if (rr.ratio > 0.85) why.push(['go', 'Roads moving freely']); } }
         if (c > 0.75) why.push(['crowd', D.k === 'dol' ? 'Long lines likely' : 'Parking lots likely full']); else if (c < 0.3 && !shut) why.push(['quiet', 'Should be quiet']);
-        if (D.view && fogNow && fogNow.p > 0.5 && !w.inCloud && t.h <= 10 && fogNow.topFt < S.wx[D.k].elev * 3.28 - 300) why.unshift(['sea', 'Sea of clouds below you this morning']);
+        if (D.view && fogNow && fogNow.p > 0.5 && !w.inCloud && t.h <= 10 && t.h + 0.5 >= sr && fogNow.topFt < S.wx[D.k].elev * 3.28 - 300) why.unshift(['sea', 'Sea of clouds below you this morning']);
         const dark = D.view && (t.h + 0.5 < sr || t.h > ss + 0.4);
         if (dark) why.unshift(['dark', 'After dark: stars, but no view']);
         let s = 10 * (0.42 * w.s + 0.33 * (1 - c) + 0.25 * traffic) * (dark ? 0.35 : 1);
