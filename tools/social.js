@@ -301,6 +301,7 @@ const Social = (() => {
   // photos come through a free image service that shrinks them to the size on screen (a 40 KB WebP instead of a 400 KB JPEG)
   const nimg = (u, w, h) => /^https?:\/\//.test(u || '') ? `https://wsrv.nl/?url=${encodeURIComponent(u)}&w=${w}&h=${h || Math.round(w * 9 / 16)}&fit=cover&a=attention&output=webp&q=72` : u || '';
   const nimgTag = (u, w, h, eager) => `<img ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" src="${esc(nimg(u, w, h))}" data-o="${esc(u)}" alt="" onload="this.classList.add('in')" onerror="if(this.dataset.o&&this.src!==this.dataset.o){this.src=this.dataset.o}else{this.parentNode.classList.add('noimg');this.remove()}">`;
+  const nthumb = (p, w, h) => p.img ? `<span class="nth nph" style="--c:${p.a.c}" data-i="${esc(p.a.i)}">${nimgTag(p.img, w, h)}</span>` : `<span class="nth none" style="--c:${p.a.c}"><b>${esc(p.a.i)}</b></span>`; // a photo that won't load becomes the newsroom's badge
   const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
   const longWhen = t => { const d = new Date(t); if (isNaN(d)) return ''; return d.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long', month: 'long', day: 'numeric' }) + ' at ' + d.toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }); };
   const agoLong = t => { const s = (Date.now() - new Date(t)) / 1000; if (!(s >= 0)) return ''; if (s < 90) return 'Just now'; if (s < 3600) return Math.round(s / 60) + ' min ago'; if (s < 86400) { const h = Math.round(s / 3600); return h + (h === 1 ? ' hour ago' : ' hours ago'); } const d = Math.round(s / 86400); return d === 1 ? 'Yesterday' : d + ' days ago'; };
@@ -314,7 +315,7 @@ const Social = (() => {
   const kicker = (p, withSrc) => `<span class="nk"><b style="--k:${NSEC[p.cat] || NSEC.Community}">${esc(p.cat)}</b>${withSrc ? `<span>${esc(p.a.name)}</span>` : p.place ? `<span>${esc(p.place.name)}</span>` : ''}</span>`;
   const nrow = (p, j) => `<article class="nrow post" data-id="${esc(p.id)}" style="animation-delay:${Math.min(j, 8) * 45}ms"><button class="nrowb" data-act="read">
       <div class="nrt">${kicker(p, true)}<b class="nhl">${esc(p.title)}</b><small>${agoLong(p.t)}${p.place ? ' · ' + esc(p.place.name) : ''}</small></div>
-      ${p.img ? `<span class="nth">${nimgTag(p.img, 168, 168)}</span>` : `<span class="nth none" style="--c:${p.a.c}"><b>${esc(p.a.i)}</b></span>`}</button></article>`;
+      ${nthumb(p, 168, 168)}</button></article>`;
   const nmid = (p, j) => `<article class="nmid post" data-id="${esc(p.id)}" style="animation-delay:${Math.min(j, 8) * 45}ms"><button class="nmidb" data-act="read">
       ${p.img ? `<span class="nph">${nimgTag(p.img, 720)}</span>` : ''}
       <div class="nmt">${kicker(p, true)}<b class="nhl">${esc(p.title)}</b>${p.text ? `<p>${esc(p.text)}</p>` : ''}<small>${agoLong(p.t)}${p.place ? ' · ' + esc(p.place.name) : ''}</small></div></button></article>`;
@@ -339,7 +340,7 @@ const Social = (() => {
     const all = newsItems(); if (all.length < 3) return '';
     const top = [...all].sort((a, b) => newsScore(b) - newsScore(a)).slice(0, 8);
     return `<section class="nrail" aria-label="Top local stories"><div class="nrhead"><h4>Top stories</h4><button data-gonews>All local news ${svg('back', 'xs flip')}</button></div>
-      <div class="nrscroll">${top.map(p => `<button class="nrc" data-read="${esc(p.id)}" style="--c:${p.a.c}">${p.img ? `<span class="nph">${nimgTag(p.img, 480, 300)}</span>` : `<span class="nph none"><b>${esc(p.a.i)}</b></span>`}<span class="nrct">${kicker(p, false)}<b>${esc(p.title)}</b><small>${esc(p.a.name)} · ${ago(p.t)}</small></span></button>`).join('')}</div></section>`;
+      <div class="nrscroll">${top.map(p => `<button class="nrc" data-read="${esc(p.id)}" style="--c:${p.a.c}">${p.img ? `<span class="nph" data-i="${esc(p.a.i)}">${nimgTag(p.img, 480, 300)}</span>` : `<span class="nph none"><b>${esc(p.a.i)}</b></span>`}<span class="nrct">${kicker(p, false)}<b>${esc(p.title)}</b><small>${esc(p.a.name)} · ${ago(p.t)}</small></span></button>`).join('')}</div></section>`;
   }
   function renderNewsroom(f) {
     const all = newsItems(); feedCache = all;
@@ -405,8 +406,8 @@ const Social = (() => {
         ${p.link ? `<a class="nvread" href="${esc(p.link)}" target="_blank" rel="noopener"><span><b>Read the full story</b><small>${esc(site || p.a.name)}</small></span>${svg('ext')}</a>` : ''}
         <div class="nvacts">${p.place ? `<button data-na="map">${svg('pin', 'sm')}<span>${esc(p.place.name)}</span></button>` : ''}<button data-na="save" class="${saved ? 'on' : ''}">${svg('save', 'sm')}<span>${saved ? 'Saved' : 'Save'}</span></button><button data-na="share">${svg('send', 'sm')}<span>Share</span></button></div>
         <p class="nvnote">You're reading ${esc(p.a.name)}'s headline and summary. The full report, with all photos and video, is on their site.</p>
-        ${same.length ? `<section class="nvmore"><h4>More from ${esc(p.a.name)}</h4>${same.map(x => `<button class="nvrow" data-read="${esc(x.id)}">${x.img ? `<span class="nth">${nimgTag(x.img, 144, 144)}</span>` : `<span class="nth none" style="--c:${x.a.c}"><b>${esc(x.a.i)}</b></span>`}<span><b>${esc(x.title)}</b><small>${agoLong(x.t)}</small></span></button>`).join('')}</section>` : ''}
-        ${rel.length ? `<section class="nvmore"><h4>${near.length ? 'Also in ' + esc(p.place.name) : 'More in ' + esc(p.cat)}</h4>${rel.map(x => `<button class="nvrow" data-read="${esc(x.id)}">${x.img ? `<span class="nth">${nimgTag(x.img, 144, 144)}</span>` : `<span class="nth none" style="--c:${x.a.c}"><b>${esc(x.a.i)}</b></span>`}<span><b>${esc(x.title)}</b><small>${esc(x.a.name)} · ${agoLong(x.t)}</small></span></button>`).join('')}</section>` : ''}
+        ${same.length ? `<section class="nvmore"><h4>More from ${esc(p.a.name)}</h4>${same.map(x => `<button class="nvrow" data-read="${esc(x.id)}">${nthumb(x, 144, 144)}<span><b>${esc(x.title)}</b><small>${agoLong(x.t)}</small></span></button>`).join('')}</section>` : ''}
+        ${rel.length ? `<section class="nvmore"><h4>${near.length ? 'Also in ' + esc(p.place.name) : 'More in ' + esc(p.cat)}</h4>${rel.map(x => `<button class="nvrow" data-read="${esc(x.id)}">${nthumb(x, 144, 144)}<span><b>${esc(x.title)}</b><small>${esc(x.a.name)} · ${agoLong(x.t)}</small></span></button>`).join('')}</section>` : ''}
       </div></div></div>`;
     v.hidden = false; v.classList.remove('out');
     if (swap) { v.classList.remove('swap'); void v.offsetWidth; v.classList.add('swap'); v.querySelector('.nvscroll').scrollTop = 0; }

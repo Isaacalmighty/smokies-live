@@ -588,6 +588,9 @@ body.ingroup #stories,body.ingroup #fchips{display:none}
 .nph img.in{opacity:1;transform:none}
 .nph:has(img.in){animation:none;background:#111}
 .nph.noimg{display:none}
+.nth.nph.noimg,.nrc .nph.noimg{display:grid;place-items:center;animation:none;background:linear-gradient(150deg,color-mix(in srgb,var(--c) 70%,#000),#0f1512)}
+.nth.nph.noimg::after,.nrc .nph.noimg::after{content:attr(data-i);font:700 22px var(--font-display);color:rgba(255,255,255,.85);letter-spacing:.04em}
+.nrc .nph.noimg::after{font-size:30px}
 @keyframes nshim{to{background-position:-150% 0}}
 
 /* a story in the feed */
@@ -655,7 +658,7 @@ body.ingroup #stories,body.ingroup #fchips{display:none}
 .nlabel .pulse{width:7px;height:7px;border-radius:50%;background:#7a1a0a;animation:npulse 1.4s ease-in-out infinite}
 @keyframes npulse{50%{transform:scale(1.6);opacity:.35}}
 .nsrc{display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12.5px;color:rgba(255,255,255,.75)}
-.nsrc b{color:#fff;font-weight:600}
+.nsrc>b{color:#fff;font-weight:600}
 .nblock{padding:4px 0 6px}
 .nrow{padding:0 16px!important;opacity:0;animation:rise .5s var(--ease-out) forwards}
 .nrowb{display:flex;gap:14px;width:100%;padding:13px 0;border:0;border-bottom:1px solid rgba(255,255,255,.07);background:none;color:inherit;text-align:left;cursor:pointer;transition:opacity .2s}
@@ -709,7 +712,7 @@ body.ingroup #stories,body.ingroup #fchips{display:none}
 .nvdek{margin:14px 0 0;font-size:17px;line-height:1.55;color:#d3d6cf}
 .nvby{display:flex;align-items:center;gap:10px;margin-top:18px;padding:14px 0;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08)}
 .nvby div{display:flex;flex-direction:column;gap:2px;min-width:0}
-.nvby b{font-size:14px}
+.nvby div b{font-size:14px}
 .nvby span{font-size:12.5px;color:var(--ink-faint)}
 .nvread{display:flex;align-items:center;gap:12px;margin-top:18px;padding:15px 18px;border-radius:14px;background:var(--ember);color:#22160b;text-decoration:none;box-shadow:0 10px 30px -12px rgba(240,163,94,.6);transition:transform .3s var(--spring),box-shadow .3s}
 .nvread:active{transform:scale(.97);box-shadow:0 4px 14px -8px rgba(240,163,94,.6)}
