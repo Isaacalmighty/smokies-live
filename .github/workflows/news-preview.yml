@@ -1,0 +1,41 @@
+name: News preview
+# On Claude's working branches: collect today's stories with photos, then take phone screenshots of the
+# news pieces and save them to the news-preview branch, so changes can be shown before they go live.
+on:
+  push:
+    branches: ['claude/**']
+    paths: ['tools/social.*', 'tools/news_preview.mjs', 'supabase/functions/news/**', '.github/workflows/news-preview.yml']
+permissions:
+  contents: write
+concurrency:
+  group: news-preview
+  cancel-in-progress: true
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.1.x
+      - name: Collect stories
+        run: |
+          git fetch -q --depth 1 origin feeds && git show FETCH_HEAD:live/news.json > /tmp/prev.json || echo '{}' > /tmp/prev.json
+          deno run --allow-net --allow-env --allow-read --allow-write supabase/functions/news/index.ts --json /tmp/news.json --prev /tmp/prev.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Screenshots
+        run: |
+          mkdir -p /tmp/pw && cd /tmp/pw && npm init -y >/dev/null && npm i playwright@1.49.1 >/dev/null && npx playwright install --with-deps chromium >/dev/null
+          cp $GITHUB_WORKSPACE/tools/news_preview.mjs /tmp/pw/ && sed -i "s#const ROOT = .*#const ROOT = '$GITHUB_WORKSPACE';#" /tmp/pw/news_preview.mjs
+          node /tmp/pw/news_preview.mjs /tmp/news.json /tmp/shots || true
+          cp /tmp/news.json /tmp/shots/
+      - name: Save to the news-preview branch
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          cd /tmp/shots && git init -q -b news-preview && git add -A
+          git -c user.name=smokies-live-bot -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -qm "News preview ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}" news-preview

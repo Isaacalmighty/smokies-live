@@ -84,15 +84,64 @@ async function get(url: string, ms = 12000, accept = 'application/rss+xml, appli
   try { const r = await fetch(url, { headers: { 'user-agent': UA, accept }, signal: c.signal, redirect: 'follow' }); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.text(); }
   finally { clearTimeout(t); }
 }
-// the article page's share image (what Facebook and iMessage show)
-export async function ogImage(url: string) {
-  if (!url || /news\.google\.com/.test(url)) return null;
+// the article page's share card: photo, the newsroom's own one-line summary, byline and section
+// (what Facebook and iMessage show when someone shares the link). We never copy the article itself.
+const NO_FETCH = /themountainpress\.com/; // rate-limits automated visitors, so we only link to it
+const meta = (h: string, ...names: string[]) => {
+  for (const n of names) {
+    const m = h.match(new RegExp(`<meta[^>]+(?:property|name|itemprop)=["']${n}["'][^>]*content=["']([^"']*)["']`, 'i')) || h.match(new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]*(?:property|name|itemprop)=["']${n}["']`, 'i'));
+    if (m && m[1].trim()) return unesc(m[1]).trim();
+  }
+  return '';
+};
+export async function pageMeta(url: string) {
+  if (!url || /news\.google\.com/.test(url) || NO_FETCH.test(url)) return null;
   try {
-    const h = (await get(url, 6000, 'text/html')).slice(0, 200000);
-    const m = h.match(/<meta[^>]+(?:property|name)=["'](?:og:image(?::secure_url)?|twitter:image)["'][^>]+content=["']([^"']+)["']/i) || h.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:image|twitter:image)["']/i);
-    return m ? new URL(unesc(m[1]), url).href : null;
+    const h = (await get(url, 8000, 'text/html')).slice(0, 900000);
+    const ld = h.match(/"thumbnailUrl"\s*:\s*"([^"]+)"/) || h.match(/"image"\s*:\s*\{[^}]*?"url"\s*:\s*"([^"]+)"/) || h.match(/"image"\s*:\s*\[\s*"([^"]+)"/) || h.match(/<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)["']/i);
+    const img = meta(h, 'og:image:secure_url', 'og:image', 'twitter:image', 'twitter:image:src') || (ld ? ld[1].replace(/\\u002F/g, '/').replace(/\\\//g, '/') : '');
+    let author = meta(h, 'author', 'article:author', 'parsely-author', 'byl', 'dc.creator').replace(/^by\s+/i, '');
+    if (/^https?:|@|^admin|\b(staff|news|wbir|wate|wvlt|press|reports?)\b/i.test(author) || author.length > 60) author = '';
+    return { img: img ? new URL(img, url).href : null, desc: clean(meta(h, 'og:description', 'twitter:description', 'description'), 320), author: author || null, section: meta(h, 'article:section') || null };
   } catch { return null; }
 }
+export const ogImage = async (url: string) => (await pageMeta(url))?.img || null;
+
+// Google News links are redirects; ask Google for the real article address (same thing a browser does on tap)
+export async function gnResolve(link: string) {
+  const m = link.match(/news\.google\.com\/(?:rss\/)?articles\/([^?/#]+)/); if (!m) return link;
+  const id = m[1];
+  for (const page of [`https://news.google.com/rss/articles/${id}`, `https://news.google.com/articles/${id}`]) {
+    try {
+      const h = await get(page, 7000, 'text/html');
+      const sg = h.match(/data-n-a-sg="([^"]+)"/)?.[1], ts = h.match(/data-n-a-ts="([^"]+)"/)?.[1];
+      if (!sg || !ts) continue;
+      const inner = JSON.stringify(['garturlreq', [['X', 'X', ['X', 'X'], null, null, 1, 1, 'US:en', null, 1, null, null, null, null, null, 0, 1], 'X', 'X', 1, [1, 1, 1], 1, 1, null, 0, 0, null, 0], id, +ts, sg]);
+      const c = new AbortController(); const t = setTimeout(() => c.abort(), 7000);
+      const r = await fetch('https://news.google.com/_/DotsSplashUi/data/batchexecute', { method: 'POST', signal: c.signal, headers: { 'content-type': 'application/x-www-form-urlencoded;charset=UTF-8', 'user-agent': UA }, body: 'f.req=' + encodeURIComponent(JSON.stringify([[['Fbv4je', inner, null, 'generic']]])) }).finally(() => clearTimeout(t));
+      const body = await r.text();
+      const arr = JSON.parse(body.split('\n\n')[1]);
+      const url = JSON.parse(arr[0][2])[1];
+      if (typeof url === 'string' && /^https?:\/\//.test(url)) return url;
+    } catch { /* try the other page, then give up */ }
+  }
+  return null;
+}
+
+// what the story is about, for the section labels in the app
+const CATS: [string, RegExp][] = [
+  ['Sports', /\b(football|basketball|baseball|softball|soccer|volleyball|wrestling|playoffs?|semifinals?|quarterfinals?|championship|coach|Vols\b|tournament|Lady \w+s\b|Bulldogs|Bears\b|Cougars|Smoky Bears|season opener|scores?\b)/i],
+  ['Safety', /\b(police|sheriff|deput|arrest|charged|indict|shooting|stabb|murder|homicide|missing|rescued?|search(ed|ing)? for|jury|trial|sentenc|pleads?|guilty|convicted|crime|suspect|investigat|firefighters? (are|battl)|brush fire|house fire|structure fire|blaze|acres|contained|burn ban|burn permits?|fire danger|evacuat|fatal|killed in|dies after|died after)/i],
+  ['Weather', /\b(weather|forecast|storms?\b|snow|icy|freezing rain|flood|tornado|freeze|frost|heat wave|wind (advisory|gusts)|NWS|winter storm)/i],
+  ['Roads', /\b(road|crash|wreck|closures?|lanes?\b|traffic|I-40|I-75|interstate|highway|parkway|spur\b|TDOT|detour|construction|bridge|US-?441|paving)/i],
+  ['Outdoors', /\b(national park|Smokies|Great Smoky|NPS\b|trails?\b|hik(e|ing|ers?)|bears?\b|elk\b|wildlife|Cades Cove|rangers?\b|Clingmans|campgrounds?|waterfalls?|fishing|mushrooms?|fall colou?rs?|backcountry|Appalachian Trail)/i],
+  ['Things to do', /\b(festival|Dollywood|concerts?|parades?|holiday|Christmas|lights?\b|Winterfest|shows?\b|theat(er|re)|museum|attractions?|celebrat|fair\b|market|tickets?|music|singles?\b|album|art\b|crafts?|performances?)/i],
+  ['Business', /\b(business|restaurants?|grand opening|now open|opens\b|to close|closing|jobs?\b|hiring|hotels?|resort|develop|economy|sales\b|shopping|Black Friday|revenue|tourism|retail|stores?\b|brewery|distillery|cabin rental|real estate|property|hospital|health)/i],
+  ['Government', /\b(mayor|commission|city council|alderm|board\b|schools?\b|vote|election|budget|ordinance|lawmakers|state law|governor|legislat|approves?|utility)/i],
+];
+// "SEVIER COUNTY, Tenn. (WATE) — " at the start of a summary
+export const undateline = (t: string) => (t || '').replace(/^[A-Z][A-Z .,'’-]{2,40},\s*(Tenn|Tennessee|N\.?C|North Carolina|TN|NC|Ga|Va)\.?\s*(\([^)]{1,30}\))?\s*[—–-]+\s*/, '').replace(/^\([^)]{1,20}\)\s*[—–-]+\s*/, '');
+export const catOf = (text: string) => { for (const [c, rx] of CATS) if (rx.test(text)) return c; return 'Community'; };
 
 export async function collect(log: (s: string) => void = () => {}) {
   const gaz = await gazetteer().catch(() => [] as NonNullable<typeof GAZ>);
@@ -110,7 +159,10 @@ export async function collect(log: (s: string) => void = () => {}) {
       const id = keyOf(title).slice(0, 60); if (!id || seen.has(id)) continue; seen.add(id);
       const source = outletOf(src);
       if (it.published && Date.now() - +new Date(it.published) > 7 * 864e5) continue;
-      rows.push({ id, source, title, summary: it.summary && it.summary !== title ? it.summary : '', link: it.link, img: it.img, published: it.published || new Date().toISOString(), place: geotag(gaz, text) });
+      // Google News "summaries" are just the headline and outlet again; drop those
+      it.summary = undateline(it.summary);
+      const sum = it.summary && !it.summary.toLowerCase().startsWith(title.toLowerCase().slice(0, 40)) && it.summary !== title ? it.summary : '';
+      rows.push({ id, source, title, summary: sum, link: it.link, img: it.img, published: it.published || new Date().toISOString(), place: geotag(gaz, title + ' ' + sum), cat: catOf(title + ' ' + sum), author: null });
       n++; per[source] = (per[source] || 0) + 1;
     }
     log(`ok ${name} ${n}`);
@@ -146,25 +198,83 @@ async function tidy(log: (s: string) => void | number) {
   log(`tidy: removed ${old.length} expired community posts and ${files.length} files`);
 }
 
+type Row = Record<string, unknown>;
+const JUNK = /holiday-marketplace|things-to-do\/events|local-events|\/events\/?\?|_evDiscovery|\/obituar/i;
+type Known = { id: string; link?: string | null; img?: string | null; summary?: string | null; cat?: string | null; author?: string | null; enriched?: boolean };
+// fill in what each story's feed left out: the real article address, its photo, the newsroom's summary, byline.
+// Stories we already know keep what we found before, so each run only visits the handful that are new.
+export async function enrich(rows: Row[], known: Map<string, Known>, budget = 30, log: (s: string) => void = () => {}) {
+  for (const r of rows) {
+    const k = known.get(String(r.id)); if (!k) continue;
+    if (k.link && /news\.google\.com/.test(String(r.link)) && !/news\.google\.com/.test(k.link)) r.link = k.link;
+    if (!r.img && k.img) r.img = k.img;
+    if (k.summary && String(k.summary).length > String(r.summary || '').length) r.summary = k.summary;
+    if (k.author) r.author = k.author;
+    if (k.cat) r.cat = k.cat;
+  }
+  const need = rows.filter(r => { const k = known.get(String(r.id)); return !(k && k.enriched) && (!r.img || !r.summary || /news\.google\.com/.test(String(r.link))); }).slice(0, budget);
+  let resolved = 0, photos = 0;
+  const one = async (r: Row) => {
+    if (/news\.google\.com/.test(String(r.link))) { const u = await gnResolve(String(r.link)); if (u) { r.link = u; resolved++; } }
+    const m = await pageMeta(String(r.link));
+    if (m) {
+      if (!r.img && m.img) { r.img = m.img; photos++; }
+      m.desc = undateline(m.desc);
+      if (m.desc && m.desc.length > String(r.summary || '').length && !m.desc.toLowerCase().startsWith(String(r.title).toLowerCase().slice(0, 40))) r.summary = m.desc;
+      if (m.author) r.author = m.author;
+      r.cat = catOf(`${r.title} ${r.summary || ''} ${m.section || ''}`);
+    }
+    r.enriched = true;
+  };
+  for (let i = 0; i < need.length; i += 5) await Promise.all(need.slice(i, i + 5).map(one)); // a few at a time, politely
+  // event listings and calendar pages that ride along in search results are not news
+  const seenLink = new Set<string>();
+  for (let i = rows.length - 1; i >= 0; i--) if (JUNK.test(String(rows[i].link))) rows.splice(i, 1);
+  for (let i = 0; i < rows.length; i++) { const l = String(rows[i].link).split(/[?#]/)[0]; if (seenLink.has(l)) { rows.splice(i, 1); i--; } else seenLink.add(l); }
+  log(`enrich: ${need.length} visited, ${resolved} links resolved, ${photos} photos found`);
+  return need.length;
+}
+
 export async function run(dry = false) {
   const lines: string[] = [];
   const { rows, per } = await collect(s => lines.push(s));
-  let known = new Map<string, { img: string | null }>();
-  if (!dry && rows.length) { const have = await db(`news_items?select=id,img&id=in.(${rows.map(r => `"${String(r.id).replace(/"/g, '')}"`).join(',')})`) as { id: string; img: string | null }[]; known = new Map(have.map(h => [h.id, h])); }
-  // photos: only for stories we don't have yet (or that came without one), a few at a time
-  const need = rows.filter(r => !r.img && !/news\.google\.com/.test(String(r.link)) && !(known.get(String(r.id))?.img)).slice(0, 30);
-  await Promise.all(need.map(async r => { r.img = await ogImage(String(r.link)); }));
-  rows.forEach(r => { if (!r.img && known.get(String(r.id))?.img) r.img = known.get(String(r.id))!.img; });
+  let known = new Map<string, Known>();
+  if (!dry && rows.length) { const have = await db(`news_items?select=id,link,img,summary,cat,author&id=in.(${rows.map(r => `"${String(r.id).replace(/"/g, '')}"`).join(',')})`) as Known[]; known = new Map(have.map(h => [h.id, { ...h, enriched: !/news\.google\.com/.test(String(h.link)) }])); }
+  const visited = await enrich(rows, known, dry ? 12 : 30, s => lines.push(s));
   const fresh = rows.filter(r => !known.has(String(r.id)));
+  rows.forEach(r => delete r.enriched);
   if (!dry && rows.length) {
     await db('news_items?on_conflict=id', { method: 'POST', headers: { prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(rows.map(r => ({ ...r, seen_at: new Date().toISOString() }))) });
     await db(`news_items?published=lt.${new Date(Date.now() - 7 * 864e5).toISOString()}`, { method: 'DELETE' }); // the feed shows 3 days; keep a week
     if (new Date().getUTCMinutes() < 5) await tidy(s => lines.push(s)).catch(e => lines.push('tidy failed: ' + e)); // once an hour
   }
-  return { stories: rows.length, fresh: fresh.length, withPhoto: rows.filter(r => r.img).length, perOutlet: per, photosFetched: need.length, log: lines, sample: dry ? rows.slice(0, 8) : undefined };
+  return { stories: rows.length, fresh: fresh.length, withPhoto: rows.filter(r => r.img).length, withSummary: rows.filter(r => r.summary).length, perOutlet: per, visited, log: lines, sample: dry ? rows.slice(0, 8) : undefined };
 }
 
-if (import.meta.main && typeof Deno.serve === 'function' && !Deno.args.includes('--dry')) {
+// The backup file the app reads when the database isn't set up: GitHub Actions runs
+//   deno run -A supabase/functions/news/index.ts --json feeds/live/news.json --prev last-run.json
+// every 10 minutes. It keeps what earlier runs found (photos, real links) and a week of stories.
+export async function writeJson(path: string, prevPath = path) {
+  const lines: string[] = [];
+  const { rows } = await collect(s => lines.push(s));
+  let prev: Row[] = [];
+  try { prev = JSON.parse(await Deno.readTextFile(prevPath)).items || []; } catch { /* first run */ }
+  const known = new Map<string, Known>(prev.map(p => [String(p.id), { ...(p as Known), enriched: !!p.enriched }]));
+  await enrich(rows, known, 30, s => lines.push(s));
+  const ids = new Set(rows.map(r => String(r.id))), week = Date.now() - 7 * 864e5;
+  const short = new Set(rows.map(r => String(r.id).slice(0, 40))); // the plain backup list uses shorter ids for the same stories
+  const keep = prev.filter(p => !ids.has(String(p.id)) && !short.has(String(p.id).slice(0, 40)) && +new Date(String(p.published)) > week); // stories that scrolled off a station's feed stay for the week
+  const items = [...rows, ...keep].sort((a, b) => +new Date(String(b.published)) - +new Date(String(a.published))).slice(0, 120);
+  if (!items.length) throw new Error('no stories');
+  await Deno.writeTextFile(path, JSON.stringify({ updated: new Date().toISOString(), items }));
+  console.log(lines.join('\n'));
+  console.log(`wrote ${items.length} stories (${items.filter(i => i.img).length} with photos, ${items.filter(i => i.summary).length} with summaries)`);
+}
+
+if (import.meta.main && Deno.args.includes('--json')) {
+  const out = Deno.args[Deno.args.indexOf('--json') + 1] || 'news.json', pi = Deno.args.indexOf('--prev');
+  await writeJson(out, pi > -1 ? Deno.args[pi + 1] : out);
+} else if (import.meta.main && typeof Deno.serve === 'function' && !Deno.args.includes('--dry')) {
   Deno.serve(async () => {
     try { return Response.json(await run(false)); }
     catch (e) { return Response.json({ error: String(e) }, { status: 500 }); }

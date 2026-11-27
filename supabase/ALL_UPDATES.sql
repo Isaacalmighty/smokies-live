@@ -254,6 +254,9 @@ create table if not exists public.news_items (
   created_at timestamptz not null default now()
 );
 create index if not exists news_items_published_idx on public.news_items (published desc);
+-- section label (Safety, Weather, Roads, Outdoors...) and byline, for the news page
+alter table public.news_items add column if not exists cat text;
+alter table public.news_items add column if not exists author text;
 
 alter table public.news_items enable row level security;
 drop policy if exists "news readable" on public.news_items;

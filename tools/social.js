@@ -9,7 +9,7 @@ const Social = (() => {
   // Supabase project (public URL and anon key; data is protected by row-level security). Empty = device-only mode.
   const SUPA = { url: 'https://uamuqhkpbszogmdusfqr.supabase.co', key: 'sb_publishable_Y0fiNms2M0TI1Ph_ITWk0Q_hk2TS848' };
   const SUPA_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.79.0/dist/umd/supabase.js';
-  const S = { showPins: (() => { try { return localStorage.getItem('sl-userpins') === '1'; } catch (e) { return false; } })(), view: 'map', posts: [], likes: {}, saved: {}, comments: {}, me: null, stories: [], storyAt: 0, pins: [], seen: 0, news: [], freshNews: new Set(), votes: {}, rvotes: {}, filter: 'all', here: null, groups: [], scope: 'public', signed: {}, members: {}, wall: true };
+  const S = { showPins: (() => { try { return localStorage.getItem('sl-userpins') === '1'; } catch (e) { return false; } })(), view: 'map', posts: [], likes: {}, saved: {}, comments: {}, me: null, stories: [], storyAt: 0, pins: [], seen: 0, news: [], freshNews: new Set(), votes: {}, rvotes: {}, filter: 'all', nsec: 'all', nsrc: '', here: null, groups: [], scope: 'public', signed: {}, members: {}, wall: true };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ago = iso => { if (!iso) return ''; const s = (Date.now() - new Date(iso)) / 1000; if (s < 0) return 'upcoming'; if (s < 60) return 'now'; if (s < 3600) return Math.round(s / 60) + 'm'; if (s < 86400) return Math.round(s / 3600) + 'h'; if (s < 7 * 86400) return Math.round(s / 86400) + 'd'; return new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }); };
   const I = { // 24px line icons
@@ -42,6 +42,7 @@ const Social = (() => {
     mute: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>',
     sound: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
     video: '<rect x="3" y="6" width="13" height="12" rx="2.5"/><path d="M16 10.5l5-3v9l-5-3z"/>',
+    ext: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
     globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/>',
   };
   const svg = (k, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`;
@@ -88,7 +89,8 @@ const Social = (() => {
     async loadFeed() { const { data, error } = await this.sb.from('post_feed').select('*').order('created_at', { ascending: false }).limit(150); if (!error) S.remote = data || []; await Promise.all([this.loadVotes(), this.signPhotos()]); },
     newsOff: false,
     async loadNews() {
-      const { data, error } = await this.sb.from('news_items').select('id,source,title,summary,link,img,published,place').order('published', { ascending: false }).limit(150);
+      let { data, error } = await this.sb.from('news_items').select('id,source,title,summary,link,img,published,place,cat,author').order('published', { ascending: false }).limit(150);
+      if (error) ({ data, error } = await this.sb.from('news_items').select('id,source,title,summary,link,img,published,place').order('published', { ascending: false }).limit(150));
       if (error) { this.newsOff = true; return; }
       S.news = data || [];
     },
@@ -184,10 +186,12 @@ const Social = (() => {
   const color = h => { let x = 0; for (const ch of h || '') x = (x * 31 + ch.charCodeAt(0)) >>> 0; return `hsl(${x % 360} 45% 42%)`; };
   const authorOf = r => ({ name: r.name || r.handle, h: r.handle || 'someone', c: color(r.handle), i: (r.name || r.handle || '?').slice(0, 1).toUpperCase(), photo: r.avatar_url });
   const nkey = t => String(t || '').toLowerCase().replace(/\W+/g, '').slice(0, 60);
+  const OUTLET_RX = [[/mountain press/i, 'The Mountain Press'], [/wbir/i, 'WBIR 10News'], [/wate/i, 'WATE 6 On Your Side'], [/wvlt/i, 'WVLT'], [/knox ?news|news sentinel/i, 'Knox News'], [/daily times/i, 'The Daily Times'], [/smoky mountain news/i, 'Smoky Mountain News'], [/wlos/i, 'WLOS'], [/citizen[- ]times/i, 'Citizen Times'], [/national park service|nps\.gov/i, 'National Park Service'], [/city of sevierville/i, 'City of Sevierville']];
+  const outletName = s => { for (const [rx, n] of OUTLET_RX) if (rx.test(s || '')) return n; return s || 'Local news'; };
   function allNews() { // stories from the 5-minute collector, plus the backup feed, one post per story
     const out = new Map();
-    (S.news || []).forEach(n => out.set(nkey(n.title), { ...n }));
-    Live.st.news.forEach((n, i) => { const k = nkey(n.title); const have = out.get(k); if (have) { have.li = i; if (!have.img && n.img) have.img = n.img; if (!have.place && n.place) have.place = n.place; } else out.set(k, { ...n, id: k, li: i }); });
+    (S.news || []).forEach(n => out.set(nkey(n.title), { ...n, source: outletName(n.source) }));
+    Live.st.news.forEach((n, i) => { n = { ...n, source: outletName(n.source) }; const k = nkey(n.title); const have = out.get(k); if (have) { have.li = i; for (const f of ['img', 'place', 'cat', 'author']) if (!have[f] && n[f]) have[f] = n[f]; if (n.summary && (n.summary.length > (have.summary || '').length)) have.summary = n.summary; if (/news\.google\.com/.test(have.link || '') && n.link && !/news\.google\.com/.test(n.link)) have.link = n.link; } else out.set(k, { ...n, id: k, li: i }); });
     const old = Date.now() - 3 * 864e5; // news leaves the feed after 3 days
     return [...out.values()].filter(n => !n.published || +new Date(n.published) > old);
   }
@@ -212,7 +216,7 @@ const Social = (() => {
   const ACCTS = {
     'The Mountain Press': { h: 'mountainpress', c: '#c0392b', i: 'MP' }, 'WBIR 10News': { h: 'wbir', c: '#1f5fbf', i: '10' }, WVLT: { h: 'wvlt', c: '#e0731f', i: '8' },
     'WATE 6 On Your Side': { h: 'wate6', c: '#2a7de1', i: '6' }, 'Knox News': { h: 'knoxnews', c: '#0b5aa2', i: 'KN' }, 'The Daily Times': { h: 'thedailytimes', c: '#8a2b2b', i: 'DT' },
-    WLOS: { h: 'wlos', c: '#1d4f91', i: '13' }, 'Citizen Times': { h: 'citizentimes', c: '#00609c', i: 'CT' }, 'Smoky Mountain News': { h: 'smokymtnnews', c: '#4f6f2f', i: 'SM' }, 'Smoky Mountain Times': { h: 'smokymtntimes', c: '#6a5a2f', i: 'ST' }, 'National Park Service': { h: 'greatsmokynps', c: '#3b5d2a', i: 'NP' }, Gatlinburg: { h: 'gatlinburg', c: '#7a4fbf', i: 'G' },
+    WLOS: { h: 'wlos', c: '#1d4f91', i: '13' }, 'Citizen Times': { h: 'citizentimes', c: '#00609c', i: 'CT' }, 'Smoky Mountain News': { h: 'smokymtnnews', c: '#4f6f2f', i: 'SM' }, 'Smoky Mountain Times': { h: 'smokymtntimes', c: '#6a5a2f', i: 'ST' }, 'National Park Service': { h: 'greatsmokynps', c: '#3b5d2a', i: 'NP' }, 'City of Sevierville': { h: 'seviervilletn', c: '#2f6f6a', i: 'SV' }, Gatlinburg: { h: 'gatlinburg', c: '#7a4fbf', i: 'G' },
     'TDOT SmartWay': { h: 'tdot', c: '#e8892b', i: 'TD' }, NCDOT: { h: 'ncdot', c: '#e8892b', i: 'NC' }, Weather: { h: 'smokies.weather', c: '#2f8fe0', i: '☁' }, Rivers: { h: 'smokies.rivers', c: '#2f8fe0', i: '≈' },
   };
   function acct(src) { const a = ACCTS[src]; if (a) return { name: src, ...a }; const h = String(src || 'local').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 18) || 'local'; let x = 0; for (const ch of h) x = (x * 31 + ch.charCodeAt(0)) >>> 0; return { name: src, h, c: `hsl(${x % 360} 45% 42%)`, i: (src || '?').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() }; }
@@ -228,7 +232,7 @@ const Social = (() => {
     for (let i = out.length - 1; i >= 0; i--) if (out[i].kind === 'report' && out[i].rs.gone) out.splice(i, 1);
     L.alerts.forEach((a, i) => out.push({ id: 'al' + i + (a.event || ''), kind: 'alert', a: acct('Weather'), t: a.sent || a.effective, card: 'alert', title: a.event, text: (a.description || a.headline || '').replace(/\s*\*\s*/g, ' ').slice(0, 400), place: null, refK: 'alert', refI: i }));
     L.traffic.cameras.forEach((c, i) => out.push({ id: 'cam' + c.id, kind: 'cam', a: acct(c.source), t: new Date().toISOString(), img: c.img ? (c.still ? c.img + '?r=' + Math.floor(Date.now() / 300000) : c.img) : null, card: c.img ? null : 'cam', title: c.name, spot: c.spot, live: c.still || c.live, text: c.img ? c.name + (c.still ? ' · new image every few minutes' : '') : '', link: c.img ? null : c.page, place: c.lng != null ? { name: (c.spot || c.name).replace(/ Webcam$/, ''), lng: c.lng, lat: c.lat } : null, refK: 'cam', refI: i }));
-    allNews().forEach(n => out.push({ id: 'n' + n.id, kind: 'news', fresh: S.freshNews.has(n.id), a: acct(n.source), t: n.published, img: n.img, card: n.img ? null : 'headline', title: n.title, text: n.summary && n.summary !== n.title ? n.summary : '', place: n.place, link: n.link, ...(n.li != null ? { refK: 'news', refI: n.li } : {}) }));
+    allNews().forEach(n => out.push({ id: 'n' + n.id, kind: 'news', fresh: S.freshNews.has(n.id), a: acct(n.source), t: n.published, img: n.img, card: n.img ? null : 'headline', title: n.title, text: n.summary && n.summary !== n.title ? n.summary : '', cat: ncat(n), author: n.author || null, place: n.place, link: n.link, ...(n.li != null ? { refK: 'news', refI: n.li } : {}) }));
     L.events.forEach((n, i) => out.push({ id: 'e' + n.id, kind: 'event', a: acct(n.source), t: n.published || n.start, img: n.img, card: n.img ? null : 'event', title: n.title, text: n.summary, start: n.start, place: n.place, link: n.link, refK: 'event', refI: i }));
     L.traffic.incidents.forEach((n, i) => out.push({ id: 'r' + n.id, kind: 'road', a: acct(n.source), t: n.start, card: 'road', title: n.title, text: n.desc, place: n.place || (n.lng != null ? { name: n.road || 'Road', lng: n.lng, lat: n.lat } : null), link: n.link, refK: 'traffic', refI: i }));
     // mix it like a real feed: your posts and alerts first, then news with webcams and events woven in
@@ -251,6 +255,7 @@ const Social = (() => {
   const pic = p => p.vid ? `<video class="fv"${vAR(p.vm)} data-src="${esc(p.vid)}" poster="${esc(p.img || '')}" muted playsinline loop preload="none" disablepictureinpicture></video><button class="vplay" data-act="vplay" aria-label="Play video">${svg('play')}</button><button class="snd" data-act="sound" aria-label="Sound on or off">${svg(Vid.sound ? 'sound' : 'mute', 'sm')}</button>`
     : `<img loading="lazy" src="${esc(p.img)}" alt="" onerror="this.parentNode.classList.add('broken')">`;
   function card(p, j) {
+    if (p.kind === 'news') return newsCard(p, j);
     const liked = !!(S.likes[p.id] || S.serverLikes[p.id]), saved = !!S.saved[p.id];
     let media = '';
     const R = p.kind === 'report' ? p.rs : null;
@@ -277,6 +282,138 @@ const Social = (() => {
       ${nC ? `<button class="more" data-act="comment">View ${nC} comment${nC > 1 ? 's' : ''}</button>` : ''}
     </article>`;
   }
+
+  /* ---------- the newsroom: local news laid out like a real news app ---------- */
+  // section colors are muted so photos carry the page
+  const NSEC = { Safety: '#e0675a', Weather: '#5aa6e0', Roads: '#e8994a', Outdoors: '#8fbf6a', 'Things to do': '#c08ae0', Business: '#e0bf5a', Government: '#8fa9c4', Sports: '#5ac4b0', Community: '#d9a37f' };
+  const NSEC_ORDER = ['Safety', 'Weather', 'Roads', 'Outdoors', 'Things to do', 'Community', 'Business', 'Government', 'Sports'];
+  const NCAT_RX = [ // the same sorting the news collector does, for stories that arrive without a section
+    ['Sports', /\b(football|basketball|baseball|softball|soccer|volleyball|playoffs?|semifinals?|championship|coach|tournament)/i],
+    ['Safety', /\b(police|sheriff|deput|arrest|charged|indict|shooting|murder|homicide|missing|rescued?|jury|trial|sentenc|pleads?|guilty|convicted|crime|suspect|investigat|brush fire|house fire|burn ban|burn permits?|fire danger|evacuat|fatal)/i],
+    ['Weather', /\b(weather|forecast|storms?\b|snow|icy|flood|tornado|freeze|frost|NWS|winter storm)/i],
+    ['Roads', /\b(road|crash|wreck|closures?|lanes?\b|traffic|I-40|I-75|interstate|highway|parkway|TDOT|detour|bridge)/i],
+    ['Outdoors', /\b(national park|Smokies|Great Smoky|trails?\b|hik(e|ing)|bears?\b|elk\b|wildlife|Cades Cove|rangers?\b|campgrounds?|waterfalls?)/i],
+    ['Things to do', /\b(festival|Dollywood|concerts?|parades?|holiday|Christmas|lights?\b|Winterfest|shows?\b|theat(er|re)|museum|music)/i],
+    ['Business', /\b(business|restaurants?|now open|opens\b|to close|jobs?\b|hiring|hotels?|shopping|Black Friday|tourism|stores?\b)/i],
+    ['Government', /\b(mayor|commission|city council|alderm|board\b|schools?\b|vote|election|budget|ordinance)/i],
+  ];
+  const ncat = n => n.cat || (NCAT_RX.find(([, rx]) => rx.test(n.title + ' ' + (n.summary || n.text || ''))) || ['Community'])[0];
+  // photos come through a free image service that shrinks them to the size on screen (a 40 KB WebP instead of a 400 KB JPEG)
+  const nimg = (u, w, h) => /^https?:\/\//.test(u || '') ? `https://wsrv.nl/?url=${encodeURIComponent(u)}&w=${w}&h=${h || Math.round(w * 9 / 16)}&fit=cover&a=attention&output=webp&q=72` : u || '';
+  const nimgTag = (u, w, h, eager) => `<img ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" src="${esc(nimg(u, w, h))}" data-o="${esc(u)}" alt="" onload="this.classList.add('in')" onerror="if(this.dataset.o&&this.src!==this.dataset.o){this.src=this.dataset.o}else{this.parentNode.classList.add('noimg');this.remove()}">`;
+  const nthumb = (p, w, h) => p.img ? `<span class="nth nph" style="--c:${p.a.c}" data-i="${esc(p.a.i)}">${nimgTag(p.img, w, h)}</span>` : `<span class="nth none" style="--c:${p.a.c}"><b>${esc(p.a.i)}</b></span>`; // a photo that won't load becomes the newsroom's badge
+  const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
+  const longWhen = t => { const d = new Date(t); if (isNaN(d)) return ''; return d.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long', month: 'long', day: 'numeric' }) + ' at ' + d.toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }); };
+  const agoLong = t => { const s = (Date.now() - new Date(t)) / 1000; if (!(s >= 0)) return ''; if (s < 90) return 'Just now'; if (s < 3600) return Math.round(s / 60) + ' min ago'; if (s < 86400) { const h = Math.round(s / 3600); return h + (h === 1 ? ' hour ago' : ' hours ago'); } const d = Math.round(s / 86400); return d === 1 ? 'Yesterday' : d + ' days ago'; };
+  function newsItems() { // every story as a feed item, newest first, with its section
+    return feedItemsCache().filter(x => x.kind === 'news').sort((a, b) => new Date(b.t || 0) - new Date(a.t || 0));
+  }
+  let fiCache = null, fiAt = 0;
+  function feedItemsCache() { if (!fiCache || Date.now() - fiAt > 4000) { fiCache = feedItems(); fiAt = Date.now(); } return fiCache; }
+  // the lead story: recent, with a photo, about here, and not sports
+  function newsScore(p) { const hrs = (Date.now() - new Date(p.t || 0)) / 36e5; return (p.img ? 30 : 0) + (p.place ? 8 : 0) + (p.text ? 6 : 0) + (p.cat === 'Sports' ? -20 : 0) + (p.cat === 'Safety' || p.cat === 'Weather' || p.cat === 'Roads' ? 6 : 0) - hrs * 1.2; }
+  const kicker = (p, withSrc) => `<span class="nk"><b style="--k:${NSEC[p.cat] || NSEC.Community}">${esc(p.cat)}</b>${withSrc ? `<span>${esc(p.a.name)}</span>` : p.place ? `<span>${esc(p.place.name)}</span>` : ''}</span>`;
+  const nrow = (p, j) => `<article class="nrow post" data-id="${esc(p.id)}" style="animation-delay:${Math.min(j, 8) * 45}ms"><button class="nrowb" data-act="read">
+      <div class="nrt">${kicker(p, true)}<b class="nhl">${esc(p.title)}</b><small>${agoLong(p.t)}${p.place ? ' · ' + esc(p.place.name) : ''}</small></div>
+      ${nthumb(p, 168, 168)}</button></article>`;
+  const nmid = (p, j) => `<article class="nmid post" data-id="${esc(p.id)}" style="animation-delay:${Math.min(j, 8) * 45}ms"><button class="nmidb" data-act="read">
+      ${p.img ? `<span class="nph">${nimgTag(p.img, 720)}</span>` : ''}
+      <div class="nmt">${kicker(p, true)}<b class="nhl">${esc(p.title)}</b>${p.text ? `<p>${esc(p.text)}</p>` : ''}<small>${agoLong(p.t)}${p.place ? ' · ' + esc(p.place.name) : ''}</small></div></button></article>`;
+  function nhero(p) {
+    return `<article class="nhero post" data-id="${esc(p.id)}"><button class="nherob" data-act="read" style="--c:${p.a.c}">
+      ${p.img ? `<span class="nph">${nimgTag(p.img, 960, 640, true)}</span>` : ''}<span class="nshade"></span>
+      <div class="nht"><span class="nlabel">${Date.now() - new Date(p.t) < 3 * 36e5 ? '<i class="pulse"></i>Developing' : 'Top story'}</span>${kicker(p, false)}<h2>${esc(p.title)}</h2>${p.text ? `<p>${esc(p.text)}</p>` : ''}<span class="nsrc">${avatar(p.a, 22)}<b>${esc(p.a.name)}</b><span>${agoLong(p.t)}</span></span></div></button></article>`;
+  }
+  // in the feed: one story, shown like a news app shows it, but it can still be liked, saved and shared
+  function newsCard(p, j) {
+    const liked = !!(S.likes[p.id] || S.serverLikes[p.id]), saved = !!S.saved[p.id];
+    const media = p.img ? `<div class="media nph" data-act="read">${nimgTag(p.img, 720)}<span class="ncat" style="--k:${NSEC[p.cat] || NSEC.Community}">${esc(p.cat)}</span>${p.fresh ? '<span class="newtag">NEW</span>' : ''}<i class="burst">${svg('heart')}</i></div>` : '';
+    return `<article class="post newspost${p.img ? '' : ' noph'}" data-id="${esc(p.id)}" style="animation-delay:${Math.min(j, 6) * 60}ms;--c:${p.a.c}">
+      <header>${avatar(p.a, 32)}<div class="who"><b>${esc(p.a.name)}</b>${p.place ? `<button class="loc" data-act="map">${esc(p.place.name)}</button>` : '<span class="loc">Local news</span>'}</div><span class="when">${ago(p.t)}</span><button class="ib" data-act="more" aria-label="More">${svg('more')}</button></header>
+      ${media}
+      <div class="nbody" data-act="read">${p.img ? '' : `${kicker(p, false)}${p.fresh ? '<span class="newtag inl">NEW</span>' : ''}`}<h3 class="nhl">${esc(p.title)}</h3>${p.text ? `<p class="ndek">${esc(p.text)}</p>` : ''}<div class="nby">${p.author ? `By ${esc(p.author)} · ` : ''}${esc(agoLong(p.t))}</div></div>
+      <div class="acts"><button class="ib like${liked ? ' on' : ''}" data-act="like" aria-label="Like" aria-pressed="${liked}">${svg('heart')}</button><button class="ib" data-act="comment" aria-label="Comment">${svg('comment')}</button><button class="ib" data-act="share" aria-label="Share">${svg('send')}</button>${p.place ? `<button class="ib" data-act="map" aria-label="See on map">${svg('pin')}</button>` : ''}<span class="sp"></span>${p.link ? `<a class="nread" href="${esc(p.link)}" target="_blank" rel="noopener">Full story ${svg('ext', 'xs')}</a>` : ''}<button class="ib save${saved ? ' on' : ''}" data-act="save" aria-label="Save">${svg('save')}</button></div>
+    </article>`;
+  }
+  // a swipeable strip of top stories, near the top of the For you feed
+  function newsRail() {
+    const all = newsItems(); if (all.length < 3) return '';
+    const top = [...all].sort((a, b) => newsScore(b) - newsScore(a)).slice(0, 8);
+    return `<section class="nrail" aria-label="Top local stories"><div class="nrhead"><h4>Top stories</h4><button data-gonews>All local news ${svg('back', 'xs flip')}</button></div>
+      <div class="nrscroll">${top.map(p => `<button class="nrc" data-read="${esc(p.id)}" style="--c:${p.a.c}">${p.img ? `<span class="nph" data-i="${esc(p.a.i)}">${nimgTag(p.img, 480, 300)}</span>` : `<span class="nph none"><b>${esc(p.a.i)}</b></span>`}<span class="nrct">${kicker(p, false)}<b>${esc(p.title)}</b><small>${esc(p.a.name)} · ${ago(p.t)}</small></span></button>`).join('')}</div></section>`;
+  }
+  function renderNewsroom(f) {
+    const all = newsItems(); feedCache = all;
+    const sec = S.nsec || 'all', src = S.nsrc || '';
+    const counts = {}; all.forEach(p => counts[p.cat] = (counts[p.cat] || 0) + 1);
+    const outlets = [...new Set(all.map(p => p.a.name))].map(n => ({ n, a: all.find(p => p.a.name === n).a, k: all.filter(p => p.a.name === n).length })).sort((a, b) => b.k - a.k);
+    const today = new Date().toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long', month: 'long', day: 'numeric' });
+    let h = `<div class="nroom"><header class="nmast"><small>${esc(today)}</small><h2>Local News</h2><span>${all.length} stories from ${outlets.length} newsrooms in the last 3 days</span></header>
+      <div class="nsecs chips" role="tablist">${[['all', 'Top'], ...NSEC_ORDER.filter(c => counts[c]).map(c => [c, c])].map(([k, l]) => `<button data-nsec="${esc(k)}" aria-selected="${sec === k && !src}" style="--k:${NSEC[k] || 'var(--ink)'}">${esc(l)}${k !== 'all' ? ` <small>${counts[k]}</small>` : ''}</button>`).join('')}</div>
+      <div class="nouts">${outlets.map(o => `<button data-nsrc="${esc(o.n)}" aria-pressed="${src === o.n}">${avatar(o.a, 40)}<span>${esc(o.n.replace(/ On Your Side$/, ''))}</span></button>`).join('')}</div>`;
+    if (!all.length) h += `<div class="empty">${svg('search', 'big')}<b>No stories yet</b><span>Local newsrooms will show up here as they publish.</span></div>`;
+    else if (sec === 'all' && !src) {
+      const ranked = [...all].sort((a, b) => newsScore(b) - newsScore(a)); const used = new Set();
+      const hero = ranked[0]; used.add(hero.id);
+      const tops = ranked.filter(p => !used.has(p.id)).slice(0, 4); tops.forEach(p => used.add(p.id));
+      h += nhero(hero) + `<div class="nblock">${tops.map(nrow).join('')}</div>`;
+      NSEC_ORDER.forEach(c => {
+        const items = all.filter(p => p.cat === c && !used.has(p.id)); if (!items.length) return;
+        const lead = items.find(p => p.img) || items[0], rest = items.filter(p => p !== lead).slice(0, 2); [lead, ...rest].forEach(p => used.add(p.id));
+        h += `<section class="nsec" style="--k:${NSEC[c]}"><h3><span>${esc(c)}</span>${items.length > 3 ? `<button data-nsec="${esc(c)}">See all ${items.length} ${svg('back', 'xs flip')}</button>` : ''}</h3>${nmid(lead, 0)}${rest.map(nrow).join('')}</section>`;
+      });
+      const more = all.filter(p => !used.has(p.id));
+      if (more.length) h += `<section class="nsec"><h3><span>More local stories</span></h3>${more.slice(0, 30).map(nrow).join('')}</section>`;
+    } else {
+      const items = all.filter(p => (sec === 'all' || p.cat === sec) && (!src || p.a.name === src));
+      const lead = items.find(p => p.img);
+      h += `<section class="nsec solo" style="--k:${NSEC[sec] || 'var(--ember)'}"><h3><span>${esc(src || sec)}</span><small>${items.length} ${items.length === 1 ? 'story' : 'stories'}</small></h3>${lead ? nmid(lead, 0) : ''}${items.filter(p => p !== lead).map(nrow).join('')}</section>`;
+    }
+    h += `<p class="nfoot">Headlines and summaries come from each newsroom's own feed. Tap a story for the full report on their site.</p></div>`;
+    f.innerHTML = h;
+  }
+  function onNewsClick(e) {
+    const r = e.target.closest('[data-read]'); if (r) { const p = newsItems().find(x => x.id === r.dataset.read); if (p) openArticle(p, r); return true; }
+    if (e.target.closest('[data-gonews]')) { S.filter = 'news'; S.nsec = 'all'; S.nsrc = ''; renderFeed(); $('#socialView').scrollTo({ top: 0, behavior: 'smooth' }); return true; }
+    const s = e.target.closest('[data-nsec]'); if (s) { S.nsec = s.dataset.nsec; S.nsrc = ''; renderFeed(); const top = $('#fchips'); if (top) $('#socialView').scrollTo({ top: top.offsetTop - 8, behavior: 'smooth' }); return true; }
+    const o = e.target.closest('[data-nsrc]'); if (o) { S.nsrc = S.nsrc === o.dataset.nsrc ? '' : o.dataset.nsrc; S.nsec = 'all'; renderFeed(); return true; }
+    return false;
+  }
+  // the story page: big photo, headline, the newsroom's summary, and the way to the full report
+  function openArticle(p, from) {
+    let v = $('#newsView');
+    if (!v) {
+      v = document.createElement('div'); v.id = 'newsView'; v.hidden = true; document.body.appendChild(v);
+      v.addEventListener('click', e => {
+        if (e.target.closest('[data-x]')) return closeArticle();
+        const r = e.target.closest('[data-read]'); if (r) { const q = newsItems().find(x => x.id === r.dataset.read); if (q) openArticle(q); return; }
+        const a = e.target.closest('[data-na]'); if (!a) return; const q = v._p; if (!q) return;
+        if (a.dataset.na === 'map') { closeArticle(); showOnMap(q); }
+        if (a.dataset.na === 'share') share(q);
+        if (a.dataset.na === 'save') { S.saved[q.id] = !S.saved[q.id]; if (!S.saved[q.id]) delete S.saved[q.id]; persist('saved'); a.classList.toggle('on', !!S.saved[q.id]); a.lastChild.textContent = S.saved[q.id] ? 'Saved' : 'Save'; bump(a); }
+      });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && !v.hidden) closeArticle(); });
+    }
+    const swap = !v.hidden; v._p = p;
+    const all = newsItems(), same = all.filter(x => x.id !== p.id && x.a.name === p.a.name).slice(0, 3);
+    const near = all.filter(x => x.id !== p.id && !same.includes(x) && (p.place && x.place && x.place.name === p.place.name)).slice(0, 3);
+    const rel = near.length ? near : all.filter(x => x.id !== p.id && !same.includes(x) && x.cat === p.cat).slice(0, 3);
+    const site = host(p.link), saved = !!S.saved[p.id];
+    v.innerHTML = `<div class="nv"><header class="nvbar"><button class="ib" data-x aria-label="Back">${svg('back')}</button><span class="nvsrc">${avatar(p.a, 24)}<b>${esc(p.a.name)}</b></span><button class="ib" data-na="share" aria-label="Share">${svg('send')}</button></header>
+      <div class="nvscroll">${p.img ? `<figure class="nvhero"><span class="nph">${nimgTag(p.img, 1080, 720, true)}</span><figcaption>Photo: ${esc(p.a.name)}</figcaption></figure>` : `<div class="nvhero none" style="--c:${p.a.c}"><b>${esc(p.a.i)}</b></div>`}
+      <div class="nvbody">${kicker(p, false)}<h1>${esc(p.title)}</h1>${p.text ? `<p class="nvdek">${esc(p.text)}</p>` : ''}
+        <div class="nvby">${avatar(p.a, 36)}<div><b>${p.author ? 'By ' + esc(p.author) : esc(p.a.name)}</b><span>${p.author ? esc(p.a.name) + ' · ' : ''}${esc(longWhen(p.t))}</span></div></div>
+        ${p.link ? `<a class="nvread" href="${esc(p.link)}" target="_blank" rel="noopener"><span><b>Read the full story</b><small>${esc(site || p.a.name)}</small></span>${svg('ext')}</a>` : ''}
+        <div class="nvacts">${p.place ? `<button data-na="map">${svg('pin', 'sm')}<span>${esc(p.place.name)}</span></button>` : ''}<button data-na="save" class="${saved ? 'on' : ''}">${svg('save', 'sm')}<span>${saved ? 'Saved' : 'Save'}</span></button><button data-na="share">${svg('send', 'sm')}<span>Share</span></button></div>
+        <p class="nvnote">You're reading ${esc(p.a.name)}'s headline and summary. The full report, with all photos and video, is on their site.</p>
+        ${same.length ? `<section class="nvmore"><h4>More from ${esc(p.a.name)}</h4>${same.map(x => `<button class="nvrow" data-read="${esc(x.id)}">${nthumb(x, 144, 144)}<span><b>${esc(x.title)}</b><small>${agoLong(x.t)}</small></span></button>`).join('')}</section>` : ''}
+        ${rel.length ? `<section class="nvmore"><h4>${near.length ? 'Also in ' + esc(p.place.name) : 'More in ' + esc(p.cat)}</h4>${rel.map(x => `<button class="nvrow" data-read="${esc(x.id)}">${nthumb(x, 144, 144)}<span><b>${esc(x.title)}</b><small>${esc(x.a.name)} · ${agoLong(x.t)}</small></span></button>`).join('')}</section>` : ''}
+      </div></div></div>`;
+    v.hidden = false; v.classList.remove('out');
+    if (swap) { v.classList.remove('swap'); void v.offsetWidth; v.classList.add('swap'); v.querySelector('.nvscroll').scrollTop = 0; }
+    else { v.classList.remove('swap'); document.body.classList.add('reading'); }
+  }
+  function closeArticle() { const v = $('#newsView'); if (!v || v.hidden) return; v.classList.add('out'); document.body.classList.remove('reading'); setTimeout(() => { v.hidden = true; v.classList.remove('out', 'swap'); v.innerHTML = ''; }, 260); }
 
   /* ---------- stories: the live world as tap-through slides ---------- */
   function buildStories() {
@@ -462,14 +599,16 @@ const Social = (() => {
     },
   };
   function renderFeed() { renderScopes(); const g = S.scope !== 'public' && S.groups.find(x => x.id === S.scope); document.body.classList.toggle('ingroup', !!g); if (g) return renderGroupFeed(g);
-    buildStories(); renderStories(); const all = feedItems(); renderChips(all); feedCache = filtered(all); const f = $('#feed');
+    buildStories(); renderStories(); const all = feedItems(); fiCache = all; fiAt = Date.now(); renderChips(all); const f = $('#feed');
+    if (S.filter === 'news') return renderNewsroom(f);
+    feedCache = filtered(all);
     if (!feedCache.length && all.length) { f.innerHTML = `<div class="empty">${svg(S.filter === 'report' ? 'alert' : 'search', 'big')}<b>${S.filter === 'report' ? 'All quiet right now' : 'Nothing here yet'}</b><span>${S.filter === 'report' ? 'No open community reports. See something on the road or trail? Let people know.' : S.filter === 'near' ? 'Nothing posted within 25 km of you.' : 'Try another filter.'}</span>${S.filter === 'report' || S.filter === 'near' ? '<button class="btn primary" data-newrep>Report something</button>' : ''}</div>`; const nb = f.querySelector('[data-newrep]'); if (nb) nb.onclick = () => openCreate('report'); return; }
     if (feedCache.length) return pageFeed(f);
     f.innerHTML = feedCache.length ? feedCache.map(card).join('') : `<div class="empty">${Live.st.blocked ? `The feed needs live data, which this preview blocks. Open <a href="${SITE}" target="_blank" rel="noopener">the full site</a>.` : 'Loading the latest from the mountains…'}</div>`; }
   // the feed draws a page at a time as you scroll, so phones stay smooth
   const PAGE = 10; let shown = 0, pager = null;
   function pageFeed(f) {
-    shown = Math.min(feedCache.length, PAGE + 2); f.innerHTML = feedCache.slice(0, shown).map(card).join('') + '<div class="more-sentinel" aria-hidden="true"></div>';
+    shown = Math.min(feedCache.length, PAGE + 2); const first = feedCache.slice(0, shown).map(card); if (S.filter === 'all') first.splice(Math.min(2, first.length), 0, newsRail()); f.innerHTML = first.join('') + '<div class="more-sentinel" aria-hidden="true"></div>';
     if (pager) pager.disconnect();
     if (!('IntersectionObserver' in window)) { f.insertAdjacentHTML('beforeend', feedCache.slice(shown).map(card).join('')); shown = feedCache.length; return; }
     pager = new IntersectionObserver(es => { if (!es[0].isIntersecting || shown >= feedCache.length) return; const sen = f.querySelector('.more-sentinel'); const next = feedCache.slice(shown, shown + PAGE); shown += next.length; sen.insertAdjacentHTML('beforebegin', next.map((p, j) => card(p, j)).join('')); if (shown >= feedCache.length) pager.disconnect(); }, { root: null, rootMargin: '1200px 0px' });
@@ -505,7 +644,8 @@ const Social = (() => {
     el.querySelectorAll('[data-scope]').forEach(b => b.onclick = () => setScope(b.dataset.scope));
   }
   function onFeedClick(e) {
-    const b = e.target.closest('[data-act]'); if (!b) return; const id = b.closest('.post').dataset.id; const p = feedCache.find(x => x.id === id); if (!p) return;
+    if (onNewsClick(e)) return;
+    const b = e.target.closest('[data-act]'); if (!b || !b.closest('.post')) return; const id = b.closest('.post').dataset.id; const p = feedCache.find(x => x.id === id); if (!p) return;
     const act = b.dataset.act;
     if (act === 'like') like(id, !(S.likes[id] || S.serverLikes[id]), b.closest('.post').querySelector('.media'));
     if (act === 'save') { S.saved[id] = !S.saved[id]; if (!S.saved[id]) delete S.saved[id]; persist('saved'); b.classList.toggle('on', !!S.saved[id]); bump(b); }
@@ -515,6 +655,7 @@ const Social = (() => {
     if (act === 'map') showOnMap(p);
     if (act === 'comment') openComments(p);
     if (act === 'more') openMore(p);
+    if (act === 'read') { if (e.target.closest('a')) return; openArticle(p, b); }
     if (act === 'sound') Vid.toggle();
     if (act === 'vplay') { const v = b.parentNode.querySelector('video'); if (v) { v.dataset.go = 1; v.paused ? Vid.play(v) : v.pause(); } }
   }

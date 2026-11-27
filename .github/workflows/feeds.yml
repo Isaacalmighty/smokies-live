@@ -20,7 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: scripts
+          sparse-checkout: |
+            scripts
+            supabase/functions
       - name: Check out feeds branch
         env:
           TOKEN: ${{ github.token }}
@@ -33,12 +35,24 @@ jobs:
           NPS_API_KEY: ${{ secrets.NPS_API_KEY }}
           PROBE: ${{ inputs.probe && '1' || '0' }}
         run: python3 scripts/fetch_feeds.py feeds/live
+      - uses: denoland/setup-deno@v2
+        continue-on-error: true
+        with:
+          deno-version: v2.1.x
+      - name: News with photos and summaries
+        # the same collector as the Supabase "news" function; if it fails, the plain list above stays
+        continue-on-error: true
+        timeout-minutes: 4
+        run: |
+          git -C feeds show HEAD:live/news.json > /tmp/last-news.json 2>/dev/null || cp feeds/live/news.json /tmp/last-news.json
+          deno run --allow-net --allow-env --allow-read --allow-write supabase/functions/news/index.ts --json feeds/live/news.json --prev /tmp/last-news.json
       - name: Fetch local road speeds
         continue-on-error: true
         env:
           TOMTOM_KEY: ${{ secrets.TOMTOM_KEY }}
         run: python3 scripts/fetch_locals.py feeds/live
       - name: Publish
+        if: github.ref == 'refs/heads/main'
         working-directory: feeds
         run: |
           git config user.name "smokies-live-bot"

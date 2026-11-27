@@ -28,7 +28,7 @@
 
   /* ---------- Android back button: close what's open, then step back, then leave ---------- */
   if (P.App) P.App.addListener('backButton', ({ canGoBack }) => {
-    for (const id of ['#sheetView', '#storyView', '#createView', '#wallZoom']) { // top-most overlay first
+    for (const id of ['#sheetView', '#newsView', '#storyView', '#createView', '#wallZoom']) { // top-most overlay first
       const v = document.querySelector(id);
       if (v && !v.hidden && !v.classList.contains('out')) { const x = v.querySelector('[data-x], [data-zx]'); if (x) { x.click(); return; } }
     }
