@@ -48,7 +48,7 @@ for r in pq.read_table(sys.argv[1]).to_pylist():
     n = (r['names'] or {}).get('primary')
     if not n: continue
     g = shapely.wkb.loads(r['geometry'])
-    rows.append(dict(closed=r.get('operating_status') == 'permanently_closed', id=r['id'], name=n, n=norm(n), xy=(g.x, g.y), conf=r['confidence'] or 0, cat=r['basic_category'],
+    rows.append(dict(closed=r.get('operating_status') == 'permanently_closed', verified=any(x['dataset'] == 'Overture-signals' for x in r['sources']) and r.get('operating_status') == 'open', id=r['id'], name=n, n=norm(n), xy=(g.x, g.y), conf=r['confidence'] or 0, cat=r['basic_category'],
                      addr=street(r), web={domain(w) for w in (r['websites'] or []) if domain(w)},
                      fb={s for s in (r['socials'] or []) if 'facebook' in s},
                      src={x['dataset'] for x in r['sources']} - {'Overture', 'Overture-signals'}))
@@ -140,6 +140,16 @@ for g in at.values():
         for y in g:
             if y is x or y['id'] in drop or y['src'] <= {'Foursquare'} or y['cat'] != x['cat'] or y['n'] == x['n']: continue
             if {w for w in x['web'] & y['web'] if web_count[w] <= 3}: drop[x['id']] = f"old name of '{y['name']}' (same address and website)"; break
+
+# 5. only businesses Overture has recently confirmed open. A business with no recent activity
+# signal and no open/closed status is where most outdated names are; parks, trails, peaks,
+# schools, churches and public buildings keep their names because those rarely change.
+STABLE = NATURE | {'school', 'place_of_learning', 'college_university', 'christian_place_of_worship', 'religious_organization',
+                   'government_office', 'post_office', 'fire_station', 'police_department', 'hospital', 'library', 'cemetery',
+                   'museum', 'monument', 'public_and_government_association', 'community_center', 'airport', 'apartments'}
+for r in rows:
+    if r['id'] in drop or r['verified'] or r['cat'] in STABLE or r['conf'] < 0.6: continue
+    drop[r['id']] = 'not recently confirmed open'
 
 def home_kind(n):
     n = n.lower()
