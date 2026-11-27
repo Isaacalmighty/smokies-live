@@ -1,5 +1,6 @@
 // Smokies Live: send a neighbor alert to phones (Supabase Edge Function).
 // POST { title, body, url?, lng?, lat?, radius_km?, topic? }  with header  x-push-secret: <PUSH_SECRET>
+// or POST { notification_id } (sent by the database for likes, comments, messages; see 05_videos_messages.sql)
 // Sends to every registered device, or only those within radius_km of (lng, lat).
 // Secrets (Supabase > Edge Functions > Secrets):
 //   PUSH_SECRET            any long random string; whoever calls this must send it
@@ -36,14 +37,38 @@ const km = (a: number, b: number, c: number, d: number) => {
   const R = 6371, r = Math.PI / 180, x = (c - a) * r * Math.cos(((b + d) / 2) * r), y = (d - b) * r; return R * Math.hypot(x, y);
 };
 
+// A like, comment, message or group post: the database hands us the new notification's id.
+// No secret is needed for this: we look the notification up ourselves, send it only to the person
+// it is for, and only once (pushed_at), so a stranger calling this can't send anything.
+const LINES: Record<string, (who: string, n: number, t: string) => [string, string]> = {
+  like: (w, n) => [n > 1 ? `${w} and ${n - 1} other${n > 2 ? 's' : ''} liked your post` : `${w} liked your post`, ''],
+  comment: (w, _n, t) => [`${w} commented`, t],
+  dm: (w, _n, t) => [w, t],
+  group_post: (w, _n, t) => [`${w} posted in your group`, t],
+  group_join: w => [`${w} joined your group`, ''],
+};
+async function forNotification(id: number) {
+  const { data: n } = await db.from('notifications').update({ pushed_at: new Date().toISOString() }).eq('id', id).is('pushed_at', null).select('id,user_id,actor,kind,n,text,post_id,thread_id,group_id').maybeSingle();
+  if (!n) return null;
+  const { data: a } = n.actor ? await db.from('profiles').select('name,handle').eq('id', n.actor).maybeSingle() : { data: null };
+  const who = a?.name || a?.handle || 'Someone';
+  const [title, body] = (LINES[n.kind] ?? (() => ['Smokies Live', n.text ?? '']))(who, n.n ?? 1, n.text ?? '');
+  const url = n.kind === 'dm' ? `#dm=${n.thread_id}` : n.post_id ? `#post=s${n.post_id}` : '#activity';
+  return { title, body, url, user_ids: [n.user_id], topic: '*' };
+}
+
 Deno.serve(async req => {
-  if (req.method !== 'POST' || !env('PUSH_SECRET') || req.headers.get('x-push-secret') !== env('PUSH_SECRET')) return new Response('no', { status: 401 });
-  const m = await req.json();
+  if (req.method !== 'POST') return new Response('no', { status: 405 });
+  let m = await req.json().catch(() => ({}));
+  if (m.notification_id != null) { m = await forNotification(Number(m.notification_id)); if (!m) return Response.json({ skipped: true }); }
+  else if (!env('PUSH_SECRET') || req.headers.get('x-push-secret') !== env('PUSH_SECRET')) return new Response('no', { status: 401 });
   if (!m.title) return new Response('title required', { status: 400 });
-  const { data: devs, error } = await db.from('devices').select('token,platform,lng,lat,topics');
+  let q = db.from('devices').select('token,platform,lng,lat,topics');
+  if (m.user_ids) q = q.in('user_id', m.user_ids);
+  const { data: devs, error } = await q;
   if (error) return new Response(error.message, { status: 500 });
   const topic = m.topic || 'alerts';
-  const list = (devs ?? []).filter(d => (d.topics ?? []).includes(topic) &&
+  const list = (devs ?? []).filter(d => (topic === '*' || (d.topics ?? []).includes(topic)) &&
     (m.lng == null || m.lat == null || d.lng == null || km(m.lng, m.lat, d.lng, d.lat) <= (m.radius_km ?? 40)));
   const data: Record<string, string> = {}; if (m.url) data.url = String(m.url); if (m.lng != null) { data.lng = String(m.lng); data.lat = String(m.lat); }
   const sa = env('FCM_SERVICE_ACCOUNT') ? JSON.parse(env('FCM_SERVICE_ACCOUNT')) : null;

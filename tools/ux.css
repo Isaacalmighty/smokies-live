@@ -171,3 +171,5 @@ body:not([data-view="map"]) #uxshow,body.picking #uxshow{opacity:0;pointer-event
   body.ux #sheet:not([hidden]) ~ #uxshow,body.ux.tool-open #uxshow{opacity:0;pointer-events:none}
 }
 @media (prefers-reduced-motion:reduce){#uxsheet,#uxscrim,.uxgroup,.uxbody>*,.uxshare button,.uxwhos button{animation:none!important}}
+.uxitem .cnt{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#ff3b5c;color:#fff;font:700 11.5px var(--font-body);font-style:normal;display:grid;place-items:center}
+.uxitem .cnt[hidden]{display:none}

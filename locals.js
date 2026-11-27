@@ -365,7 +365,7 @@
     M: { name: 'Memories', one: 'memory', cats: { m: ['Memory', '📜', 1e9] } },
     B: { name: 'Board', one: 'post', cats: { deal: ['Deal', '🏷️', 24 * 7], local: ['Locals-only deal', '🔑', 24 * 14], open: ['Open now', '🟢', 24], job: ['Hiring', '🧰', 24 * 30], event: ['Happening tonight', '🎶', 18] } },
     O: { name: 'Outages', one: 'outage', cats: { power: ['Power out', '⚡', 12], water: ['Water out', '🚱', 24], boil: ['Boil-water notice', '💧', 72], net: ['Internet or phone down', '📶', 12] } },
-    P: { name: 'Pets', one: 'pet', cats: { lostpet: ['Lost pet', '🐕', 72], foundpet: ['Found pet', '🐾', 72] } },
+    P: { name: 'Pets', one: 'pet', cats: { lostpet: ['Lost pet', '🐕', 24 * 14], foundpet: ['Found pet', '🐾', 24 * 14] } },
     T: { name: 'Trails', one: 'trail report', cats: { good: ['Good shape', '✅', 72], mud: ['Muddy', '🟤', 72], ice: ['Icy', '🧊', 48], tree: ['Tree down', '🌲', 24 * 7], bear: ['Bear activity', '🐻', 48], water: ['High water crossing', '🌊', 48], closed: ['Closed', '⛔', 24 * 7] } },
     E: { name: 'Events', one: 'event', cats: { sports: ['High school sports', '🏈', 0], score: ['Final score', '🏆', 48], church: ['Church', '⛪', 0], community: ['Community', '🎪', 0] } },
   };

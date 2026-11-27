@@ -109,7 +109,7 @@ export async function collect(log: (s: string) => void = () => {}) {
       if (!title || ((mode === 'broad' || mode === 'gn') && !LOCAL.test(text))) continue;
       const id = keyOf(title).slice(0, 60); if (!id || seen.has(id)) continue; seen.add(id);
       const source = outletOf(src);
-      if (it.published && Date.now() - +new Date(it.published) > 10 * 864e5) continue;
+      if (it.published && Date.now() - +new Date(it.published) > 7 * 864e5) continue;
       rows.push({ id, source, title, summary: it.summary && it.summary !== title ? it.summary : '', link: it.link, img: it.img, published: it.published || new Date().toISOString(), place: geotag(gaz, text) });
       n++; per[source] = (per[source] || 0) + 1;
     }
@@ -125,6 +125,27 @@ async function db(path: string, init: RequestInit = {}) {
   return r.status === 204 ? null : r.json();
 }
 
+// Expired community posts (reports, sightings, outages, trail reports, lost and found pets) and their files.
+// People's ordinary posts, group posts, memories, board posts and events are never touched.
+const KEEP_DAYS: [RegExp, number][] = [[/^R:(lostpet|foundpet)$/, 21], [/^R:/, 3], [/^[WOTP]:/, 21]];
+async function tidy(log: (s: string) => void | number) {
+  const since = new Date(Date.now() - 3 * 864e5).toISOString();
+  const rows = await db(`posts?select=id,tag,image_url,video_url,created_at&group_id=is.null&created_at=lt.${since}&or=(tag.like.R:*,tag.like.W:*,tag.like.O:*,tag.like.T:*,tag.like.P:*)&order=created_at.asc&limit=300`) as { id: string; tag: string; image_url: string | null; video_url: string | null; created_at: string }[];
+  let old = rows.filter(r => { const k = KEEP_DAYS.find(([re]) => re.test(r.tag)); return k && Date.now() - +new Date(r.created_at) > k[1] * 864e5; });
+  if (!old.length) return;
+  // a report people still confirm in the last day stays up
+  const votes = await db(`report_votes?select=post_id&vote=eq.still&created_at=gt.${new Date(Date.now() - 864e5).toISOString()}&post_id=in.(${old.map(r => r.id).join(',')})`).catch(() => []) as { post_id: string }[];
+  const alive = new Set(votes.map(v => v.post_id)); old = old.filter(r => !alive.has(r.id));
+  if (!old.length) return;
+  const files = old.flatMap(r => [r.image_url, r.video_url]).filter((u): u is string => !!u && u.includes('/storage/v1/object/public/photos/')).map(u => u.split('/storage/v1/object/public/photos/')[1].split('?')[0]);
+  if (files.length) {
+    const url = Deno.env.get('SUPABASE_URL')!, key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    await fetch(`${url}/storage/v1/object/photos`, { method: 'DELETE', headers: { apikey: key, authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: JSON.stringify({ prefixes: files }) });
+  }
+  await db(`posts?id=in.(${old.map(r => r.id).join(',')})`, { method: 'DELETE' });
+  log(`tidy: removed ${old.length} expired community posts and ${files.length} files`);
+}
+
 export async function run(dry = false) {
   const lines: string[] = [];
   const { rows, per } = await collect(s => lines.push(s));
@@ -137,7 +158,8 @@ export async function run(dry = false) {
   const fresh = rows.filter(r => !known.has(String(r.id)));
   if (!dry && rows.length) {
     await db('news_items?on_conflict=id', { method: 'POST', headers: { prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(rows.map(r => ({ ...r, seen_at: new Date().toISOString() }))) });
-    await db(`news_items?published=lt.${new Date(Date.now() - 14 * 864e5).toISOString()}`, { method: 'DELETE' });
+    await db(`news_items?published=lt.${new Date(Date.now() - 7 * 864e5).toISOString()}`, { method: 'DELETE' }); // the feed shows 3 days; keep a week
+    if (new Date().getUTCMinutes() < 5) await tidy(s => lines.push(s)).catch(e => lines.push('tidy failed: ' + e)); // once an hour
   }
   return { stories: rows.length, fresh: fresh.length, withPhoto: rows.filter(r => r.img).length, perOutlet: per, photosFetched: need.length, log: lines, sample: dry ? rows.slice(0, 8) : undefined };
 }
